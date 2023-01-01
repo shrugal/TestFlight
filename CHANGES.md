@@ -1,1 +1,2 @@
-- Initial release
+- Fix missing library import
+- Add ability to customize crafting skill level
