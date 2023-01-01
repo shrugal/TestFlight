@@ -5,7 +5,6 @@
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
 
-Libs\libs.xml
 TestFlight.lua
 
 #@do-not-package@
