@@ -1,0 +1,11 @@
+package-as: TestFlight
+manual-changelog:
+  filename: CHANGES.md
+  markup-type: markdown
+license-output: LICENSE
+enable-nolib-creation: no
+
+ignore:
+  - release.sh
+  - _config.yml
+  

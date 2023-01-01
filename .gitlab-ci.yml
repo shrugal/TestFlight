@@ -1,0 +1,57 @@
+image: registry.gitlab.com/shrugal/wow-packager:latest
+
+stages:
+  - build
+  - deploy
+
+.releases: &releases
+  only:
+    - /^\d[\d\.]*(-(alpha|beta)\d+)?$/
+
+build:
+  stage: build
+  only:
+    - tags
+    - web
+  script:
+    - release.sh -d
+  artifacts:
+    paths:
+      - .release/TestFlight/
+      - .release/*.zip
+
+curseforge:
+  <<: *releases
+  stage: deploy
+  environment:
+    name: CurseForge
+    url: https://www.curseforge.com/wow/addons/TestFlight
+  script:
+    - release.sh -ocelzWHG
+
+wowinterface:
+  <<: *releases
+  stage: deploy
+  environment:
+    name: WoWInterface
+    url: https://www.wowinterface.com/downloads/info24814-TestFlight.html
+  script:
+    - release.sh -ocelzLHG
+
+github:
+  <<: *releases
+  stage: deploy
+  environment:
+    name: GitHub
+    url: https://github.com/shrugal/TestFlight/releases
+  script:
+    - release.sh -ocelzLWG
+
+gitlab:
+  <<: *releases
+  stage: deploy
+  environment:
+    name: GitLab
+    url: https://gitlab.com/shrugal/TestFlight/releases
+  script:
+    - release.sh -ocelzLWH

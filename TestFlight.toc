@@ -1,0 +1,13 @@
+## Interface: 100002
+## Title: TestFlight
+## Notes: Experiment with crafting recipes without reagent and spec limits.
+## Notes-deDE: Experimentiere mit Berufsrezepten ohne Reagenz- oder Spezialisierungslimits.
+## Version: @project-version@
+## SavedVariables: TestFlightDB
+
+Libs\libs.xml
+TestFlight.lua
+
+#@do-not-package@
+## Version: 0-dev0
+#@end-do-not-package@
