@@ -199,7 +199,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 if not op then return end
 
                 local skill, difficulty = op.baseSkill + op.bonusSkill, op.baseDifficulty + op.bonusDifficulty
-                skillBox:SetMinMaxValues(skill, difficulty)
+                skillBox:SetMinMaxValues(skill, max(skill, difficulty))
                 skillBox:SetValue(skill + extraSkill)
             end)
         elseif ... == "Blizzard_ProfessionsCustomerOrders" then
