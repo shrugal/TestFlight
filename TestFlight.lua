@@ -60,6 +60,7 @@ local function enable()
     hook(form, "GetRecipeOperationInfo", function(self)
         ---@type CraftingOperationInfo
         local op = hooks.GetRecipeOperationInfo(self)
+        if not op then return end
 
         op.baseSkill, op.bonusSkill = op.baseSkill + op.bonusSkill, extraSkill
 
@@ -195,6 +196,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
             hooksecurefunc(form, "UpdateDetailsStats", function(self)
                 ---@type CraftingOperationInfo
                 local op = (enabled and hooks or self).GetRecipeOperationInfo(form)
+                if not op then return end
+
                 local skill, difficulty = op.baseSkill + op.bonusSkill, op.baseDifficulty + op.bonusDifficulty
                 skillBox:SetMinMaxValues(skill, difficulty)
                 skillBox:SetValue(skill + extraSkill)
