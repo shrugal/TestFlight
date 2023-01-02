@@ -1,2 +1,2 @@
-- Fix missing library import
-- Add ability to customize crafting skill level
+- Fix breaking pre dragonflight crafting
+- Fix for skill being higher than difficulty
