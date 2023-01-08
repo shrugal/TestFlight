@@ -349,7 +349,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
             hooksecurefunc(craftingForm, "UpdateDetailsStats", function(self)
                 ---@type CraftingOperationInfo
                 local op = (enabled and hooks[craftingForm] or self).GetRecipeOperationInfo(craftingForm)
-                if not op then return end
+                if not op or not op.isQualityCraft then return end
 
                 local skill, difficulty = op.baseSkill + op.bonusSkill, op.baseDifficulty + op.bonusDifficulty
                 skillBox:SetMinMaxValues(skill, max(skill, difficulty))

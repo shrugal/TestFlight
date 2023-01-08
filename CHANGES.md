@@ -1,4 +1,1 @@
-- Exempt recipe tracker from item count override
-- Added ability to show result with inspiration bonus
-- Added ability to track multiple crafts of a recipe
-- Added searching for reagents in crafting window or AH when clicking on them in the tracker
+- Fix breaking crafts without quality
