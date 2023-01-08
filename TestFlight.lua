@@ -240,6 +240,15 @@ local function InsertExperimentBox(parent, ...)
     input:SetChecked(enabled)
 
     tinsert(experimentBoxes, input)
+    return input
+end
+
+-- Amount spinner
+
+local function AmountBoxOnEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
+    GameTooltip:Show()
 end
 
 -- ObjectiveTracker line
@@ -279,7 +288,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
             -- ProfessionsFrame
 
             -- Insert experiment checkbox
-            InsertExperimentBox(craftingForm, "LEFT", craftingForm.AllocateBestQualityCheckBox.text, "RIGHT", 20, 0)
+            InsertExperimentBox(
+                craftingForm,
+                "LEFT", craftingForm.AllocateBestQualityCheckBox.text, "RIGHT", 20, 0
+            )
 
             -- Insert skill points spinner
             skillBox = InsertNumericSpinner(
@@ -317,11 +329,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
                 craftingForm,
-                function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip_AddNormalLine(GameTooltip, "Track mats for multiple crafts.")
-                    GameTooltip:Show()
-                end,
+                AmountBoxOnEnter,
                 function(self, value)
                     local recipe = craftingForm:GetRecipeInfo()
                     if not recipe then return end
@@ -442,6 +450,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
                 orderForm,
+                AmountBoxOnEnter,
                 function(self, value)
                     if not orderForm.order then return end
                     local recipeID = orderForm.order.spellID
