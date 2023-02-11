@@ -50,6 +50,24 @@ local function hasInspiration(op)
         op.bonusStats[1].bonusStatName == PROFESSIONS_OUTPUT_INSPIRATION_TITLE
 end
 
+local function ClearOptionalSlots(form)
+    if not form or not form.reagentSlots then return end
+
+    for reagentType, slots in pairs(form.reagentSlots) do
+        if reagentType ~= Enum.CraftingReagentType.Basic then
+            for _, slot in pairs(slots) do
+                local schematic = slot:GetReagentSlotSchematic()
+                local locked = Professions.GetReagentSlotStatus(schematic, form.currentRecipeInfo)
+                if locked and form.transaction:HasAllocations(schematic.slotIndex) then
+                    form.transaction:ClearAllocations(schematic.slotIndex)
+                    slot:ClearItem()
+                    form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
+                end
+            end
+        end
+    end
+end
+
 ---------------------------------------
 --             Overrides
 ---------------------------------------
@@ -57,6 +75,10 @@ end
 local function FnInfinite() return math.huge end
 
 local function FnFalse() return false end
+
+local function FnTrue() return true end
+
+local function FnNoop() end
 
 local function SchematicFormGetRecipeOperationInfo(self)
     ---@type CraftingOperationInfo
@@ -101,6 +123,61 @@ local function RecipeTrackerModuleUpdate(...)
 end
 
 ---------------------------------------
+--             Recraft
+---------------------------------------
+
+local function SetRecraftSlotLink(link)
+    local recraftSlot = craftingForm.recraftSlot
+
+    recraftSlot.InputSlot:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(recraftSlot.InputSlot, "ANCHOR_RIGHT")
+
+        GameTooltip:SetHyperlink(link)
+        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+        GameTooltip_AddInstructionLine(GameTooltip, RECRAFT_REAGENT_TOOLTIP_CLICK_TO_REPLACE)
+        GameTooltip:Show()
+    end);
+
+    recraftSlot.OutputSlot:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(recraftSlot.OutputSlot, "ANCHOR_RIGHT")
+
+        local reagents = craftingForm.transaction:CreateCraftingReagentInfoTbl()
+        GameTooltip:SetRecipeResultItem(
+            craftingForm.recipeSchematic.recipeID,
+            reagents,
+            craftingForm.transaction:GetRecraftAllocation(),
+            craftingForm:GetCurrentRecipeLevel()
+        )
+    end);
+
+    recraftSlot.OutputSlot:SetScript("OnClick", function()
+        GameTooltip:SetOwner(recraftSlot.OutputSlot, "ANCHOR_RIGHT")
+
+        local reagents = craftingForm.transaction:CreateCraftingReagentInfoTbl()
+        local outputItemInfo = C_TradeSkillUI.GetRecipeOutputItemData(
+            craftingForm.recipeSchematic.recipeID,
+            reagents
+        )
+
+        if outputItemInfo and outputItemInfo.hyperlink then
+            HandleModifiedItemClick(outputItemInfo.hyperlink)
+        end
+    end);
+
+    recraftSlot:Init(nil, FnTrue, FnNoop, link)
+end
+
+local function SetRecraftRecipe(recipeId)
+    local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string]]
+    if not link then return end
+
+    Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
+    C_TradeSkillUI.OpenRecipe(recipeId)
+
+    SetRecraftSlotLink(link)
+end
+
+---------------------------------------
 --             Hooking
 ---------------------------------------
 
@@ -112,6 +189,12 @@ local function refresh()
     -- ProfessionsFrame
     craftingForm:Refresh()
     craftingFrame:ValidateControls()
+
+    -- Set recraft slot again
+    local recraftData = Professions.GetRecraftingTransitionData()
+    if recraftData.isRecraft and not recraftData.itemGUID and recraftData.itemLink then
+        SetRecraftSlotLink(recraftData.itemLink)
+    end
 
     -- ProfessionsCustomerOrdersFrame
     if orderForm and orderForm:IsVisible() then
@@ -155,19 +238,8 @@ local function disable()
     unhook(craftingForm, "GetRecipeOperationInfo")
 
     -- Clear reagents in locked slots
-    for reagentType, slots in pairs(craftingForm.reagentSlots) do
-        if reagentType ~= Enum.CraftingReagentType.Basic then
-            for _, slot in pairs(slots) do
-                local schematic = slot:GetReagentSlotSchematic()
-                local locked = Professions.GetReagentSlotStatus(schematic, craftingForm.currentRecipeInfo)
-                if locked and craftingForm.transaction:HasAllocations(schematic.slotIndex) then
-                    craftingForm.transaction:ClearAllocations(schematic.slotIndex)
-                    slot:ClearItem()
-                    craftingForm:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
-                end
-            end
-        end
-    end
+    ClearOptionalSlots(craftingForm)
+    ClearOptionalSlots(orderForm)
 
     -- ObjectiveTrackerFrame
     unhook(recipeTracker, "Update")
@@ -345,7 +417,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
             amountBox:SetMinMaxValues(1, math.huge)
             amountBoxes[craftingForm] = amountBox
 
-            -- Hook upddate stats
+            -- Hook update stats
             hooksecurefunc(craftingForm, "UpdateDetailsStats", function(self)
                 ---@type CraftingOperationInfo
                 local op = (enabled and hooks[craftingForm] or self).GetRecipeOperationInfo(craftingForm)
@@ -445,7 +517,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
             orderReagents = orderForm.ReagentContainer
 
             -- Insert experiment checkbox
-            InsertExperimentBox(orderReagents, "BOTTOMLEFT")
+            InsertExperimentBox(
+                orderReagents,
+                "LEFT", orderForm.AllocateBestQualityCheckBox.text, "RIGHT", 20, 0
+            )
 
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
@@ -518,6 +593,65 @@ frame:SetScript("OnEvent", function(_, event, ...)
         end
     end
 end)
+
+---------------------------------------
+--              Commands
+---------------------------------------
+
+SLASH_TESTFLIGHT1 = "/testflight"
+SLASH_TESTFLIGHT2 = "/tf"
+
+local function ParseArgs(input)
+    input = " " .. input
+
+    local args = {}
+    local link = 0
+
+    for s in input:gmatch("[| ]+[^| ]+") do
+        if link == 0 and s:sub(1, 1) == " " then
+            s = s:gsub("^ +", "")
+            tinsert(args, s)
+        else
+            args[#args] = args[#args] .. s
+        end
+
+        if s:sub(1, 2) == "|H" then link = 1 end
+        if s:sub(1, 2) == "|h" then link = link + 1 % 3 end
+    end
+
+    return args
+end
+
+---@param link string
+local function GetItemId(link) return link and tonumber(link:match("|Hitem:(%d+)")) end
+
+local function Print(msg) print("|cff00bbbb[TestFlight]|r " .. msg) end
+
+---@param input string
+function SlashCmdList.TESTFLIGHT(input)
+    local args = ParseArgs(input)
+    local cmd = args[1]
+
+    if cmd == "recraft" or cmd == "rc" then
+        -- Get item ID
+        local id = GetItemId(args[2])
+        if not id then Print("Recraft: First parameter must be an item link.") return end
+
+        -- Make sure the crafting frame is open
+        local frameOpen = ProfessionsFrame and ProfessionsFrame:IsShown()
+        if not frameOpen then Print("Recraft: Please open the crafting window first.") return end
+
+        for _, recipeId in pairs(C_TradeSkillUI.GetAllRecipeIDs()) do
+            local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string ]]
+            if id == GetItemId(link) then SetRecraftRecipe(recipeId) return end
+        end
+
+        Print("Recraft: No recipe for link found.")
+    else
+        Print("Help")
+        Print("|cffcccccc/testflight recraft [link]|r: Set recraft UI to an item given by link")
+    end
+end
 
 ---------------------------------------
 --               Types

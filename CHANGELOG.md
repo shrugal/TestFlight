@@ -1,3 +1,7 @@
+Version 1.04
+
+- Fix breaking crafts without quality
+
 Version 1.03
 
 - Exempt recipe tracker from item count override
