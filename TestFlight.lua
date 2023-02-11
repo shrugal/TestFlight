@@ -616,7 +616,7 @@ local function ParseArgs(input)
         end
 
         if s:sub(1, 2) == "|H" then link = 1 end
-        if s:sub(1, 2) == "|h" then link = link + 1 % 3 end
+        if s:sub(1, 2) == "|h" then link = (link + 1) % 3 end
     end
 
     return args
