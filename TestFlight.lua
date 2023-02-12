@@ -78,7 +78,8 @@ local function FnFalse() return false end
 
 local function FnTrue() return true end
 
-local function FnNoop() end
+local function FnNoop()
+end
 
 local function SchematicFormGetRecipeOperationInfo(self)
     ---@type CraftingOperationInfo
@@ -101,7 +102,10 @@ local function SchematicFormGetRecipeOperationInfo(self)
         local breakpoints = QUALITY_BREAKPOINTS[rank]
 
         for i, v in ipairs(breakpoints) do
-            if v > p then rank = i - 1 break end
+            if v > p then
+                rank = i - 1
+                break
+            end
         end
 
         local lower, upper = breakpoints[rank], breakpoints[rank + 1] or 1
@@ -155,9 +159,9 @@ local function SetRecraftSlotLink(link)
 
         local reagents = craftingForm.transaction:CreateCraftingReagentInfoTbl()
         local outputItemInfo = C_TradeSkillUI.GetRecipeOutputItemData(
-            craftingForm.recipeSchematic.recipeID,
-            reagents
-        )
+                craftingForm.recipeSchematic.recipeID,
+                reagents
+            )
 
         if outputItemInfo and outputItemInfo.hyperlink then
             HandleModifiedItemClick(outputItemInfo.hyperlink)
@@ -191,9 +195,9 @@ local function refresh()
     craftingFrame:ValidateControls()
 
     -- Set recraft slot again
-    local recraftData = Professions.GetRecraftingTransitionData()
-    if recraftData.isRecraft and not recraftData.itemGUID and recraftData.itemLink then
-        SetRecraftSlotLink(recraftData.itemLink)
+    local data = Professions.GetRecraftingTransitionData()
+    if data and data.isRecraft and not data.itemGUID and data.itemLink then
+        SetRecraftSlotLink(data.itemLink)
     end
 
     -- ProfessionsCustomerOrdersFrame
@@ -367,53 +371,53 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
             -- Insert skill points spinner
             skillBox = InsertNumericSpinner(
-                craftingForm.Details.StatLines.SkillStatLine,
-                function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
-                    GameTooltip:Show()
-                end,
-                function(self, value)
-                    extraSkill = max(0, value - (self.min or 0))
-                    craftingFrame.SchematicForm:UpdateDetailsStats()
-                end,
-                "RIGHT"
-            )
+                    craftingForm.Details.StatLines.SkillStatLine,
+                    function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
+                        GameTooltip:Show()
+                    end,
+                    function(self, value)
+                        extraSkill = max(0, value - (self.min or 0))
+                        craftingFrame.SchematicForm:UpdateDetailsStats()
+                    end,
+                    "RIGHT"
+                )
 
             -- Insert inspiration checkbox
             inspirationBox = InsertCheckbox(
-                craftingForm.Details.StatLines.SkillStatLine,
-                function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip_AddNormalLine(GameTooltip, "Show result with inspiration bonus.")
-                    GameTooltip:Show()
-                end,
-                function(self)
-                    if withInspiration == self:GetChecked() then return end
-                    withInspiration = self:GetChecked()
-                    refresh()
-                end,
-                "TOPLEFT", skillBox.DecrementButton, "BOTTOMLEFT", -3, 3
-            )
+                    craftingForm.Details.StatLines.SkillStatLine,
+                    function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip_AddNormalLine(GameTooltip, "Show result with inspiration bonus.")
+                        GameTooltip:Show()
+                    end,
+                    function(self)
+                        if withInspiration == self:GetChecked() then return end
+                        withInspiration = self:GetChecked()
+                        refresh()
+                    end,
+                    "TOPLEFT", skillBox.DecrementButton, "BOTTOMLEFT", -3, 3
+                )
             inspirationBox:SetScale(0.9)
             inspirationBox:Hide()
 
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
-                craftingForm,
-                AmountBoxOnEnter,
-                function(self, value)
-                    local recipe = craftingForm:GetRecipeInfo()
-                    if not recipe then return end
-                    amounts[recipe.recipeID] = value > 1 and value or nil
-                    ObjectiveTracker_Update(OBJECTIVE_TRACKER_UPDATE_MODULE_PROFESSION_RECIPE)
-                end,
-                "RIGHT",
-                craftingForm.TrackRecipeCheckBox,
-                "LEFT",
-                -30,
-                1
-            )
+                    craftingForm,
+                    AmountBoxOnEnter,
+                    function(self, value)
+                        local recipe = craftingForm:GetRecipeInfo()
+                        if not recipe then return end
+                        amounts[recipe.recipeID] = value > 1 and value or nil
+                        ObjectiveTracker_Update(OBJECTIVE_TRACKER_UPDATE_MODULE_PROFESSION_RECIPE)
+                    end,
+                    "RIGHT",
+                    craftingForm.TrackRecipeCheckBox,
+                    "LEFT",
+                    -30,
+                    1
+                )
             amountBox:SetMinMaxValues(1, math.huge)
             amountBoxes[craftingForm] = amountBox
 
@@ -484,9 +488,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
                                 if name then
                                     local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(
-                                        PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired),
-                                        name
-                                    )
+                                            PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired),
+                                            name
+                                        )
                                     local metQuantity = quantity >= quantityRequired
                                     local dash = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
                                     local color = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
@@ -509,7 +513,6 @@ frame:SetScript("OnEvent", function(_, event, ...)
                     end
                 end
             end)
-
         elseif ... == "Blizzard_ProfessionsCustomerOrders" then
             -- ProfessionsCustomerOrdersFrame
 
@@ -524,16 +527,16 @@ frame:SetScript("OnEvent", function(_, event, ...)
 
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
-                orderForm,
-                AmountBoxOnEnter,
-                function(self, value)
-                    if not orderForm.order then return end
-                    local recipeID = orderForm.order.spellID
-                    amounts[recipeID] = value > 1 and value or nil
-                    ObjectiveTracker_Update(OBJECTIVE_TRACKER_UPDATE_MODULE_PROFESSION_RECIPE)
-                end,
-                "LEFT", orderForm.TrackRecipeCheckBox, "RIGHT", 30, 1
-            )
+                    orderForm,
+                    AmountBoxOnEnter,
+                    function(self, value)
+                        if not orderForm.order then return end
+                        local recipeID = orderForm.order.spellID
+                        amounts[recipeID] = value > 1 and value or nil
+                        ObjectiveTracker_Update(OBJECTIVE_TRACKER_UPDATE_MODULE_PROFESSION_RECIPE)
+                    end,
+                    "LEFT", orderForm.TrackRecipeCheckBox, "RIGHT", 30, 1
+                )
             amountBox:SetMinMaxValues(1, math.huge)
             amountBoxes[orderForm] = amountBox
 
@@ -635,15 +638,24 @@ function SlashCmdList.TESTFLIGHT(input)
     if cmd == "recraft" or cmd == "rc" then
         -- Get item ID
         local id = GetItemId(args[2])
-        if not id then Print("Recraft: First parameter must be an item link.") return end
+        if not id then
+            Print("Recraft: First parameter must be an item link.")
+            return
+        end
 
         -- Make sure the crafting frame is open
         local frameOpen = ProfessionsFrame and ProfessionsFrame:IsShown()
-        if not frameOpen then Print("Recraft: Please open the crafting window first.") return end
+        if not frameOpen then
+            Print("Recraft: Please open the crafting window first.")
+            return
+        end
 
         for _, recipeId in pairs(C_TradeSkillUI.GetAllRecipeIDs()) do
             local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string ]]
-            if id == GetItemId(link) then SetRecraftRecipe(recipeId) return end
+            if id == GetItemId(link) then
+                SetRecraftRecipe(recipeId)
+                return
+            end
         end
 
         Print("Recraft: No recipe for link found.")

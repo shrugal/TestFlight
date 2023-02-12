@@ -1,5 +1,1 @@
-- Update ToC version for patch 10.0.5
-- Add chat command to set recraft item by item link
-- Fix experiment checkbox placement in order UI
-- Fix not clearing optional reagent slots in order UI
-- Fix clearing optional slots if crafting UI hasn't been opened yet
+- Fix nil error on UI refresh without recraft data
