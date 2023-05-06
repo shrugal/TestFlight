@@ -1,1 +1,5 @@
-- Fix nil error on UI refresh without recraft data
+- Updated ToC version for patch 10.1
+- Improve crafting tracking to update tracked recipe amounts
+- Fix optional reagents override
+- Fix clearing optional reagents when disabling experimentation mode
+- Fix recipe objective tracker

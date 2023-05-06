@@ -1,3 +1,7 @@
+Version 1.06
+
+- Fix nil error on UI refresh without recraft data
+
 Version 1.05
 
 - Update ToC version for patch 10.0.5
