@@ -15,8 +15,7 @@ local amountBoxes, amounts = {}, nil
 local craftingRecipeID
 
 -- Blizzard frames
-local craftingFrame = ProfessionsFrame.CraftingPage
-local craftingForm = craftingFrame.SchematicForm
+local craftingFrame, craftingForm, flyout
 local orderForm, orderReagents
 local recipeTracker = PROFESSION_RECIPE_TRACKER_MODULE
 
@@ -26,9 +25,6 @@ local QUALITY_BREAKPOINTS = {
 }
 
 local LINE_TYPE_ANIM = { template = "QuestObjectiveAnimLineTemplate", freeLines = {} };
-
-local flyout = OpenProfessionsItemFlyout()
-CloseProfessionsItemFlyout()
 
 ---------------------------------------
 --              Util
@@ -379,10 +375,94 @@ frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 frame:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" then
         if ... == Name then
+            -- TestFlight
+
             TestFlightDB = TestFlightDB or { amounts = {} }
             amounts = TestFlightDB.amounts
 
+            -- RecipeObjectiveTracker
+
+            -- Hook update
+            hooksecurefunc(recipeTracker, "Update", function(self)
+                for i = 0, 1 do
+                    local isRecraft = i ~= 0
+                    for _, recipeID in ipairs(C_TradeSkillUI.GetRecipesTracked(isRecraft)) do
+                        local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+
+                        -- Set header
+                        local amount = amounts[recipe.recipeID]
+                        local block = self:GetBlock(NegateIf(recipeID, isRecraft))
+
+                        local blockName = recipe.name
+                        if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
+                        if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
+
+                        self:SetBlockHeader(block, blockName);
+
+                        -- Set reagents
+                        local slots = {};
+                        for j, schematic in ipairs(recipe.reagentSlotSchematics) do
+                            if ProfessionsUtil.IsReagentSlotRequired(schematic) then
+                                if ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) then
+                                    table.insert(slots, 1, j);
+                                else
+                                    table.insert(slots, j);
+                                end
+                            end
+                        end
+
+                        for _, j in ipairs(slots) do
+                            local schematic = recipe.reagentSlotSchematics[j]
+
+                            local reagent = schematic.reagents[1]
+                            local quantityRequired = schematic.quantityRequired * (amounts[recipe.recipeID] or 1)
+                            local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
+                            local name = nil
+
+                            if ProfessionsUtil.IsReagentSlotBasicRequired(schematic) then
+                                if reagent.itemID then
+                                    name = Item:CreateFromItemID(reagent.itemID):GetItemName();
+                                elseif reagent.currencyID then
+                                    local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(reagent.currencyID)
+                                    if currencyInfo then name = currencyInfo.name end
+                                end
+                            elseif ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) and schematic.slotInfo then
+                                name = schematic.slotInfo.slotText
+                            end
+
+                            if name then
+                                local count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired)
+                                local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(count, name)
+                                local metQuantity = quantity >= quantityRequired
+                                local dash = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
+                                local color = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
+
+                                ---@type QuestObjectiveAnimLine
+                                local line = self:AddObjective(block, j, text, LINE_TYPE_ANIM, nil, dash, color)
+                                line.Check:SetShown(metQuantity)
+
+                                line.itemName = name
+
+                                if not line.Button then
+                                    line.Button = CreateFrame("Button", nil, line)
+                                    line.Button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+                                    line.Button:SetAllPoints(line)
+                                    line.Button:SetScript("OnClick", TrackerLineOnClick)
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+
+        elseif ... == "Blizzard_Professions" then
             -- ProfessionsFrame
+
+            craftingFrame = ProfessionsFrame.CraftingPage
+            craftingForm = craftingFrame.SchematicForm
+
+            flyout = OpenProfessionsItemFlyout()
+            CloseProfessionsItemFlyout()
 
             -- Insert experiment checkbox
             InsertExperimentBox(
@@ -476,81 +556,6 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 self.CreateMultipleInputBox:SetEnabled(false)
                 self:SetCreateButtonTooltipText("Experimentation mode is enabled.")
             end)
-
-            -- RecipeObjectiveTracker
-
-            -- Hook update
-            hooksecurefunc(recipeTracker, "Update", function(self)
-                for i = 0, 1 do
-                    local isRecraft = i ~= 0
-                    for _, recipeID in ipairs(C_TradeSkillUI.GetRecipesTracked(isRecraft)) do
-                        local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-
-                        -- Set header
-                        local amount = amounts[recipe.recipeID]
-                        local block = self:GetBlock(NegateIf(recipeID, isRecraft))
-
-                        local blockName = recipe.name
-                        if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
-                        if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
-
-                        self:SetBlockHeader(block, blockName);
-
-                        -- Set reagents
-                        local slots = {};
-                        for j, schematic in ipairs(recipe.reagentSlotSchematics) do
-                            if Professions.IsReagentSlotRequired(schematic) then
-                                if Professions.IsReagentSlotModifyingRequired(schematic) then
-                                    table.insert(slots, 1, j);
-                                else
-                                    table.insert(slots, j);
-                                end
-                            end
-                        end
-
-                        for _, j in ipairs(slots) do
-                            local schematic = recipe.reagentSlotSchematics[j]
-
-                            local reagent = schematic.reagents[1]
-                            local quantityRequired = schematic.quantityRequired * (amounts[recipe.recipeID] or 1)
-                            local quantity = Professions.AccumulateReagentsInPossession(schematic.reagents)
-                            local name = nil
-
-                            if Professions.IsReagentSlotBasicRequired(schematic) then
-                                if reagent.itemID then
-                                    name = Item:CreateFromItemID(reagent.itemID):GetItemName();
-                                elseif reagent.currencyID then
-                                    local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(reagent.currencyID)
-                                    if currencyInfo then name = currencyInfo.name end
-                                end
-                            elseif Professions.IsReagentSlotModifyingRequired(schematic) and schematic.slotInfo then
-                                name = schematic.slotInfo.slotText
-                            end
-
-                            if name then
-                                local count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired)
-                                local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(count, name)
-                                local metQuantity = quantity >= quantityRequired
-                                local dash = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
-                                local color = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
-
-                                ---@type QuestObjectiveAnimLine
-                                local line = self:AddObjective(block, j, text, LINE_TYPE_ANIM, nil, dash, color)
-                                line.Check:SetShown(metQuantity)
-
-                                line.itemName = name
-
-                                if not line.Button then
-                                    line.Button = CreateFrame("Button", nil, line)
-                                    line.Button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-                                    line.Button:SetAllPoints(line)
-                                    line.Button:SetScript("OnClick", TrackerLineOnClick)
-                                end
-                            end
-                        end
-                    end
-                end
-            end)
         elseif ... == "Blizzard_ProfessionsCustomerOrders" then
             -- ProfessionsCustomerOrdersFrame
 
@@ -604,7 +609,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
     elseif event == "TRACKED_RECIPE_UPDATE" then
         local recipeID, tracked = ...;
 
-        local recipe = craftingForm:GetRecipeInfo()
+        local recipe = craftingForm and craftingForm:GetRecipeInfo()
         if recipe and recipe.recipeID == recipeID then
             local amountBox = amountBoxes[craftingForm]
             amountBox:SetShown(tracked)
