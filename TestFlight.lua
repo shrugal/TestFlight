@@ -368,7 +368,6 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("TRACKED_RECIPE_UPDATE")
 frame:RegisterEvent("TRADE_SKILL_CRAFT_BEGIN")
-frame:RegisterEvent("UPDATE_TRADESKILL_CAST_COMPLETE")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
@@ -625,7 +624,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         craftingRecipeID = ...
     elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
         craftingRecipeID = nil
-    elseif event == "UPDATE_TRADESKILL_CAST_COMPLETE" or event == "UNIT_SPELLCAST_SUCCEEDED" then
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         local recipeID = craftingRecipeID
         craftingRecipeID = nil
 
