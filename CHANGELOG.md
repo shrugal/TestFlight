@@ -1,3 +1,7 @@
+Version 1.08
+
+- Updated for patch 10.1.5
+
 Version 1.07
 
 - Updated ToC version for patch 10.1

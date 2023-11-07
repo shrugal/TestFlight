@@ -1,1 +1,2 @@
-- Updated for patch 10.1.5
+- Updated for patch 10.2
+- Fixed not applying UI changes when the professions UI is already loaded

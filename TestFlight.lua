@@ -368,13 +368,15 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("TRACKED_RECIPE_UPDATE")
 frame:RegisterEvent("TRADE_SKILL_CRAFT_BEGIN")
-frame:RegisterEvent("UPDATE_TRADESKILL_CAST_COMPLETE")
+frame:RegisterEvent("UPDATE_TRADESKILL_CAST_STOPPED")
 frame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 
 frame:SetScript("OnEvent", function(_, event, ...)
     if event == "ADDON_LOADED" then
-        if ... == Name then
+        local isSelf = ... == Name
+
+        if isSelf then
             -- TestFlight
 
             TestFlightDB = TestFlightDB or { amounts = {} }
@@ -454,8 +456,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
                     end
                 end
             end)
+        end
 
-        elseif ... == "Blizzard_Professions" then
+        if ... == "Blizzard_Professions" or isSelf and IsAddOnLoaded("Blizzard_Professions") then
             -- ProfessionsFrame
 
             craftingFrame = ProfessionsFrame.CraftingPage
@@ -556,7 +559,9 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 self.CreateMultipleInputBox:SetEnabled(false)
                 self:SetCreateButtonTooltipText("Experimentation mode is enabled.")
             end)
-        elseif ... == "Blizzard_ProfessionsCustomerOrders" then
+        end
+
+        if ... == "Blizzard_ProfessionsCustomerOrders" or isSelf and IsAddOnLoaded("Blizzard_ProfessionsCustomerOrders") then
             -- ProfessionsCustomerOrdersFrame
 
             orderForm = ProfessionsCustomerOrdersFrame.Form
@@ -606,6 +611,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 end)
             end)
         end
+
     elseif event == "TRACKED_RECIPE_UPDATE" then
         local recipeID, tracked = ...;
 
@@ -625,7 +631,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
         craftingRecipeID = ...
     elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
         craftingRecipeID = nil
-    elseif event == "UPDATE_TRADESKILL_CAST_COMPLETE" or event == "UNIT_SPELLCAST_SUCCEEDED" then
+    elseif event == "UPDATE_TRADESKILL_CAST_STOPPED" or event == "UNIT_SPELLCAST_SUCCEEDED" then
         local recipeID = craftingRecipeID
         craftingRecipeID = nil
 
