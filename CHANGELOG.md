@@ -1,3 +1,8 @@
+Version 1.09
+
+- Updated for patch 10.2
+- Fixed not applying UI changes when the professions UI is already loaded
+
 Version 1.08
 
 - Updated for patch 10.1.5

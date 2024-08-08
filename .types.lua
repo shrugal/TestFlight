@@ -12,6 +12,9 @@
 ---@field GetRecipeItemLink fun(recipeID: number): string
 C_TradeSkillUI = {}
 
+---@class GameTooltip
+---@field SetRecipeResultItem fun(recipeSpellID: number, reagents?: CraftingReagentInfo[], allocationItemGUID?: string, overrideLevel?: number, overrideQualityID?: number)
+
 ---@class CheckButton
 ---@field text FontString
 
