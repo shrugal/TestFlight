@@ -317,8 +317,6 @@ end
 ---------------------------------------
 
 local function SetRecraftRecipe(recipeId, link, transition)
-    print("SetRecraftRecipe", recipeId, link, transition)
-
     recraftRecipeId = recipeId
     recraftItemLink = recipeId and link
 
@@ -335,10 +333,6 @@ local function SetRecraftRecipe(recipeId, link, transition)
     end
 
     craftingForm.recraftSlot:Init(nil, FnTrue, FnNoop, link)
-
-    print("Quality", C_TradeSkillUI.GetItemCraftedQualityByItemInfo(link))
-    print("InputSlot.isProfessionItem", craftingForm.recraftSlot.InputSlot.isProfessionItem)
-    print("OutputSlot.isProfessionItem", craftingForm.recraftSlot.OutputSlot.isProfessionItem)
 end
 
 ---------------------------------------
@@ -534,7 +528,8 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 end,
                 function(self, value)
                     extraSkill = max(0, value - (self.min or 0))
-                    craftingForm:Refresh()
+                    craftingForm:UpdateDetailsStats()
+                    craftingForm:UpdateRecraftSlot()
                 end,
                 "RIGHT"
             )
