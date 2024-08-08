@@ -13,7 +13,8 @@
 C_TradeSkillUI = {}
 
 ---@class GameTooltip
----@field SetRecipeResultItem fun(recipeSpellID: number, reagents?: CraftingReagentInfo[], allocationItemGUID?: string, overrideLevel?: number, overrideQualityID?: number)
+---@field SetRecipeResultItem fun(self: GameTooltip, recipeSpellID: number, reagents?: CraftingReagentInfo[], allocationItemGUID?: string, overrideLevel?: number, overrideQualityID?: number)
+---@field SetItemByGUID fun(self: GameTooltip, itemGUID: string)
 
 ---@class CheckButton
 ---@field text FontString
@@ -31,4 +32,6 @@ C_TradeSkillUI = {}
 ---@field itemName string
 ---@field Button Button
 ---@field Text FontString
----@field Check Texture
+---@field Icon Texture
+---@field Dash FontString
+---@field dashStyle number

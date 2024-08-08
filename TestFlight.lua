@@ -7,12 +7,12 @@ local hooks = {}
 local experimentBoxes = {}
 ---@type NumericInputSpinner, number
 local skillBox, extraSkill = nil, 0
----@type CheckButton
-local inspirationBox, withInspiration = nil, false
 ---@type table<table, NumericInputSpinner>, table<integer, integer>
 local amountBoxes, amounts = {}, nil
 ---@type integer?
 local craftingRecipeID
+---@type string?, string?
+local recraftRecipeId, recraftItemLink
 
 -- Blizzard frames
 local craftingFrame, craftingForm, flyout
@@ -23,8 +23,6 @@ local QUALITY_BREAKPOINTS = {
     [3] = { 0, 0.5, 1 },
     [5] = { 0, 0.2, 0.5, 0.8, 1 }
 }
-
-local LINE_TYPE_ANIM = { template = "QuestObjectiveAnimLineTemplate", freeLines = {} };
 
 ---------------------------------------
 --              Util
@@ -46,12 +44,6 @@ local function unhook(obj, name)
     return fn
 end
 
----@param op CraftingOperationInfo
-local function hasInspiration(op)
-    return op and op.bonusStats and op.bonusStats[1] and
-        op.bonusStats[1].bonusStatName == PROFESSIONS_OUTPUT_INSPIRATION_TITLE
-end
-
 local function ClearOptionalSlots(form)
     if not form or not form.reagentSlots then return end
 
@@ -59,7 +51,18 @@ local function ClearOptionalSlots(form)
         if reagentType ~= Enum.CraftingReagentType.Basic then
             for _, slot in pairs(slots) do
                 local schematic = slot:GetReagentSlotSchematic()
-                if form.transaction:HasAnyAllocations(schematic.slotIndex) then
+
+                if slot:GetOriginalItem() then
+                    if not slot:IsOriginalItemSet() then
+                        local modification = form.transaction:GetModification(schematic.dataSlotIndex);
+                        if modification and modification.itemID > 0 then
+                            local reagent = Professions.CreateCraftingReagentByItemID(modification.itemID);
+                            form.transaction:OverwriteAllocation(schematic.slotIndex, reagent, schematic.quantityRequired);
+                        end
+                        slot:RestoreOriginalItem()
+                        form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
+                    end
+                elseif form.transaction:HasAnyAllocations(schematic.slotIndex) then
                     form.transaction:ClearAllocations(schematic.slotIndex)
                     slot:ClearItem()
                     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
@@ -91,28 +94,22 @@ local function SchematicFormGetRecipeOperationInfo(self)
     if op.isQualityCraft then
         local skill, difficulty = op.baseSkill + op.bonusSkill, op.baseDifficulty + op.bonusDifficulty
 
-        if withInspiration and hasInspiration(op) then
-            local desc = op.bonusStats[1].ratingDescription
-            local inspirationSkill = tonumber(desc:match("(%d+)[^.%d%%]") or desc:match("(%d+)%.?$")) or 0
-            skill = skill + inspirationSkill
-        end
-
         local p = skill / difficulty
         local rank = self.currentRecipeInfo.maxQuality
         local breakpoints = QUALITY_BREAKPOINTS[rank]
 
         for i, v in ipairs(breakpoints) do
-            if v > p then
-                rank = i - 1
-                break
+            if v > p then rank = i - 1 break
             end
         end
 
         local lower, upper = breakpoints[rank], breakpoints[rank + 1] or 1
         local quality = rank + (upper == lower and 0 or (p - lower) / (upper - lower))
+        local qualityID = self.currentRecipeInfo.qualityIDs[rank]
 
         op.quality = quality
         op.craftingQuality = rank
+        op.craftingQualityID = qualityID
         op.lowerSkillThreshold = difficulty * lower
         op.upperSkillTreshold = difficulty * upper
     end
@@ -130,64 +127,218 @@ local function RecipeTrackerModuleUpdate(...)
     hook(ItemUtil, "GetCraftingReagentCount", fn2)
 end
 
+---@param self Button
+local function TrackerLineOnClick(self, mouseButton)
+    local line = self:GetParent() --[[@as QuestObjectiveAnimLine]]
+    local block = line:GetParent()
+
+    if mouseButton == "RightButton"
+        or IsModifiedClick("RECIPEWATCHTOGGLE")
+        or IsModifiedClick("CHATLINK") and ChatEdit_GetActiveWindow()
+    then
+        return recipeTracker:OnBlockHeaderClick(block, mouseButton)
+    end
+
+    CloseDropDownMenus()
+
+    if AuctionHouseFrame and AuctionHouseFrame:IsVisible() then
+        if AuctionHouseFrame:SetSearchText(line.itemName) then AuctionHouseFrame.SearchBar:StartSearch() end
+    else
+        EventRegistry:TriggerEvent("Professions.ReagentClicked", line.itemName)
+    end
+end
+
+local function RecipeTrackerAddRecipe(self, recipeID, isRecraft)
+    local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+    local amount = amounts[recipe.recipeID]
+
+    -- Set header
+    local block = self:GetExistingBlock(NegateIf(recipeID, isRecraft))
+
+    local blockName = recipe.name
+    if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
+    if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
+
+    block:SetHeader(blockName);
+
+    -- Set reagents
+    local slots = {};
+    for j, schematic in ipairs(recipe.reagentSlotSchematics) do
+        if ProfessionsUtil.IsReagentSlotRequired(schematic) then
+            if ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) then
+                table.insert(slots, 1, j);
+            else
+                table.insert(slots, j);
+            end
+        end
+    end
+
+    for _, j in ipairs(slots) do
+        local schematic = recipe.reagentSlotSchematics[j]
+
+        local reagent = schematic.reagents[1]
+        local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
+        local quantityRequired = schematic.quantityRequired * (amounts[recipe.recipeID] or 1)
+        local metQuantity = quantity >= quantityRequired
+        local name = nil
+
+        if ProfessionsUtil.IsReagentSlotBasicRequired(schematic) then
+            if reagent.itemID then
+                name = Item:CreateFromItemID(reagent.itemID):GetItemName();
+            elseif reagent.currencyID then
+                local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(reagent.currencyID)
+                if currencyInfo then name = currencyInfo.name end
+            end
+        elseif ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) and schematic.slotInfo then
+            name = schematic.slotInfo.slotText
+        end
+
+        if name then
+            local count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired)
+            local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(count, name)
+            local dashStyle = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
+            local colorStyle = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
+
+            ---@type QuestObjectiveAnimLine
+            local line = block:GetExistingLine(j)
+
+            -- Dash style
+            if line.dashStyle ~= dashStyle then
+                line.Dash[metQuantity and "Hide" or "Show"](line.Dash)
+                line.Dash:SetText(QUEST_DASH);
+                line.dashStyle = dashStyle
+            end
+
+            -- Text
+            local oldHeight = line:GetHeight()
+            local newHeight = block:SetStringText(line.Text, text, false, colorStyle, block.isHighlighted)
+            line:SetHeight(newHeight)
+            block.height = block.height - oldHeight + newHeight
+
+            -- Icon
+            line.Icon:SetShown(metQuantity)
+
+            -- OnClick
+            line.itemName = name
+            if not line.Button then
+                line.Button = CreateFrame("Button", nil, line)
+                line.Button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+                line.Button:SetAllPoints(line)
+                line.Button:SetScript("OnClick", TrackerLineOnClick)
+            end
+        end
+    end
+end
+
 local function FlyoutInitializeContents(...)
     flyout.OnElementEnabledImplementation = flyout.GetElementValidImplementation or FnTrue
     hooks[flyout].InitializeContents(...)
+end
+
+local function CraftOutputSlotOnEnter(slot)
+    local self = craftingForm
+
+    GameTooltip:SetOwner(slot, "ANCHOR_RIGHT")
+    local reagents = self.transaction:CreateCraftingReagentInfoTbl()
+
+    slot:SetScript("OnUpdate", function()
+        GameTooltip:SetRecipeResultItem(
+            self.recipeSchematic.recipeID,
+            reagents,
+            self.transaction:GetAllocationItemGUID(),
+            self:GetCurrentRecipeLevel(),
+            self:GetRecipeOperationInfo().craftingQualityID
+        )
+    end)
+end
+
+local function RecraftInputSlotOnEnter(slot)
+    local self = craftingForm
+
+    GameTooltip:SetOwner(slot, "ANCHOR_RIGHT")
+
+    local itemGUID = self.transaction:GetRecraftAllocation()
+    if itemGUID then
+        GameTooltip:SetItemByGUID(itemGUID)
+    elseif recraftRecipeId then
+        local link = C_TradeSkillUI.GetRecipeItemLink(recraftRecipeId)
+        GameTooltip:SetHyperlink(link)
+    end
+
+    if itemGUID or recraftRecipeId then
+        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+        GameTooltip_AddInstructionLine(GameTooltip, RECRAFT_REAGENT_TOOLTIP_CLICK_TO_REPLACE)
+    else
+        GameTooltip_AddInstructionLine(GameTooltip, RECRAFT_REAGENT_TOOLTIP_CLICK_TO_ADD)
+    end
+
+    GameTooltip:Show()
+end
+
+local function RecraftOutputSlotOnEnter(slot)
+    local self = craftingForm
+
+    local itemGUID = self.transaction:GetRecraftAllocation()
+    local reagents = self.transaction:CreateCraftingReagentInfoTbl()
+
+    GameTooltip:SetOwner(slot, "ANCHOR_RIGHT")
+
+    GameTooltip:SetRecipeResultItem(
+        self.recipeSchematic.recipeID,
+        reagents,
+        itemGUID,
+        self:GetCurrentRecipeLevel(),
+        self:GetRecipeOperationInfo().craftingQualityID
+    )
+end
+
+local function RecraftOutputSlotOnClick(slot)
+    local self = craftingForm
+
+    local itemGUID = self.transaction:GetRecraftAllocation()
+    local reagents = self.transaction:CreateCraftingReagentInfoTbl()
+
+    GameTooltip:SetOwner(slot, "ANCHOR_RIGHT")
+
+    local outputItemInfo = C_TradeSkillUI.GetRecipeOutputItemData(
+        self.recipeSchematic.recipeID,
+        reagents,
+        itemGUID,
+        self:GetRecipeOperationInfo().craftingQualityID
+    )
+
+    if outputItemInfo and outputItemInfo.hyperlink then
+        HandleModifiedItemClick(outputItemInfo.hyperlink)
+    end
 end
 
 ---------------------------------------
 --             Recraft
 ---------------------------------------
 
-local function SetRecraftSlotLink(link)
-    local recraftSlot = craftingForm.recraftSlot
+local function SetRecraftRecipe(recipeId, link, transition)
+    print("SetRecraftRecipe", recipeId, link, transition)
 
-    recraftSlot.InputSlot:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(recraftSlot.InputSlot, "ANCHOR_RIGHT")
+    recraftRecipeId = recipeId
+    recraftItemLink = recipeId and link
 
-        GameTooltip:SetHyperlink(link)
-        GameTooltip_AddBlankLineToTooltip(GameTooltip)
-        GameTooltip_AddInstructionLine(GameTooltip, RECRAFT_REAGENT_TOOLTIP_CLICK_TO_REPLACE)
-        GameTooltip:Show()
-    end);
+    if not recipeId then return end
 
-    recraftSlot.OutputSlot:SetScript("OnEnter", function()
-        GameTooltip:SetOwner(recraftSlot.OutputSlot, "ANCHOR_RIGHT")
+    if not link then
+        link = C_TradeSkillUI.GetRecipeItemLink(recipeId)
+        if not link then recraftRecipeId = nil return end
+    end
 
-        GameTooltip:SetRecipeResultItem(
-            craftingForm.recipeSchematic.recipeID,
-            craftingForm.transaction:CreateCraftingReagentInfoTbl(),
-            craftingForm.transaction:GetRecraftAllocation(),
-            craftingForm:GetCurrentRecipeLevel(),
-            craftingForm:GetOutputOverrideQuality()
-        )
-    end);
+    if transition then
+        Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
+        C_TradeSkillUI.OpenRecipe(recipeId)
+    end
 
-    recraftSlot.OutputSlot:SetScript("OnClick", function()
-        GameTooltip:SetOwner(recraftSlot.OutputSlot, "ANCHOR_RIGHT")
+    craftingForm.recraftSlot:Init(nil, FnTrue, FnNoop, link)
 
-        local outputItemInfo = C_TradeSkillUI.GetRecipeOutputItemData(
-            craftingForm.recipeSchematic.recipeID,
-            craftingForm.transaction:CreateCraftingReagentInfoTbl(),
-            craftingForm.transaction:GetRecraftAllocation()
-        )
-
-        if outputItemInfo and outputItemInfo.hyperlink then
-            HandleModifiedItemClick(outputItemInfo.hyperlink)
-        end
-    end);
-
-    recraftSlot:Init(nil, FnTrue, FnNoop, link)
-end
-
-local function SetRecraftRecipe(recipeId)
-    local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string]]
-    if not link then return end
-
-    Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
-    C_TradeSkillUI.OpenRecipe(recipeId)
-
-    SetRecraftSlotLink(link)
+    print("Quality", C_TradeSkillUI.GetItemCraftedQualityByItemInfo(link))
+    print("InputSlot.isProfessionItem", craftingForm.recraftSlot.InputSlot.isProfessionItem)
+    print("OutputSlot.isProfessionItem", craftingForm.recraftSlot.OutputSlot.isProfessionItem)
 end
 
 ---------------------------------------
@@ -202,12 +353,6 @@ local function refresh()
     -- ProfessionsFrame
     craftingForm:Refresh()
     craftingFrame:ValidateControls()
-
-    -- Set recraft slot again
-    local data = Professions.GetRecraftingTransitionData()
-    if data and data.isRecraft and not data.itemGUID and data.itemLink then
-        SetRecraftSlotLink(data.itemLink)
-    end
 
     -- ProfessionsCustomerOrdersFrame
     if orderForm and orderForm:IsVisible() then
@@ -244,7 +389,6 @@ local function disable()
     enabled = false
 
     extraSkill = 0
-    withInspiration = false
 
     unhook(ItemUtil, "GetCraftingReagentCount")
     unhook(Professions, "GetReagentSlotStatus")
@@ -340,29 +484,6 @@ local function AmountBoxOnEnter(self)
     GameTooltip:Show()
 end
 
--- ObjectiveTracker line
-
----@param self Button
-local function TrackerLineOnClick(self, mouseButton)
-    local line = self:GetParent() --[[@as QuestObjectiveAnimLine]]
-    local block = line:GetParent()
-
-    if mouseButton == "RightButton"
-        or IsModifiedClick("RECIPEWATCHTOGGLE")
-        or IsModifiedClick("CHATLINK") and ChatEdit_GetActiveWindow()
-    then
-        return recipeTracker:OnBlockHeaderClick(block, mouseButton)
-    end
-
-    CloseDropDownMenus()
-
-    if AuctionHouseFrame and AuctionHouseFrame:IsVisible() then
-        if AuctionHouseFrame:SetSearchText(line.itemName) then AuctionHouseFrame.SearchBar:StartSearch() end
-    else
-        EventRegistry:TriggerEvent("Professions.ReagentClicked", line.itemName)
-    end
-end
-
 local frame = CreateFrame("Frame")
 
 frame:RegisterEvent("ADDON_LOADED")
@@ -385,74 +506,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
             -- RecipeObjectiveTracker
 
             -- Hook update
-            hooksecurefunc(recipeTracker, "AddRecipe", function(self, recipeID, isRecraft)
-                local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-                local amount = amounts[recipe.recipeID]
-
-                -- Set header
-                local block = self:GetExistingBlock(NegateIf(recipeID, isRecraft))
-
-                local blockName = recipe.name
-                if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
-                if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
-
-                block:SetHeader(blockName);
-
-                -- Set reagents
-                local slots = {};
-                for j, schematic in ipairs(recipe.reagentSlotSchematics) do
-                    if ProfessionsUtil.IsReagentSlotRequired(schematic) then
-                        if ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) then
-                            table.insert(slots, 1, j);
-                        else
-                            table.insert(slots, j);
-                        end
-                    end
-                end
-
-                for _, j in ipairs(slots) do
-                    local schematic = recipe.reagentSlotSchematics[j]
-
-                    local reagent = schematic.reagents[1]
-                    local quantityRequired = schematic.quantityRequired * (amounts[recipe.recipeID] or 1)
-                    local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
-                    local name = nil
-
-                    if ProfessionsUtil.IsReagentSlotBasicRequired(schematic) then
-                        if reagent.itemID then
-                            name = Item:CreateFromItemID(reagent.itemID):GetItemName();
-                        elseif reagent.currencyID then
-                            local currencyInfo = C_CurrencyInfo.GetCurrencyInfo(reagent.currencyID)
-                            if currencyInfo then name = currencyInfo.name end
-                        end
-                    elseif ProfessionsUtil.IsReagentSlotModifyingRequired(schematic) and schematic.slotInfo then
-                        name = schematic.slotInfo.slotText
-                    end
-
-                    if name then
-                        local count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired)
-                        local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(count, name)
-
-                        ---@type QuestObjectiveAnimLine
-                        local line = block:GetExistingLine(j)
-                        local oldHeight = line:GetHeight()
-                        line.Text:SetHeight(0)
-                        line.Text:SetText(text)
-                        local newHeight = line.Text:GetHeight()
-                        line:SetHeight(newHeight)
-                        block.height = block.height - oldHeight + newHeight
-
-                        line.itemName = name
-
-                        if not line.Button then
-                            line.Button = CreateFrame("Button", nil, line)
-                            line.Button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-                            line.Button:SetAllPoints(line)
-                            line.Button:SetScript("OnClick", TrackerLineOnClick)
-                        end
-                    end
-                end
-            end)
+            hooksecurefunc(recipeTracker, "AddRecipe", RecipeTrackerAddRecipe)
         end
 
         if ... == "Blizzard_Professions" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
@@ -480,28 +534,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 end,
                 function(self, value)
                     extraSkill = max(0, value - (self.min or 0))
-                    craftingFrame.SchematicForm:UpdateDetailsStats()
+                    craftingForm:Refresh()
                 end,
                 "RIGHT"
             )
-
-            -- Insert inspiration checkbox
-            inspirationBox = InsertCheckbox(
-                craftingForm.Details.StatLines.SkillStatLine,
-                function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip_AddNormalLine(GameTooltip, "Show result with inspiration bonus.")
-                    GameTooltip:Show()
-                end,
-                function(self)
-                    if withInspiration == self:GetChecked() then return end
-                    withInspiration = self:GetChecked()
-                    refresh()
-                end,
-                "TOPLEFT", skillBox.DecrementButton, "BOTTOMLEFT", -3, 3
-            )
-            inspirationBox:SetScale(0.9)
-            inspirationBox:Hide()
 
             -- Insert tracked amount spinner
             local amountBox = InsertNumericSpinner(
@@ -538,14 +574,22 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 local trackBox = self.TrackRecipeCheckbox
                 amountBox:SetShown(trackBox:IsShown() and trackBox:GetChecked())
                 amountBox:SetValue(recipe and amounts[recipe.recipeID] or 1)
+
+                self.OutputIcon:SetScript("OnEnter", CraftOutputSlotOnEnter)
+                self.recraftSlot.InputSlot:SetScript("OnEnter", RecraftInputSlotOnEnter)
+                self.recraftSlot.OutputSlot:SetScript("OnEnter", RecraftOutputSlotOnEnter)
+                self.recraftSlot.OutputSlot:SetScript("OnClick", RecraftOutputSlotOnClick)
+
+                if recraftRecipeId then
+                    local same = recraftRecipeId == recipe.recipeID
+                    SetRecraftRecipe(same and recraftRecipeId or nil, same and recraftItemLink or nil)
+                end
             end)
 
             -- Hook form refresh
             hooksecurefunc(craftingForm, "Refresh", function(self)
                 craftingForm.Details.StatLines.SkillStatLine.RightLabel:SetShown(not enabled)
                 skillBox:SetShown(enabled)
-                inspirationBox:SetShown(enabled and hasInspiration(craftingForm.Details.operationInfo))
-                inspirationBox:SetChecked(withInspiration)
             end)
 
             -- Hook validate controls
@@ -704,7 +748,8 @@ function SlashCmdList.TESTFLIGHT(input)
         for _, recipeId in pairs(C_TradeSkillUI.GetAllRecipeIDs()) do
             local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string ]]
             if id == GetItemId(link) then
-                SetRecraftRecipe(recipeId)
+                enable()
+                SetRecraftRecipe(recipeId, args[2], true)
                 return
             end
         end

@@ -1,1 +1,5 @@
-- Updated for patch 11.0
+- Removed anything related to the old inspiration system
+- Fixed item icon and tooltip not updating when changing crafting skill
+- Fixed recipe tracker entries not changing completion state and color
+- Fixed removing existing recraft reagents when disabling experimentation mode
+- Fixed more bugs caused by patch 11.0 changes
