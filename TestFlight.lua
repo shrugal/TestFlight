@@ -5,8 +5,8 @@ local enabled = false
 local hooks = {}
 ---@type CheckButton[]
 local experimentBoxes = {}
----@type NumericInputSpinner, number
-local skillBox, extraSkill = nil, 0
+---@type number
+local extraSkill = 0
 ---@type table<table, NumericInputSpinner>, table<integer, integer>
 local amountBoxes, amounts = {}, nil
 ---@type integer?
@@ -261,7 +261,7 @@ local function RecraftInputSlotOnEnter(slot)
     if itemGUID then
         GameTooltip:SetItemByGUID(itemGUID)
     elseif recraftRecipeId then
-        local link = C_TradeSkillUI.GetRecipeItemLink(recraftRecipeId)
+        local link = recraftItemLink or C_TradeSkillUI.GetRecipeItemLink(recraftRecipeId)
         GameTooltip:SetHyperlink(link)
     end
 
@@ -317,15 +317,15 @@ end
 ---------------------------------------
 
 local function SetRecraftRecipe(recipeId, link, transition)
+    if recipeId and not link then
+        link = C_TradeSkillUI.GetRecipeItemLink(recipeId)
+        if not link then recipeId = nil end
+    end
+
     recraftRecipeId = recipeId
-    recraftItemLink = recipeId and link
+    recraftItemLink = link
 
     if not recipeId then return end
-
-    if not link then
-        link = C_TradeSkillUI.GetRecipeItemLink(recipeId)
-        if not link then recraftRecipeId = nil return end
-    end
 
     if transition then
         Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
@@ -470,13 +470,54 @@ local function InsertExperimentBox(parent, ...)
     return input
 end
 
+-- Skill spinner
+
+---@param self NumericInputSpinner
+local function SkillBoxOnEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
+    GameTooltip:Show()
+end
+
+---@param self NumericInputSpinner
+local function SkillBoxOnChange(self, value)
+    extraSkill = max(0, value - (self.min or 0))
+    craftingForm:UpdateDetailsStats()
+    craftingForm:UpdateRecraftSlot()
+end
+
 -- Amount spinner
 
+---@param self NumericInputSpinner
 local function AmountBoxOnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
     GameTooltip:Show()
 end
+
+---@param GetRecipeID fun(): number?
+local function AmountBoxOnChange(GetRecipeID)
+    ---@param self NumericInputSpinner
+    return function (self, value)
+        local recipeID = GetRecipeID()
+        if not recipeID then return end
+        amounts[recipeID] = value > 1 and value or nil
+        ObjectiveTrackerFrame:Update()
+    end
+end
+
+-- List order button
+
+---@param self Button
+local function ListOrderButtonOnEnter(self)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT");
+    GameTooltip_AddErrorLine(GameTooltip, "Experimentation mode is enabled.");
+    GameTooltip:Show();
+end
+
+---------------------------------------
+--              Events
+---------------------------------------
 
 local frame = CreateFrame("Frame")
 
@@ -519,18 +560,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
             )
 
             -- Insert skill points spinner
-            skillBox = InsertNumericSpinner(
+            local skillBox = InsertNumericSpinner(
                 craftingForm.Details.StatLines.SkillStatLine,
-                function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
-                    GameTooltip:Show()
-                end,
-                function(self, value)
-                    extraSkill = max(0, value - (self.min or 0))
-                    craftingForm:UpdateDetailsStats()
-                    craftingForm:UpdateRecraftSlot()
-                end,
+                SkillBoxOnEnter,
+                SkillBoxOnChange,
                 "RIGHT"
             )
 
@@ -538,18 +571,13 @@ frame:SetScript("OnEvent", function(_, event, ...)
             local amountBox = InsertNumericSpinner(
                 craftingForm,
                 AmountBoxOnEnter,
-                function(self, value)
+                AmountBoxOnChange(function ()
                     local recipe = craftingForm:GetRecipeInfo()
-                    if not recipe then return end
-                    amounts[recipe.recipeID] = value > 1 and value or nil
-                    ObjectiveTrackerFrame:Update()
-                end,
-                "RIGHT",
-                craftingForm.TrackRecipeCheckbox,
-                "LEFT",
-                -30,
-                1
+                    return recipe and recipe.recipeID
+                end),
+                "RIGHT", craftingForm.TrackRecipeCheckbox, "LEFT", -30, 1
             )
+
             amountBox:SetMinMaxValues(1, math.huge)
             amountBoxes[craftingForm] = amountBox
 
@@ -613,14 +641,10 @@ frame:SetScript("OnEvent", function(_, event, ...)
             local amountBox = InsertNumericSpinner(
                 orderForm,
                 AmountBoxOnEnter,
-                function(self, value)
-                    if not orderForm.order then return end
-                    local recipeID = orderForm.order.spellID
-                    amounts[recipeID] = value > 1 and value or nil
-                    ObjectiveTrackerFrame:Update()
-                end,
+                AmountBoxOnChange(function () return orderForm.order and orderForm.order.spellID end),
                 "LEFT", orderForm.TrackRecipeCheckbox, "RIGHT", 30, 1
             )
+
             amountBox:SetMinMaxValues(1, math.huge)
             amountBoxes[orderForm] = amountBox
 
@@ -640,11 +664,7 @@ frame:SetScript("OnEvent", function(_, event, ...)
                 local listOrderButton = self.PaymentContainer.ListOrderButton;
 
                 listOrderButton:SetEnabled(false);
-                listOrderButton:SetScript("OnEnter", function()
-                    GameTooltip:SetOwner(listOrderButton, "ANCHOR_RIGHT");
-                    GameTooltip_AddErrorLine(GameTooltip, "Experimentation mode is enabled.");
-                    GameTooltip:Show();
-                end)
+                listOrderButton:SetScript("OnEnter", ListOrderButtonOnEnter)
             end)
         end
 
