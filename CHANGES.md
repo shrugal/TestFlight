@@ -1,2 +1,7 @@
-- Fixed UI update loop after changing extra skill
-- Removed some debug output
+- Major code refactoring
+- Added getting reagent costs from TSM if installed
+- Added showing crafting cost on the crafting page
+- Added showing costs of optimal reagent allocations for reachable crafting qualities
+- Added optimizing reagent allocation for current quality
+- Added setting optimal reagent allocation for previous or next crafting quality
+- Changed skill input to show extra skill instead of resulting total skill

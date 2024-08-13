@@ -1,3 +1,8 @@
+Version 1.12
+
+- Fixed UI update loop after changing extra skill
+- Removed some debug output
+
 Version 1.11
 
 - Removed anything related to the old inspiration system
