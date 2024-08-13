@@ -264,6 +264,8 @@ end
 ---@param parent Frame
 ---@param form CraftingForm
 local function InsertOptimizationButtons(parent, form, ...)
+    if not Optimization:IsItemPriceSourceInstalled() then return end
+
     local btnDecrease = InsertButton("<",   	 parent, nil, DecreaseQualityButtonOnClick, ...) --[[@as OptimizationFormButton]]
     local btnOptimize = InsertButton("Optimize", parent, nil, OptimizeQualityButtonOnClick, "LEFT", btnDecrease, "RIGHT", 30) --[[@as OptimizationFormButton]]
     local btnIncrease = InsertButton(">",        parent, nil, IncreaseQualityButtonOnClick, "LEFT", btnOptimize, "RIGHT", 30) --[[@as OptimizationFormButton]]
@@ -283,6 +285,8 @@ end
 
 ---@param form CraftingForm
 local function UpdateOptimizationButtons(form)
+    if not Optimization:IsItemPriceSourceInstalled() then return end
+
     local btnDecrease, btnOptimize, btnIncrease = Self.btnDecrease, Self.btnOptimize, Self.btnIncrease
     local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(form.recipeSchematic, form.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl())
 
@@ -383,9 +387,11 @@ function Self.Hooks.CraftingForm.Refresh(self)
     local trackBox, amountBox = self.TrackRecipeCheckbox, Self.amountBoxes[self]
     amountBox:SetShown(trackBox:IsShown() and trackBox:GetChecked())
 
-    Self.btnDecrease:SetShown(not minimized)
-    Self.btnOptimize:SetShown(not minimized)
-    Self.btnIncrease:SetShown(not minimized)
+    if Self.btnDecrease then
+        Self.btnDecrease:SetShown(not minimized)
+        Self.btnOptimize:SetShown(not minimized)
+        Self.btnIncrease:SetShown(not minimized)
+    end
 end
 
 function Self.Hooks.CraftingForm.UpdateDetailsStats(self)
@@ -402,12 +408,14 @@ function Self.Hooks.CraftingForm.UpdateDetailsStats(self)
 end
 
 function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQualities, isGatheringRecipe)
+    if not Optimization:IsItemPriceSourceInstalled() then return end
+
     local label = COSTS_LABEL:gsub(":", "")
 
     local recipe = craftingForm.recipeSchematic
     local allocation = craftingForm.transaction.allocationTbls
     local optionalReagents = craftingForm.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl()
-    local allocationPrice = Optimization:GetAllocationCraftPrice(recipe, allocation, true)
+    local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, true)
     local allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
 
     local function applyExtra()
@@ -435,7 +443,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
                     local qualityAllocation = allocations[i]
                     if qualityAllocation then
                         local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                        local qualityPrice = Optimization:GetAllocationCraftPrice(recipe, qualityAllocation, false, true, allocation)
+                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, false, true, allocation)
                         local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
                         GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
                     end

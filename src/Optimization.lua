@@ -6,6 +6,21 @@ local Util = Addon.Util
 local Self = Addon.Optimization or {}
 Addon.Optimization = Self
 
+function Self:IsItemPriceSourceInstalled()
+    return C_AddOns.IsAddOnLoaded("TradeSkillMaster")
+end
+
+function Self:IsItemPriceSourceAvailable()
+    return TSM_API ~= nil
+end
+
+---@param itemID number
+function Self:GetItemPrice(itemID)
+    if not Self:IsItemPriceSourceAvailable() then return 0 end
+
+    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. itemID) or 0
+end
+
 ---------------------------------------
 --              Crafts
 ---------------------------------------
@@ -140,7 +155,7 @@ end
 ---@param addMissingRequired? boolean
 ---@param addBase? boolean
 ---@param addOptional? RecipeAllocation
-function Self:GetAllocationCraftPrice(recipe, allocation, addMissingRequired, addBase, addOptional)
+function Self:GetRecipeAllocationPrice(recipe, allocation, addMissingRequired, addBase, addOptional)
     local price = 0
 
     for _,reagent in pairs(allocation) do
@@ -208,27 +223,29 @@ end
 --             Reagents
 ---------------------------------------
 
----@param item number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
-function Self:GetReagentWeight(item)
-    if type(item) == "table" then
-        if item.reagents then item = item.reagents[1] end ---@cast item -CraftingReagentSlotSchematic
-        do item = item.itemID end
-    end ---@cast item -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
+---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
+function Self:GetReagentWeight(reagent)
+    if type(reagent) == "table" then
+        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
+        do reagent = reagent.itemID end
+    end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
 
-    return Addon.REAGENTS[item] or 0
+    return Addon.REAGENTS[reagent] or 0
 end
 
----@param item number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
-function Self:GetReagentPrice(item)
-    if not TSM_API then return 0 end
+---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+function Self:GetReagentPrice(reagent)
+    if not self:IsItemPriceSourceAvailable() then return 0 end
 
-    if type(item) == "table" then
-        if item.reagents then item = item.reagents[1] end ---@cast item -CraftingReagentSlotSchematic
-        if item.reagent then item = item.reagent end ---@cast item -ProfessionTransactionAllocation
-        do item = item.itemID end
-    end ---@cast item -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+    if type(reagent) == "table" then
+        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
+        if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
+        do reagent = reagent.itemID end
+    end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
 
-    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. item) or 0
+    if not reagent then return 0 end
+
+    return self:GetItemPrice(reagent)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
