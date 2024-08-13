@@ -432,7 +432,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
             GameTooltip_AddColoredDoubleLine(GameTooltip, label, allocationPriceStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
             if supportsQualities then
-                GameTooltip_AddNormalLine(GameTooltip, "Prices are without taking resourcefulness into account.")
+                GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, and without taking resourcefulness into account.")
 
                 local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents)
 

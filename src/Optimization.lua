@@ -67,15 +67,6 @@ function Self:GetRecipeAllocations(recipe, optionalReagents)
             local w = math.ceil(breakpointFactor * maxWeight)
             local price = prices[w]
 
-            Addon:Debug(i, "quality")
-            Addon:Debug(breakpoints[i] * difficulty, "difficulty")
-            Addon:Debug(breakpointFactor, "breakpointFactor")
-            Addon:Debug(skillBase, "skillBase")
-            Addon:Debug(skillBest, "skillBest")
-            Addon:Debug(maxWeight, "maxWeight")
-            Addon:Debug(w, "weight")
-            Addon:Debug("---", "---")
-
             if prevPrice <= price then break end
 
             ---@type RecipeAllocation

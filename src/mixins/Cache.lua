@@ -2,7 +2,7 @@
 local Addon = select(2, ...)
 local Util = Addon.Util
 
----@class Cache<T, K>: { Key: K, Set: fun(self: self, key: any, value?: T), Has: (fun(self: self, key: any): boolean), Get: (fun(self: self, key: any): T?), Clear: fun(self: self)  }
+---@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
 
 ---@class Cache
 local CacheMixin = {}
