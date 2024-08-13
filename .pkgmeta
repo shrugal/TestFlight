@@ -8,4 +8,5 @@ enable-nolib-creation: no
 ignore:
   - release.sh
   - _config.yml
+  - Test.lua
   

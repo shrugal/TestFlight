@@ -5,7 +5,14 @@
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
 
-TestFlight.lua
+src/Data.lua
+src/Util.lua
+
+src/mixins/Cache.lua
+
+src/Optimization.lua
+src/GUI.lua
+src/Addon.lua
 
 #@do-not-package@
 ## Version: 0-dev0
