@@ -1,7 +1,4 @@
-- Major code refactoring
-- Added getting reagent costs from TSM if installed
-- Added showing crafting cost on the crafting page
-- Added showing costs of optimal reagent allocations for reachable crafting qualities
-- Added setting optimal reagent allocation for current, previous or next crafting quality
-- Changed skill input to show extra skill instead of resulting total skill
-- Improved clearing reagent slots when disabling experimentation mode
+- Updated for patch 11.0.2
+- Updated reagent data
+- Fixed some tooltip texts
+- Some minor refactoring

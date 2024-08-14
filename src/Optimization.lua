@@ -41,9 +41,6 @@ end
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetRecipeAllocations(recipe, optionalReagents)
     local qualityReagents = self:GetQualityReagents(recipe)
-    local form = self:GetCraftingForm()
-    local recipeInfo = form.currentRecipeInfo
-    local operationInfo = form:GetRecipeOperationInfo()
     local skillBase, skillBest = self:GetReagentSkillBounds(recipe, qualityReagents, optionalReagents)
 
     -- Check allocations cache
@@ -54,9 +51,14 @@ function Self:GetRecipeAllocations(recipe, optionalReagents)
 
     local weights, prices = self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
     local maxWeight = self:GetMaxReagentWeight(recipe, qualityReagents)
+
+    local form = self:GetCraftingForm()
+    local recipeInfo = form.currentRecipeInfo
+    local operationInfo = form:GetRecipeOperationInfo()
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
     local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
 
+    ---@type RecipeAllocation[]
     local allocations = {}
 
     for i=#breakpoints, 1, -1 do

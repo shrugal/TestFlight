@@ -1,3 +1,13 @@
+Version 2.0
+
+- Major code refactoring
+- Added getting reagent costs from TSM if installed
+- Added showing crafting cost on the crafting page
+- Added showing costs of optimal reagent allocations for reachable crafting qualities
+- Added setting optimal reagent allocation for current, previous or next crafting quality
+- Changed skill input to show extra skill instead of resulting total skill
+- Improved clearing reagent slots when disabling experimentation mode
+
 Version 1.12
 
 - Fixed UI update loop after changing extra skill

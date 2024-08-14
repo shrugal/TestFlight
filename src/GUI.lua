@@ -13,13 +13,13 @@ Self.Hooks = {}
 ---@type CheckButton[]
 Self.experimentBoxes = {}
 ---@type NumericInputSpinner
-Self.skillBox = nil
+Self.skillSpinner = nil
 ---@type table<table, NumericInputSpinner>, table<integer, integer>
-Self.amountBoxes, Self.amounts = {}, nil
+Self.amountSpinners, Self.amounts = {}, nil
 ---@type integer?
 Self.craftingRecipeID = nil
 ---@type string?, string?
-Self.recraftRecipeId, Self.recraftItemLink = nil, nil
+Self.recraftRecipeID, Self.recraftItemLink = nil, nil
 ---@type OptimizationFormButton, OptimizationFormButton, OptimizationFormButton
 Self.btnDecrease, Self.btnOptimize, Self.btnIncrease = nil, nil, nil
 
@@ -37,7 +37,7 @@ function Self:SetRecraftRecipe(recipeId, link, transition)
         if not link then recipeId = nil end
     end
 
-    Self.recraftRecipeId = recipeId
+    Self.recraftRecipeID = recipeId
     Self.recraftItemLink = link
 
     if not recipeId then return end
@@ -196,14 +196,14 @@ end
 -- Skill spinner
 
 ---@param self NumericInputSpinner
-local function SkillBoxOnEnter(self)
+local function SkillSpinnerOnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
     GameTooltip:Show()
 end
 
 ---@param self NumericInputSpinner
-local function SkillBoxOnChange(self, value)
+local function SkillSpinnerOnChange(self, value)
     Addon.extraSkill = max(0, value)
 
     craftingForm:UpdateDetailsStats()
@@ -213,14 +213,14 @@ end
 -- Amount spinner
 
 ---@param self NumericInputSpinner
-local function AmountBoxOnEnter(self)
+local function AmountSpinnerOnEnter(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
+    GameTooltip_AddNormalLine(GameTooltip, "Set number of tracked recipe crafts.")
     GameTooltip:Show()
 end
 
 ---@param GetRecipeID fun(): number?
-local function AmountBoxOnChange(GetRecipeID)
+local function AmountSpinnerOnChange(GetRecipeID)
     ---@param self NumericInputSpinner
     return function (self, value)
         local recipeID = GetRecipeID()
@@ -234,11 +234,11 @@ end
 ---@param GetRecipeID fun(): number?
 ---@return NumericInputSpinner
 local function InsertAmountSpinner(form, GetRecipeID, ...)
-    local input = InsertNumericSpinner(form, AmountBoxOnEnter, AmountBoxOnChange(GetRecipeID), ...)
+    local input = InsertNumericSpinner(form, AmountSpinnerOnEnter, AmountSpinnerOnChange(GetRecipeID), ...)
 
     input:SetMinMaxValues(1, math.huge)
 
-    Self.amountBoxes[form] = input
+    Self.amountSpinners[form] = input
 
     return input
 end
@@ -362,30 +362,30 @@ function Self.Hooks.CraftingForm.Init(self, recipe)
         function Addon:CreateAllocations() return CreateAndInitFromMixin(AllocationsMixin) end
     end
 
-    local trackBox, amountBox = self.TrackRecipeCheckbox, Self.amountBoxes[self]
-    amountBox:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    amountBox:SetValue(recipe and Self.amounts[recipe.recipeID] or 1)
+    local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
+    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
+    amountSpinner:SetValue(recipe and Self.amounts[recipe.recipeID] or 1)
 
     self.OutputIcon:SetScript("OnEnter", Self.Hooks.CraftingForm.CraftOutputSlotOnEnter)
     self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.CraftingForm.RecraftInputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnEnter", Self.Hooks.CraftingForm.RecraftOutputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.CraftingForm.RecraftOutputSlotOnClick)
 
-    if Self.recraftRecipeId then
-        local same = Self.recraftRecipeId == recipe.recipeID
-        Self:SetRecraftRecipe(same and Self.recraftRecipeId or nil, same and Self.recraftItemLink or nil)
+    if Self.recraftRecipeID then
+        local same = Self.recraftRecipeID == recipe.recipeID
+        Self:SetRecraftRecipe(same and Self.recraftRecipeID or nil, same and Self.recraftItemLink or nil)
     end
 end
 
 function Self.Hooks.CraftingForm.Refresh(self)
     local minimized = ProfessionsUtil.IsCraftingMinimized()
 
-    Self.skillBox:SetShown(Addon.enabled and not minimized)
+    Self.skillSpinner:SetShown(Addon.enabled and not minimized)
 
     Self.experimentBoxes[self]:SetShown(not minimized)
 
-    local trackBox, amountBox = self.TrackRecipeCheckbox, Self.amountBoxes[self]
-    amountBox:SetShown(trackBox:IsShown() and trackBox:GetChecked())
+    local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
+    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
 
     if Self.btnDecrease then
         Self.btnDecrease:SetShown(not minimized)
@@ -401,8 +401,8 @@ function Self.Hooks.CraftingForm.UpdateDetailsStats(self)
     local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill
     local difficulty = op.baseDifficulty + op.bonusDifficulty
 
-    Self.skillBox:SetMinMaxValues(0, difficulty - skillNoExtra)
-    Self.skillBox:SetValue(Addon.extraSkill)
+    Self.skillSpinner:SetMinMaxValues(0, difficulty - skillNoExtra)
+    Self.skillSpinner:SetValue(Addon.extraSkill)
 
     UpdateOptimizationButtons(craftingForm)
 end
@@ -492,12 +492,12 @@ function Self.Hooks.CraftingForm.RecraftInputSlotOnEnter(self)
     local itemGUID = form.transaction:GetRecraftAllocation()
     if itemGUID then
         GameTooltip:SetItemByGUID(itemGUID)
-    elseif Self.recraftRecipeId then
-        local link = Self.recraftItemLink or C_TradeSkillUI.GetRecipeItemLink(Self.recraftRecipeId)
+    elseif Self.recraftRecipeID then
+        local link = Self.recraftItemLink or C_TradeSkillUI.GetRecipeItemLink(Self.recraftRecipeID)
         GameTooltip:SetHyperlink(link)
     end
 
-    if itemGUID or Self.recraftRecipeId then
+    if itemGUID or Self.recraftRecipeID then
         GameTooltip_AddBlankLineToTooltip(GameTooltip)
         GameTooltip_AddInstructionLine(GameTooltip, RECRAFT_REAGENT_TOOLTIP_CLICK_TO_REPLACE)
     else
@@ -551,10 +551,10 @@ Self.Hooks.OrderForm = {}
 function Self.Hooks.OrderForm.InitSchematic(self)
     local recipeID = self.order.spellID
     local trackBox = self.TrackRecipeCheckbox.Checkbox
-    local amountBox = Self.amountBoxes[orderForm]
+    local amountSpinner = Self.amountSpinners[orderForm]
 
-    amountBox:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    amountBox:SetValue(recipeID and Self.amounts[recipeID] or 1)
+    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
+    amountSpinner:SetValue(recipeID and Self.amounts[recipeID] or 1)
 end
 
 function Self.Hooks.OrderForm.UpdateListOrderButton(self)
@@ -859,10 +859,10 @@ function Self:OnAddonLoaded(addonName)
         )
 
         -- Insert skill points spinner
-        Self.skillBox = InsertNumericSpinner(
+        Self.skillSpinner = InsertNumericSpinner(
             craftingForm.Details.StatLines.SkillStatLine,
-            SkillBoxOnEnter,
-            SkillBoxOnChange,
+            SkillSpinnerOnEnter,
+            SkillSpinnerOnChange,
             "RIGHT", -50, 1
         )
 
@@ -912,15 +912,15 @@ end
 function Self:OnTrackedRecipeUpdate(recipeID, tracked)
     local recipe = craftingForm and craftingForm:GetRecipeInfo()
     if recipe and recipe.recipeID == recipeID then
-        local amountBox = Self.amountBoxes[craftingForm]
-        amountBox:SetShown(tracked and not ProfessionsUtil.IsCraftingMinimized())
-        if not tracked then amountBox:SetValue(1) end
+        local amountSpinner = Self.amountSpinners[craftingForm]
+        amountSpinner:SetShown(tracked and not ProfessionsUtil.IsCraftingMinimized())
+        if not tracked then amountSpinner:SetValue(1) end
     end
 
     if orderForm and orderForm.order and orderForm.order.spellID == recipeID then
-        local amountBox = Self.amountBoxes[orderForm]
-        amountBox:SetShown(tracked)
-        if not tracked then amountBox:SetValue(1) end
+        local amountSpinner = Self.amountSpinners[orderForm]
+        amountSpinner:SetShown(tracked)
+        if not tracked then amountSpinner:SetValue(1) end
     end
 end
 
@@ -943,11 +943,11 @@ function Self:OnSpellcastStoppedOrSucceeded()
 
     local recipe = craftingForm:GetRecipeInfo()
     if recipe and recipe.recipeID == recipeID then
-        Self.amountBoxes[craftingForm]:SetValue(amount)
+        Self.amountSpinners[craftingForm]:SetValue(amount)
     end
 
     if orderForm and orderForm.order and orderForm.order.spellID == recipeID then
-        Self.amountBoxes[orderForm]:SetValue(amount)
+        Self.amountSpinners[orderForm]:SetValue(amount)
     end
 end
 

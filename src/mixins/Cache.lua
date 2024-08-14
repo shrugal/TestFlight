@@ -15,7 +15,7 @@ function Addon:CreateCache(getKey, limit)
     return CreateAndInitFromMixin(CacheMixin, getKey, limit)
 end
 
----@param getKey `K`
+---@param getKey function
 ---@param limit? number
 function CacheMixin:Init(getKey, limit)
     self.Key = getKey
