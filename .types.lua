@@ -43,6 +43,7 @@ TSM_API = {}
 ---@field transaction ProfessionTransaction
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
 ---@field reagentSlotPool ReagentSlotFramePool
+---@field GetRecipeInfo fun(self: self): TradeSkillRecipeInfo
 ---@field TriggerEvent fun(self: self, event: string)
 
 ---@class ProfessionTransaction
@@ -52,6 +53,7 @@ TSM_API = {}
 ---@field CreateCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field CreateOptionalOrFinishingCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field GetAllocationItemGUID fun(self: self): string
+---@field GetSalvageAllocation fun(self: self): ItemMixin?
 ---@field ClearAllocations fun(self: self, slotIndex: number)
 ---@field GetModification fun(self: self, dataSlotIndex: number): CraftingItemSlotModification
 ---@field OverwriteAllocations fun(self: self, slotIndex: number, allocations: { allocs: ProfessionTransationAllocations[] })
@@ -100,7 +102,6 @@ ProfessionsFrame = {}
 ---@field Details CraftingFormDetails
 ---@field AllocateBestQualityCheckbox CheckButton
 ---@field TrackRecipeCheckbox CheckButton
----@field GetRecipeInfo fun(self: self): CraftingRecipeSchematic
 ---@field Refresh fun(self: self)
 ---@field UpdateDetailsStats fun(self: self)
 ---@field UpdateRecraftSlot fun(self: self)

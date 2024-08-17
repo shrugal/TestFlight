@@ -287,9 +287,18 @@ end
 local function UpdateOptimizationButtons(form)
     if not Optimization:IsItemPriceSourceInstalled() then return end
 
+    local recipe, op, transaction = form.recipeSchematic, form:GetRecipeOperationInfo(), form.transaction
     local btnDecrease, btnOptimize, btnIncrease = Self.btnDecrease, Self.btnOptimize, Self.btnIncrease
-    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(form.recipeSchematic, form.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl())
+    local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
 
+    local show = op and op.isQualityCraft and not isSalvage and not isMinimized
+    Self.btnDecrease:SetShown(show)
+    Self.btnOptimize:SetShown(show)
+    Self.btnIncrease:SetShown(show)
+
+    if not show then return end
+
+    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(recipe, transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl())
     btnDecrease:SetEnabled(canDecrease)
     btnIncrease:SetEnabled(canIncrease)
 end
@@ -358,8 +367,11 @@ end
 
 function Self.Hooks.CraftingForm.Init(self, recipe)
     if not Addon.CreateAllocations then
-        local AllocationsMixin = Util:TblCreateMixin(craftingForm.transaction:GetAllocations(1))
-        function Addon:CreateAllocations() return CreateAndInitFromMixin(AllocationsMixin) end
+        local allocation = craftingForm.transaction:GetAllocations(1)
+        if allocation then
+            local AllocationsMixin = Util:TblCreateMixin(allocation)
+            function Addon:CreateAllocations() return CreateAndInitFromMixin(AllocationsMixin) end
+        end
     end
 
     local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
@@ -371,6 +383,8 @@ function Self.Hooks.CraftingForm.Init(self, recipe)
     self.recraftSlot.OutputSlot:SetScript("OnEnter", Self.Hooks.CraftingForm.RecraftOutputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.CraftingForm.RecraftOutputSlotOnClick)
 
+    UpdateOptimizationButtons(self)
+
     if Self.recraftRecipeID then
         local same = Self.recraftRecipeID == recipe.recipeID
         Self:SetRecraftRecipe(same and Self.recraftRecipeID or nil, same and Self.recraftItemLink or nil)
@@ -381,27 +395,22 @@ function Self.Hooks.CraftingForm.Refresh(self)
     local minimized = ProfessionsUtil.IsCraftingMinimized()
 
     Self.skillSpinner:SetShown(Addon.enabled and not minimized)
-
     Self.experimentBoxes[self]:SetShown(not minimized)
 
     local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
     amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
 
-    if Self.btnDecrease then
-        Self.btnDecrease:SetShown(not minimized)
-        Self.btnOptimize:SetShown(not minimized)
-        Self.btnIncrease:SetShown(not minimized)
-    end
+    UpdateOptimizationButtons(self)
 end
 
 function Self.Hooks.CraftingForm.UpdateDetailsStats(self)
     local op = self:GetRecipeOperationInfo()
-    if not op or not op.isQualityCraft then return end
+    if not op then return end
 
     local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill
     local difficulty = op.baseDifficulty + op.bonusDifficulty
 
-    Self.skillSpinner:SetMinMaxValues(0, difficulty - skillNoExtra)
+    Self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
     Self.skillSpinner:SetValue(Addon.extraSkill)
 
     UpdateOptimizationButtons(craftingForm)
@@ -413,8 +422,19 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
     local label = COSTS_LABEL:gsub(":", "")
 
     local recipe = craftingForm.recipeSchematic
-    local allocation = craftingForm.transaction.allocationTbls
-    local optionalReagents = craftingForm.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl()
+    local transaction = craftingForm.transaction
+    local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
+
+    ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[]
+    local allocation, optionalReagents
+    if isSalvage then
+        allocation = transaction:GetSalvageAllocation()
+    else
+        allocation, optionalReagents = transaction.allocationTbls, transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl()
+    end
+
+    if not allocation then return end
+
     local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, true)
     local allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
 
@@ -431,7 +451,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
 
             GameTooltip_AddColoredDoubleLine(GameTooltip, label, allocationPriceStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
-            if supportsQualities then
+            if supportsQualities and not isSalvage then
                 GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, and without taking resourcefulness into account.")
 
                 local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents)
@@ -443,7 +463,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
                     local qualityAllocation = allocations[i]
                     if qualityAllocation then
                         local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, false, true, allocation)
+                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, true, allocation)
                         local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
                         GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
                     end

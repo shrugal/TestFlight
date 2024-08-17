@@ -8,11 +8,17 @@ local GUI, Optimization, Util = Addon.GUI, Addon.Optimization, Addon.Util
 local Self = Addon
 
 ---@type boolean
-Self.DEBUG = true
+Self.DEBUG = false
 ---@type boolean
 Self.enabled = false
 ---@type number
 Self.extraSkill = 0
+
+--@do-not-package@
+Self.DEBUG = true
+--@end-do-not-package@
+
+if Self.DEBUG then TestFlight = Self end
 
 ---@param data any
 ---@param name? string

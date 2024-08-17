@@ -26,18 +26,6 @@ end
 ---------------------------------------
 
 ---@param recipe CraftingRecipeSchematic
-function Self:GetRecipeBasePrice(recipe)
-    local price = 0
-    for _,reagent in pairs(recipe.reagentSlotSchematics) do
-        if reagent.reagentType == Enum.CraftingReagentType.Basic and not self:IsQualityReagent(reagent) then
-            price = price + reagent.quantityRequired * self:GetReagentPrice(reagent)
-        end
-    end
-
-    return price
-end
-
----@param recipe CraftingRecipeSchematic
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetRecipeAllocations(recipe, optionalReagents)
     local qualityReagents = self:GetQualityReagents(recipe)
@@ -144,11 +132,14 @@ function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param allocation RecipeAllocation
+---@param allocation RecipeAllocation | ItemMixin
 ---@param addMissingRequired? boolean
----@param addBase? boolean
 ---@param addOptional? RecipeAllocation
-function Self:GetRecipeAllocationPrice(recipe, allocation, addMissingRequired, addBase, addOptional)
+function Self:GetRecipeAllocationPrice(recipe, allocation, addMissingRequired, addOptional)
+    if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then ---@cast allocation ItemMixin
+        return recipe.quantityMin * self:GetReagentPrice(allocation:GetItemID())
+    end
+
     local price = 0
 
     for _,reagent in pairs(allocation) do
@@ -170,8 +161,6 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, addMissingRequired, a
             end
         end
     end
-
-    if addBase then price = price + self:GetRecipeBasePrice(recipe) end
 
     if addOptional then
         for _,reagent in pairs(recipe.reagentSlotSchematics) do

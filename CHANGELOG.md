@@ -1,3 +1,10 @@
+Version 2.01
+
+- Updated for patch 11.0.2
+- Updated reagent data
+- Fixed some tooltip texts
+- Some minor refactoring
+
 Version 2.0
 
 - Major code refactoring
