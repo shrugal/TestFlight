@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI, Optimization, Util = Addon.GUI, Addon.Optimization, Addon.Util
+local GUI = Addon.GUI
 
 ---@class TestFlight
 local Self = Addon

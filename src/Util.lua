@@ -9,6 +9,49 @@ Addon.Util = Self
 
 -- Tbl
 
+---@param tbl table
+---@param path string
+function Self:TblGet(tbl, path)
+    while true do
+        if not tbl then return end
+        local i = path:find(".", nil, true)
+        if not i then return tbl[path] end
+        tbl, path = tbl[path:sub(1, i-1)], path:sub(i+1)
+    end
+end
+
+---@generic K, T
+---@param a Enumerator<T, K> | table<K, T>
+---@param b? table<K, T>
+---@param c? K
+---@return Enumerator<T, K>
+---@return table<K, T>?
+---@return K?
+function Self:Each(a, b, c, ...)
+    if type(a) == "table" then
+        return pairs(a)
+    elseif type(a) == "function" then
+        return a, b, c
+    else
+        return next, { a, b, c, ... }
+    end
+end
+
+---@generic K, T
+---@param a Enumerator<T, K> | table<K, T>
+---@param b? table<K, T>
+---@param c? K
+---@return Enumerator<T, K>
+---@return table<K, T>?
+---@return K?
+function Self:IEach(a, b, c, ...)
+    if type(a) == "table" then
+        return ipairs(a)
+    else
+        return self:Each(a, b, c, ...)
+    end
+end
+
 ---@generic T, S: table
 ---@param tbl T[]
 ---@param fn? SearchFn<T, boolean, S>
@@ -26,12 +69,12 @@ function Self:TblCount(tbl, fn, key, obj, ...)
 end
 
 ---@generic T: table
----@param tbl T
+---@param tbl T[] | Enumerator<T>
 ---@param recursive? boolean
 ---@return T
 function Self:TblCopy(tbl, recursive)
     local t = {}
-    for k,v in pairs(tbl) do
+    for k,v in self:Each(tbl) do
         if recursive and type(v) == "table" then
             t[k] = self:TblCopy(v, recursive)
         else
@@ -42,11 +85,11 @@ function Self:TblCopy(tbl, recursive)
 end
 
 ---@generic T: table
----@param tbl T
+---@param tbl T[] | Enumerator<T>
 ---@return T
 function Self:TblCreateMixin(tbl)
     local t = {}
-    for k,v in pairs(tbl) do
+    for k,v in self:Each(tbl) do
         if type(v) == "function" and type(k) == "string" and k:match("^[A-Z]") then
             t[k] = v
         end
@@ -55,7 +98,7 @@ function Self:TblCreateMixin(tbl)
 end
 
 ---@generic T, R, S: table
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param fn SearchFn<T, R, S>
 ---@param key? boolean
 ---@param obj? S
@@ -63,14 +106,14 @@ end
 ---@return R[]
 function Self:TblMap(tbl, fn, key, obj, ...)
     local t = {}
-    for k,v in pairs(tbl) do
+    for k,v in self:Each(tbl) do
         t[k] = self:FnCall(fn, v, key and k, obj, ...)
     end
     return t
 end
 
 ---@generic T, S: table
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param fn SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
@@ -78,7 +121,7 @@ end
 ---@return T[]
 function Self:TblFilter(tbl, fn, key, obj, ...)
     local t = {}
-    for k,v in pairs(tbl) do
+    for k,v in self:Each(tbl) do
         if self:FnCall(fn, v, key and k, obj) then tinsert(t, v) end
     end
     return t
@@ -89,41 +132,41 @@ end
 function Self:TblMatch(tbl, ...)
     for i=1,select("#", ...), 2 do
         local k,v = select(i, ...), select(i+1, ...)
-        if tbl[k] ~= v then return false end
+        if self:TblGet(tbl, k) ~= v then return false end
     end
     return true
 end
 
 ---@generic T
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param ... any
 ---@return T?
 function Self:TblWhere(tbl, ...)
-    for _,v in pairs(tbl) do
+    for _,v in self:Each(tbl) do
         if self:TblMatch(v, ...) then return v end
     end
 end
 
 ---@generic T
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param ... any
 ---@return T[]
 function Self:TblFilterWhere(tbl, ...)
     local t = {}
-    for _,v in pairs(tbl) do
+    for _,v in self:Each(tbl) do
         if self:TblMatch(v, ...) then tinsert(t, v) end
     end
     return t
 end
 
 ---@generic T, R, S: table
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param fn (fun(prev: R, curr: T): R) | (fun(self: S, prev: R, curr: T): R)
 ---@param value? R
 ---@param obj? S
 ---@return R
 function Self:TblReduce(tbl, fn, value, obj)
-    for k,v in ipairs(tbl) do
+    for k,v in self:IEach(tbl) do
         if obj then
             value = fn(obj, value, v)
         else
@@ -134,23 +177,23 @@ function Self:TblReduce(tbl, fn, value, obj)
 end
 
 ---@generic T, S: table
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param fn SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
 ---@return any?, T?
 function Self:TblFind(tbl, fn, key, obj, ...)
-    for k,v in pairs(tbl) do
+    for k,v in self:Each(tbl) do
         if self:FnCall(fn, v, key and k, obj, ...) then return k, v end
     end
 end
 
 ---@generic T
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param value T
 function Self:TblIndexOf(tbl, value)
-    for k,v in pairs(tbl) do if v == value then return k end end
+    for k,v in self:Each(tbl) do if v == value then return k end end
 end
 
 ---@generic T

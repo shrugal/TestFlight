@@ -1,3 +1,10 @@
+Version 2.02
+
+- Improve crafting cost calcuation
+- Improve salvage operation handling
+- Always disable debugging output in production builds
+- Only show optimization buttons for quality crafts
+
 Version 2.01
 
 - Updated for patch 11.0.2

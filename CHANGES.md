@@ -1,4 +1,1 @@
-- Improve crafting cost calcuation
-- Improve salvage operation handling
-- Always disable debugging output in production builds
-- Only show optimization buttons for quality crafts
+- Added support for order crafting form

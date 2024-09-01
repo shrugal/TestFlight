@@ -12,43 +12,26 @@ Self.Hooks = {}
 
 ---@type CheckButton[]
 Self.experimentBoxes = {}
----@type NumericInputSpinner
-Self.skillSpinner = nil
+---@type NumericInputSpinner[]
+Self.skillSpinners = {}
 ---@type table<table, NumericInputSpinner>, table<integer, integer>
 Self.amountSpinners, Self.amounts = {}, nil
 ---@type integer?
 Self.craftingRecipeID = nil
----@type string?, string?
+---@type number?, string?
 Self.recraftRecipeID, Self.recraftItemLink = nil, nil
----@type OptimizationFormButton, OptimizationFormButton, OptimizationFormButton
-Self.btnDecrease, Self.btnOptimize, Self.btnIncrease = nil, nil, nil
+---@type OptimizationFormButton[], OptimizationFormButton[], OptimizationFormButton[]
+Self.decreaseBtns, Self.optimizeBtns, Self.increaseBtns = {}, {}, {}
 
 -- Blizzard frames
 
----@type CraftingFrame, CraftingForm, Flyout
-local craftingFrame, craftingForm, flyout
----@type OrderForm, OrdersFormReagents
-local orderForm, orderReagents
+---@type CraftingPage, CraftingForm, Flyout
+local craftingPage, craftingForm, flyout
+---@type OrdersView, OrdersForm
+local ordersView, ordersForm
+---@type CustomerOrderForm, OrdersFormReagents
+local customerOrderForm, customerOrderReagents
 local recipeTracker = ProfessionsRecipeTracker
-
-function Self:SetRecraftRecipe(recipeId, link, transition)
-    if recipeId and not link then
-        link = C_TradeSkillUI.GetRecipeItemLink(recipeId)
-        if not link then recipeId = nil end
-    end
-
-    Self.recraftRecipeID = recipeId
-    Self.recraftItemLink = link
-
-    if not recipeId then return end
-
-    if transition then
-        Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
-        C_TradeSkillUI.OpenRecipe(recipeId)
-    end
-
-    craftingForm.recraftSlot:Init(nil, Util.FnTrue, Util.FnNoop, link)
-end
 
 ---------------------------------------
 --             Lifecycle
@@ -61,7 +44,8 @@ function Self:OnEnable()
     Util:TblHook(flyout, "InitializeContents", Self.Hooks.Flyout.InitializeContents)
 
     -- ProfessionsFrame
-    Util:TblHook(craftingForm, "GetRecipeOperationInfo", Self.Hooks.CraftingForm.GetRecipeOperationInfo)
+    Util:TblHook(craftingForm, "GetRecipeOperationInfo", Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo)
+    Util:TblHook(ordersForm, "GetRecipeOperationInfo", Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo)
 
     -- ObjectiveTrackerFrame
     Util:TblHook(recipeTracker, "Update", Self.Hooks.RecipeTracker.Update)
@@ -77,10 +61,12 @@ function Self:OnDisable()
 
     -- ProfessionsFrame
     Util:TblUnhook(craftingForm, "GetRecipeOperationInfo")
+    Util:TblUnhook(ordersForm, "GetRecipeOperationInfo")
 
     -- Clear reagents in locked slots
     self:ClearExperimentalReagentSlots(craftingForm)
-    self:ClearExperimentalReagentSlots(orderForm)
+    self:ClearExperimentalReagentSlots(ordersForm)
+    self:ClearExperimentalReagentSlots(customerOrderForm)
 
     -- ObjectiveTrackerFrame
     Util:TblUnhook(recipeTracker, "Update")
@@ -93,15 +79,22 @@ function Self:Refresh()
         checkbox:SetChecked(Addon.enabled)
     end
 
-    -- ProfessionsFrame
-    craftingForm:Refresh()
-    craftingFrame:ValidateControls()
+    -- ProfessionsFrame.CraftingPage
+    if craftingPage:IsVisible() then
+        craftingForm:Refresh()
+        craftingPage:ValidateControls()
+    end
+
+    -- ProfessionsFrame.OrdersPage
+    if ordersView:IsVisible() then
+        ordersForm:Refresh()
+    end
 
     -- ProfessionsCustomerOrdersFrame
-    if orderForm and orderForm:IsVisible() then
-        orderForm:InitSchematic()
+    if customerOrderForm and customerOrderForm:IsVisible() then
+        customerOrderForm:InitSchematic()
         if Addon.enabled then
-            orderForm.PaymentContainer.ListOrderButton:SetEnabled(false)
+            customerOrderForm.PaymentContainer.ListOrderButton:SetEnabled(false)
         end
     end
 
@@ -180,7 +173,7 @@ local function ExperimentBoxOnEnter(self)
     GameTooltip:Show()
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param parent Frame
 local function InsertExperimentBox(form, parent, ...)
     local input = InsertCheckbox(parent, ExperimentBoxOnEnter, ExperimentBoxOnClick, ...)
@@ -206,8 +199,13 @@ end
 local function SkillSpinnerOnChange(self, value)
     Addon.extraSkill = max(0, value)
 
-    craftingForm:UpdateDetailsStats()
-    craftingForm:UpdateRecraftSlot()
+    if craftingForm:IsVisible() then
+        craftingForm:UpdateDetailsStats()
+        craftingForm:UpdateRecraftSlot()
+    elseif ordersForm:IsVisible() then
+        ordersForm:UpdateDetailsStats()
+        ordersForm:UpdateRecraftSlot()
+    end
 end
 
 -- Amount spinner
@@ -230,7 +228,7 @@ local function AmountSpinnerOnChange(GetRecipeID)
     end
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param GetRecipeID fun(): number?
 ---@return NumericInputSpinner
 local function InsertAmountSpinner(form, GetRecipeID, ...)
@@ -247,60 +245,71 @@ end
 
 ---@param self OptimizationFormButton
 local function DecreaseQualityButtonOnClick(self)
-    Self:ChangeCraftingFormQualityBy(craftingForm, -1)
+    Self:ChangeCraftingFormQualityBy(self.form, -1)
 end
 
 ---@param self OptimizationFormButton
 local function OptimizeQualityButtonOnClick(self)
-    Self:SetCraftingFormQuality(craftingForm)
+    Self:SetCraftingFormQuality(self.form)
 end
 
 ---@param self OptimizationFormButton
 local function IncreaseQualityButtonOnClick(self)
-    Self:ChangeCraftingFormQualityBy(craftingForm, 1)
+    Self:ChangeCraftingFormQualityBy(self.form, 1)
 
 end
 
 ---@param parent Frame
----@param form CraftingForm
+---@param form RecipeCraftingForm
 local function InsertOptimizationButtons(parent, form, ...)
     if not Optimization:IsItemPriceSourceInstalled() then return end
 
-    local btnDecrease = InsertButton("<",   	 parent, nil, DecreaseQualityButtonOnClick, ...) --[[@as OptimizationFormButton]]
-    local btnOptimize = InsertButton("Optimize", parent, nil, OptimizeQualityButtonOnClick, "LEFT", btnDecrease, "RIGHT", 30) --[[@as OptimizationFormButton]]
-    local btnIncrease = InsertButton(">",        parent, nil, IncreaseQualityButtonOnClick, "LEFT", btnOptimize, "RIGHT", 30) --[[@as OptimizationFormButton]]
+    local decreaseBtn = InsertButton("<",   	 parent, nil, DecreaseQualityButtonOnClick, ...) --[[@as OptimizationFormButton]]
+    local optimizeBtn = InsertButton("Optimize", parent, nil, OptimizeQualityButtonOnClick, "LEFT", decreaseBtn, "RIGHT", 30) --[[@as OptimizationFormButton]]
+    local increaseBtn = InsertButton(">",        parent, nil, IncreaseQualityButtonOnClick, "LEFT", optimizeBtn, "RIGHT", 30) --[[@as OptimizationFormButton]]
 
-    btnDecrease.form = form
-    btnOptimize.form = form
-    btnIncrease.form = form
+    decreaseBtn.form = form
+    optimizeBtn.form = form
+    increaseBtn.form = form
 
-    btnDecrease.tooltipText = "Decrease quality"
-    btnOptimize.tooltipText = "Optimize for current quality"
-    btnIncrease.tooltipText = "Increase quality"
+    decreaseBtn.tooltipText = "Decrease quality"
+    optimizeBtn.tooltipText = "Optimize for current quality"
+    increaseBtn.tooltipText = "Increase quality"
 
-    Self.btnDecrease = btnDecrease
-    Self.btnOptimize = btnOptimize
-    Self.btnIncrease = btnIncrease
+    Self.decreaseBtns[form] = decreaseBtn
+    Self.optimizeBtns[form] = optimizeBtn
+    Self.increaseBtns[form] = increaseBtn
 end
 
----@param form CraftingForm
+---@param form RecipeCraftingForm
 local function UpdateOptimizationButtons(form)
     if not Optimization:IsItemPriceSourceInstalled() then return end
 
-    local recipe, op, transaction = form.recipeSchematic, form:GetRecipeOperationInfo(), form.transaction
-    local btnDecrease, btnOptimize, btnIncrease = Self.btnDecrease, Self.btnOptimize, Self.btnIncrease
+    local recipe, op = form.recipeSchematic, form:GetRecipeOperationInfo()
+    local decreaseBtn, optimizeBtn, increaseBtn = Self.decreaseBtns[form], Self.optimizeBtns[form], Self.increaseBtns[form]
     local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
+    local order = form == ordersForm and ordersView.order or nil
 
-    local show = op and op.isQualityCraft and not isSalvage and not isMinimized
-    Self.btnDecrease:SetShown(show)
-    Self.btnOptimize:SetShown(show)
-    Self.btnIncrease:SetShown(show)
+    local show = op and op.isQualityCraft
+        and not isSalvage and not isMinimized
+        and not (order and order.orderState ~= Enum.CraftingOrderState.Claimed)
+
+    decreaseBtn:SetShown(show)
+    optimizeBtn:SetShown(show)
+    increaseBtn:SetShown(show)
 
     if not show then return end
 
-    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(recipe, transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl())
-    btnDecrease:SetEnabled(canDecrease)
-    btnIncrease:SetEnabled(canIncrease)
+    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
+        recipe,
+        form.currentRecipeInfo,
+        op,
+        form.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
+        order
+    )
+
+    decreaseBtn:SetEnabled(canDecrease)
+    increaseBtn:SetEnabled(canIncrease)
 end
 
 -- List order button
@@ -316,11 +325,12 @@ end
 --               Hooks
 ---------------------------------------
 
--- CraftingFrame
+-- CraftingPage
 
-Self.Hooks.CraftingFrame = {}
+Self.Hooks.CraftingPage = {}
 
-function Self.Hooks.CraftingFrame.ValidateControls(self)
+---@param self CraftingPage
+function Self.Hooks.CraftingPage.ValidateControls(self)
     if not Addon.enabled then return end
     self.CreateButton:SetEnabled(false)
     self.CreateAllButton:SetEnabled(false)
@@ -328,11 +338,12 @@ function Self.Hooks.CraftingFrame.ValidateControls(self)
     self:SetCreateButtonTooltipText("Experimentation mode is enabled.")
 end
 
--- CraftingForm
+-- RecipeCraftingForm
 
-Self.Hooks.CraftingForm = {}
+Self.Hooks.RecipeCraftingForm = {}
 
-Self.Hooks.CraftingForm.GetRecipeOperationInfo = function(self)
+---@param self RecipeCraftingForm
+Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo = function(self)
     ---@type CraftingOperationInfo
     local op = Util:TblGetHooks(self).GetRecipeOperationInfo(self)
     if not op then return end
@@ -365,25 +376,29 @@ Self.Hooks.CraftingForm.GetRecipeOperationInfo = function(self)
     return op
 end
 
-function Self.Hooks.CraftingForm.Init(self, recipe)
+---@param self RecipeCraftingForm
+---@param recipe CraftingRecipeSchematic
+function Self.Hooks.RecipeCraftingForm:Init(recipe)
     if not Addon.CreateAllocations then
-        local allocation = craftingForm.transaction:GetAllocations(1)
+        local allocation = self.transaction:GetAllocations(1)
         if allocation then
             local AllocationsMixin = Util:TblCreateMixin(allocation)
             function Addon:CreateAllocations() return CreateAndInitFromMixin(AllocationsMixin) end
         end
     end
 
-    local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
+    UpdateOptimizationButtons(self)
+
+    if self ~= craftingForm then return end
+
+    local amountSpinner, trackBox = Self.amountSpinners[self], self.TrackRecipeCheckbox
     amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
     amountSpinner:SetValue(recipe and Self.amounts[recipe.recipeID] or 1)
 
-    self.OutputIcon:SetScript("OnEnter", Self.Hooks.CraftingForm.CraftOutputSlotOnEnter)
-    self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.CraftingForm.RecraftInputSlotOnEnter)
-    self.recraftSlot.OutputSlot:SetScript("OnEnter", Self.Hooks.CraftingForm.RecraftOutputSlotOnEnter)
-    self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.CraftingForm.RecraftOutputSlotOnClick)
-
-    UpdateOptimizationButtons(self)
+    self.OutputIcon:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.CraftOutputSlotOnEnter)
+    self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftInputSlotOnEnter)
+    self.recraftSlot.OutputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnEnter)
+    self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnClick)
 
     if Self.recraftRecipeID then
         local same = Self.recraftRecipeID == recipe.recipeID
@@ -391,57 +406,72 @@ function Self.Hooks.CraftingForm.Init(self, recipe)
     end
 end
 
-function Self.Hooks.CraftingForm.Refresh(self)
+---@param self RecipeCraftingForm
+function Self.Hooks.RecipeCraftingForm:Refresh()
     local minimized = ProfessionsUtil.IsCraftingMinimized()
 
-    Self.skillSpinner:SetShown(Addon.enabled and not minimized)
+    Self.skillSpinners[self]:SetShown(Addon.enabled and not minimized)
     Self.experimentBoxes[self]:SetShown(not minimized)
 
-    local trackBox, amountSpinner = self.TrackRecipeCheckbox, Self.amountSpinners[self]
-    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
+    if self ~= craftingForm then return end
 
     UpdateOptimizationButtons(self)
+
+    local amountSpinner, trackBox = Self.amountSpinners[self], self.TrackRecipeCheckbox
+    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
 end
 
-function Self.Hooks.CraftingForm.UpdateDetailsStats(self)
+---@param self RecipeCraftingForm
+function Self.Hooks.RecipeCraftingForm:UpdateDetailsStats()
     local op = self:GetRecipeOperationInfo()
     if not op then return end
 
     local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill
     local difficulty = op.baseDifficulty + op.bonusDifficulty
 
-    Self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
-    Self.skillSpinner:SetValue(Addon.extraSkill)
+    Self.skillSpinners[self]:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
+    Self.skillSpinners[self]:SetValue(Addon.extraSkill)
 
-    UpdateOptimizationButtons(craftingForm)
+    UpdateOptimizationButtons(self)
 end
 
-function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQualities, isGatheringRecipe)
+---@param self RecipeFormDetails
+---@param operationInfo CraftingOperationInfo
+---@param supportsQualities boolean
+---@param isGatheringRecipe boolean
+---@param order? CraftingOrderInfo
+function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQualities, isGatheringRecipe, order)
     if not Optimization:IsItemPriceSourceInstalled() then return end
 
     local label = COSTS_LABEL:gsub(":", "")
 
-    local recipe = craftingForm.recipeSchematic
-    local transaction = craftingForm.transaction
+    local recipe = C_TradeSkillUI.GetRecipeSchematic(operationInfo.recipeID, false) --TODO
+    local recipeInfo, tx = self.recipeInfo, self.transaction
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
 
-    ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[]
-    local allocation, optionalReagents
+    ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[], string?
+    local allocation, optionalReagents, recraftItemGUID
     if isSalvage then
-        allocation = transaction:GetSalvageAllocation()
+        allocation = tx:GetSalvageAllocation()
     else
-        allocation, optionalReagents = transaction.allocationTbls, transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl()
+        allocation = tx.allocationTbls
+        optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
+    end
+
+    if order and order.orderState ~= Enum.CraftingOrderState.Claimed then
+        local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+        allocation = allocations and allocations[math.max(order.minQuality, (next(allocations)))]
     end
 
     if not allocation then return end
 
-    local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, true)
+    local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, order)
     local allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
 
     local function applyExtra()
         if self.recipeInfo == nil or ProfessionsUtil.IsCraftingMinimized() then return end
 
-        local statLine = self.statLinePool:Acquire()
+        local statLine = self.statLinePool:Acquire() --[[@as RecipeStatLine]]
         statLine.layoutIndex = math.huge
         statLine:SetLabel(label)
         statLine.RightLabel:SetText(allocationPriceStr)
@@ -454,7 +484,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
             if supportsQualities and not isSalvage then
                 GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, and without taking resourcefulness into account.")
 
-                local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents)
+                local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order) ---@cast allocations -?
 
                 GameTooltip_AddBlankLineToTooltip(GameTooltip)
                 GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
@@ -463,7 +493,7 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
                     local qualityAllocation = allocations[i]
                     if qualityAllocation then
                         local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, true, allocation)
+                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, order, allocation)
                         local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
                         GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
                     end
@@ -487,7 +517,8 @@ function Self.Hooks.CraftingForm.DetailsSetStats(self, operationInfo, supportsQu
     applyExtra()
 end
 
-function Self.Hooks.CraftingForm.CraftOutputSlotOnEnter(self)
+---@param self OutputSlot
+function Self.Hooks.RecipeCraftingForm:CraftOutputSlotOnEnter()
     local form = craftingForm
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -504,7 +535,8 @@ function Self.Hooks.CraftingForm.CraftOutputSlotOnEnter(self)
     end)
 end
 
-function Self.Hooks.CraftingForm.RecraftInputSlotOnEnter(self)
+---@param self ReagentSlot
+function Self.Hooks.RecipeCraftingForm:RecraftInputSlotOnEnter()
     local form = craftingForm
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -527,7 +559,8 @@ function Self.Hooks.CraftingForm.RecraftInputSlotOnEnter(self)
     GameTooltip:Show()
 end
 
-function Self.Hooks.CraftingForm.RecraftOutputSlotOnEnter(self)
+---@param self OutputSlot
+function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnEnter()
     local form = craftingForm
 
     local itemGUID = form.transaction:GetRecraftAllocation()
@@ -544,7 +577,8 @@ function Self.Hooks.CraftingForm.RecraftOutputSlotOnEnter(self)
     )
 end
 
-function Self.Hooks.CraftingForm.RecraftOutputSlotOnClick(self)
+---@param self OutputSlot
+function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnClick()
     local form = craftingForm
 
     local itemGUID = form.transaction:GetRecraftAllocation()
@@ -564,20 +598,52 @@ function Self.Hooks.CraftingForm.RecraftOutputSlotOnClick(self)
     end
 end
 
--- OrderForm
+-- OrdersView
 
-Self.Hooks.OrderForm = {}
+Self.Hooks.OrdersView = {}
 
-function Self.Hooks.OrderForm.InitSchematic(self)
+---@param self OrdersView
+function Self.Hooks.OrdersView:UpdateCreateButton()
+    if not Addon.enabled then return end
+    self.CreateButton:SetEnabled(false)
+    self.CreateButton:SetScript("OnEnter", Self.Hooks.OrdersView.CreateButtonOnEnter)
+end
+
+---@param self Button
+function Self.Hooks.OrdersView:CreateButtonOnEnter()
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip_AddErrorLine(GameTooltip, "Experimentation mode is enabled.")
+    GameTooltip:Show()
+end
+
+-- OrdersForm
+
+Self.Hooks.OrdersForm = {}
+
+---@param self RecipeFormDetails
+---@param operationInfo CraftingOperationInfo
+---@param supportsQualities boolean
+---@param isGatheringRecipe boolean
+function Self.Hooks.OrdersForm:DetailsSetStats(operationInfo, supportsQualities, isGatheringRecipe)
+    return Self.Hooks.RecipeCraftingForm.DetailsSetStats(self, operationInfo, supportsQualities, isGatheringRecipe, ordersView.order)
+end
+
+-- CustomerOrderForm
+
+Self.Hooks.CustomerOrderForm = {}
+
+---@param self CustomerOrderForm
+function Self.Hooks.CustomerOrderForm.InitSchematic(self)
     local recipeID = self.order.spellID
     local trackBox = self.TrackRecipeCheckbox.Checkbox
-    local amountSpinner = Self.amountSpinners[orderForm]
+    local amountSpinner = Self.amountSpinners[customerOrderForm]
 
     amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
     amountSpinner:SetValue(recipeID and Self.amounts[recipeID] or 1)
 end
 
-function Self.Hooks.OrderForm.UpdateListOrderButton(self)
+---@param self CustomerOrderForm
+function Self.Hooks.CustomerOrderForm.UpdateListOrderButton(self)
     if not Addon.enabled then return end
     if self.committed then return end
 
@@ -718,33 +784,53 @@ end
 --              Util
 ---------------------------------------
 
----@param form CraftingForm
+function Self:SetRecraftRecipe(recipeId, link, transition)
+    if recipeId and not link then
+        link = C_TradeSkillUI.GetRecipeItemLink(recipeId)
+        if not link then recipeId = nil end
+    end
+
+    Self.recraftRecipeID = recipeId
+    Self.recraftItemLink = link
+
+    if not recipeId then return end
+
+    if transition then
+        Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
+        C_TradeSkillUI.OpenRecipe(recipeId)
+    end
+
+    craftingForm.recraftSlot:Init(nil, Util.FnTrue, Util.FnNoop, link)
+end
+
+---@param form RecipeCraftingForm
 ---@param quality? number
 ---@param exact? boolean
 function Self:SetCraftingFormQuality(form, quality, exact)
-    if not quality then quality = math.floor(craftingForm:GetRecipeOperationInfo().quality) end
+    if not quality then quality = math.floor(form:GetRecipeOperationInfo().quality) end
 
-    local recipe = form.recipeSchematic
-    local allocations = Optimization:GetRecipeAllocations(recipe, craftingForm.transaction:CreateOptionalOrFinishingCraftingReagentInfoTbl())
-    local qualityAllocation = allocations[quality] or not exact and allocations[quality + 1]
+    local recipe, recipeInfo, operationInfo, tx = form.recipeSchematic, form.currentRecipeInfo, form:GetRecipeOperationInfo(), form.transaction
+    local order = form == ordersForm and ordersView.order or nil
+    local optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
+    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+    local qualityAllocation = allocations and (allocations[quality] or not exact and allocations[quality + 1])
 
     if not qualityAllocation then return end
 
-    Self:SetReagentAllocation(craftingForm, qualityAllocation)
+    Self:SetReagentAllocation(form, qualityAllocation)
 end
 
 
----@param form CraftingForm
+---@param form RecipeCraftingForm
 ---@param by number
 function Self:ChangeCraftingFormQualityBy(form, by)
-    local quality = math.floor(craftingForm:GetRecipeOperationInfo().quality)
+    local quality = math.floor(form:GetRecipeOperationInfo().quality)
     Self:SetCraftingFormQuality(form, quality + by, true)
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param allocation RecipeAllocation
 function Self:SetReagentAllocation(form, allocation)
-
     for slotIndex,allocations in pairs(allocation) do
         self:SetReagentSlotAllocation(form, slotIndex, allocations, true)
     end
@@ -754,10 +840,16 @@ function Self:SetReagentAllocation(form, allocation)
     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param slotIndex number
 ---@param allocations ProfessionTransationAllocations
 function Self:SetReagentSlotAllocation(form, slotIndex, allocations, silent)
+    ---@type ReagentSlot
+    local slot
+    for s in form.reagentSlotPool:EnumerateActive() do if s:GetSlotIndex() == slotIndex then slot = s break end end
+
+    if not slot or slot:IsUnallocatable() then return end
+
     if not Addon.enabled then
         for _,reagent in allocations:Enumerate() do
             if reagent.quantity > Optimization:GetReagentQuantity(reagent) then Addon:Enable() break end
@@ -769,14 +861,12 @@ function Self:SetReagentSlotAllocation(form, slotIndex, allocations, silent)
 
     if silent then return end
 
-    for slot in form.reagentSlotPool:EnumerateActive() do
-        if slot:GetSlotIndex() == slotIndex then slot:Update() break end
-    end
+    slot:Update()
 
     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 function Self:ClearExperimentalReagentSlots(form)
     if not form or not form.reagentSlots then return end
 
@@ -795,7 +885,7 @@ function Self:ClearExperimentalReagentSlots(form)
     end
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param slot ReagentSlot
 function Self:ResetReagentSlot(form, slot)
     if slot:GetOriginalItem() then
@@ -805,7 +895,7 @@ function Self:ResetReagentSlot(form, slot)
     end
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param slot ReagentSlot
 function Self:RestoreOriginalSlotItem(form, slot)
     if slot:IsOriginalItemSet() then return end
@@ -823,7 +913,7 @@ function Self:RestoreOriginalSlotItem(form, slot)
     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
----@param form ProfessionForm
+---@param form RecipeForm
 ---@param slot ReagentSlot
 function Self:ClearReagentSlot(form, slot)
     form.transaction:ClearAllocations(slot:GetReagentSlotSchematic().slotIndex)
@@ -851,13 +941,15 @@ function Self:OnAddonLoaded(addonName)
     end
 
     if addonName == "Blizzard_Professions" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
-        -- ProfessionsFrame
-
-        craftingFrame = ProfessionsFrame.CraftingPage
-        craftingForm = craftingFrame.SchematicForm
+        -- Flyout
 
         flyout = OpenProfessionsItemFlyout()
         CloseProfessionsItemFlyout()
+
+        -- ProfessionsFrame.CraftingPage
+
+        craftingPage = ProfessionsFrame.CraftingPage
+        craftingForm = craftingPage.SchematicForm
 
         -- Elements
 
@@ -879,7 +971,7 @@ function Self:OnAddonLoaded(addonName)
         )
 
         -- Insert skill points spinner
-        Self.skillSpinner = InsertNumericSpinner(
+        Self.skillSpinners[craftingForm] = InsertNumericSpinner(
             craftingForm.Details.StatLines.SkillStatLine,
             SkillSpinnerOnEnter,
             SkillSpinnerOnChange,
@@ -887,45 +979,85 @@ function Self:OnAddonLoaded(addonName)
         )
 
         -- Insert optimization buttons
-        InsertOptimizationButtons(craftingFrame, craftingForm, "BOTTOMLEFT", craftingFrame.RecipeList, "BOTTOMRIGHT", 2, 2)
+        InsertOptimizationButtons(craftingPage, craftingForm, "BOTTOMLEFT", craftingPage.RecipeList, "BOTTOMRIGHT", 2, 2)
 
         -- Hooks
 
-        hooksecurefunc(craftingFrame, "ValidateControls", Self.Hooks.CraftingFrame.ValidateControls)
+        hooksecurefunc(craftingPage, "ValidateControls", Self.Hooks.CraftingPage.ValidateControls)
 
-        hooksecurefunc(craftingForm, "Init", Self.Hooks.CraftingForm.Init)
-        hooksecurefunc(craftingForm, "Refresh", Self.Hooks.CraftingForm.Refresh)
-        hooksecurefunc(craftingForm, "UpdateDetailsStats", Self.Hooks.CraftingForm.UpdateDetailsStats)
+        hooksecurefunc(craftingForm, "Init", Self.Hooks.RecipeCraftingForm.Init)
+        hooksecurefunc(craftingForm, "Refresh", Self.Hooks.RecipeCraftingForm.Refresh)
+        hooksecurefunc(craftingForm, "UpdateDetailsStats", Self.Hooks.RecipeCraftingForm.UpdateDetailsStats)
 
-        hooksecurefunc(craftingForm.Details, "SetStats", Self.Hooks.CraftingForm.DetailsSetStats)
-    end
+        hooksecurefunc(craftingForm.Details, "SetStats", Self.Hooks.RecipeCraftingForm.DetailsSetStats)
 
-    if addonName == "Blizzard_ProfessionsCustomerOrders" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_ProfessionsCustomerOrders") then
-        -- ProfessionsCustomerOrdersFrame
 
-        orderForm = ProfessionsCustomerOrdersFrame.Form
-        orderReagents = orderForm.ReagentContainer
+        -- ProfessionsFrame.OrdersPage
+
+        ordersView = ProfessionsFrame.OrdersPage.OrderView
+        ordersForm = ordersView.OrderDetails.SchematicForm
 
         -- Elements
 
         -- Insert experiment checkbox
         InsertExperimentBox(
-            orderForm,
-            orderReagents,
-            "LEFT", orderForm.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
+            ordersForm,
+            ordersForm,
+            "LEFT", ordersForm.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
         )
 
-        -- Insert tracked amount spinner
-        InsertAmountSpinner(
-            orderForm,
-            function () return orderForm.order and orderForm.order.spellID end,
-            "LEFT", orderForm.TrackRecipeCheckbox, "RIGHT", 30, 1
+        -- Insert skill points spinner
+        Self.skillSpinners[ordersForm] = InsertNumericSpinner(
+            ordersForm.Details.StatLines.SkillStatLine,
+            SkillSpinnerOnEnter,
+            SkillSpinnerOnChange,
+            "RIGHT", -50, 1
+        )
+
+        -- Insert optimization buttons
+        InsertOptimizationButtons(
+            ordersView,
+            ordersForm,
+            "TOPLEFT", ordersView.OrderDetails, "BOTTOMLEFT", 0, -4
         )
 
         -- Hooks
 
-        hooksecurefunc(orderForm, "InitSchematic", Self.Hooks.OrderForm.InitSchematic)
-        hooksecurefunc(orderForm, "UpdateListOrderButton", Self.Hooks.OrderForm.UpdateListOrderButton)
+        hooksecurefunc(ordersView, "UpdateCreateButton", Self.Hooks.OrdersView.UpdateCreateButton)
+
+        hooksecurefunc(ordersForm, "Init", Self.Hooks.RecipeCraftingForm.Init)
+        hooksecurefunc(ordersForm, "Refresh", Self.Hooks.RecipeCraftingForm.Refresh)
+        hooksecurefunc(ordersForm, "UpdateDetailsStats", Self.Hooks.RecipeCraftingForm.UpdateDetailsStats)
+
+        hooksecurefunc(ordersForm.Details, "SetStats", Self.Hooks.OrdersForm.DetailsSetStats)
+    end
+
+    if addonName == "Blizzard_ProfessionsCustomerOrders" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_ProfessionsCustomerOrders") then
+        -- ProfessionsCustomerOrdersFrame
+
+        customerOrderForm = ProfessionsCustomerOrdersFrame.Form
+        customerOrderReagents = customerOrderForm.ReagentContainer
+
+        -- Elements
+
+        -- Insert experiment checkbox
+        InsertExperimentBox(
+            customerOrderForm,
+            customerOrderReagents,
+            "LEFT", customerOrderForm.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
+        )
+
+        -- Insert tracked amount spinner
+        InsertAmountSpinner(
+            customerOrderForm,
+            function () return customerOrderForm.order and customerOrderForm.order.spellID end,
+            "LEFT", customerOrderForm.TrackRecipeCheckbox, "RIGHT", 30, 1
+        )
+
+        -- Hooks
+
+        hooksecurefunc(customerOrderForm, "InitSchematic", Self.Hooks.CustomerOrderForm.InitSchematic)
+        hooksecurefunc(customerOrderForm, "UpdateListOrderButton", Self.Hooks.CustomerOrderForm.UpdateListOrderButton)
     end
 end
 
@@ -937,8 +1069,8 @@ function Self:OnTrackedRecipeUpdate(recipeID, tracked)
         if not tracked then amountSpinner:SetValue(1) end
     end
 
-    if orderForm and orderForm.order and orderForm.order.spellID == recipeID then
-        local amountSpinner = Self.amountSpinners[orderForm]
+    if customerOrderForm and customerOrderForm.order and customerOrderForm.order.spellID == recipeID then
+        local amountSpinner = Self.amountSpinners[customerOrderForm]
         amountSpinner:SetShown(tracked)
         if not tracked then amountSpinner:SetValue(1) end
     end
@@ -966,8 +1098,8 @@ function Self:OnSpellcastStoppedOrSucceeded()
         Self.amountSpinners[craftingForm]:SetValue(amount)
     end
 
-    if orderForm and orderForm.order and orderForm.order.spellID == recipeID then
-        Self.amountSpinners[orderForm]:SetValue(amount)
+    if customerOrderForm and customerOrderForm.order and customerOrderForm.order.spellID == recipeID then
+        Self.amountSpinners[customerOrderForm]:SetValue(amount)
     end
 end
 

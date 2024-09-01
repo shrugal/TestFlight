@@ -8,12 +8,12 @@
 
 -- Types
 
----@alias Enumerator<T, K> fun(tbl: table<K, T>, index?: K): K, T
+---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
 
 ---@class OptimizationFormButton: ButtonFitToText
----@field form CraftingForm
+---@field form RecipeCraftingForm
 
 -- Globals
 
@@ -33,16 +33,18 @@ TSM_API = {}
 ---@field FitToText fun(self: self)
 
 ---@class FramePool
+---@field Acquire fun(self: self): Frame
 ---@field EnumerateActive fun(self:self): Enumerator<true, Frame>, Frame[]
 
 ---@class ReagentSlotFramePool
 ---@field EnumerateActive fun(self:self): Enumerator<true, ReagentSlot>, ReagentSlot[]
 
----@class ProfessionForm: Frame
+---@class RecipeForm: Frame
 ---@field recipeSchematic CraftingRecipeSchematic
 ---@field transaction ProfessionTransaction
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
 ---@field reagentSlotPool ReagentSlotFramePool
+---@field AllocateBestQualityCheckbox CheckButton
 ---@field GetRecipeInfo fun(self: self): TradeSkillRecipeInfo
 ---@field TriggerEvent fun(self: self, event: string)
 
@@ -88,65 +90,109 @@ TSM_API = {}
 ---@class ProfessionAllocations
 
 ---@class ProfessionsFrame: Frame
----@field CraftingPage CraftingFrame
+---@field CraftingPage CraftingPage
+---@field OrdersPage OrdersPage
 ProfessionsFrame = {}
 
----@class CraftingFrame: Frame
+---@class CraftingPage: Frame
 ---@field SchematicForm CraftingForm
 ---@field RecipeList Frame
----@field ValidateControls function
+---@field CreateButton Button
+---@field CreateAllButton Button
+---@field CreateMultipleInputBox NumericInputSpinner
+---@field ValidateControls fun(self: self)
+---@field SetCreateButtonTooltipText fun(self: self, text: string)
 
----@class CraftingForm: ProfessionForm
----@field currentRecipeInfo TradeSkillRecipeInfo
----@field recraftSlot RecraftSlot
----@field Details CraftingFormDetails
----@field AllocateBestQualityCheckbox CheckButton
+---@class OrdersPage: Frame
+---@field RecipeList Frame
+---@field OrderView OrdersView
+
+---@class OrdersView: Frame
+---@field order CraftingOrderInfo
+---@field OrderDetails OrdersDetails
+---@field CreateButton Button
+
+---@class OrdersDetails: Frame
+---@field SchematicForm OrdersForm
+
+---@class RecipeCraftingForm: RecipeForm
+---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
+---@field OutputIcon OutputSlot
+---@field GetRecipeOperationInfo fun(self: self): CraftingOperationInfo
+---@field Init fun(self: self, recipe: CraftingRecipeSchematic)
 ---@field Refresh fun(self: self)
 ---@field UpdateDetailsStats fun(self: self)
+---@field currentRecipeInfo TradeSkillRecipeInfo
+---@field recraftSlot RecraftSlot
 ---@field UpdateRecraftSlot fun(self: self)
 ---@field GetCurrentRecipeLevel fun(self: self): number
----@field GetRecipeOperationInfo fun(self: self): CraftingOperationInfo
 ---@field GetTransaction fun(self: self): ProfessionTransaction
 
----@class CraftingFormDetails: Frame
----@field StatLines CraftingStatLines
+---@class CraftingForm: RecipeCraftingForm
 
----@class CraftingStatLines: Frame
+---@class OrdersForm: RecipeCraftingForm
+
+---@class RecipeFormDetails: Frame
+---@field recipeInfo TradeSkillRecipeInfo
+---@field operationInfo CraftingOperationInfo
+---@field transaction ProfessionTransaction
+---@field craftingQuality number
+---@field statLinePool FramePool
+---@field StatLines RecipeStatLines
+---@field ApplyLayout fun()
+---@field Layout fun(self: self)
+
+---@class RecipeStatLines: Frame
 ---@field SkillStatLine Frame
+---@field Layout fun(self: self)
+
+---@class RecipeStatLine: Frame
+---@field layoutIndex number
+---@field SetLabel fun(self: self, text: string)
+---@field RightLabel FontString
 
 ---@class Flyout: Frame
 ---@field OnElementEnabledImplementation fun(): boolean
 ---@field GetElementValidImplementation function
 
 ---@class ReagentSlot: Frame
+---@field reagentSlotSchematic CraftingReagentSlotSchematic
 ---@field Update fun(self: self)
 ---@field GetSlotIndex fun(self: self): number
 ---@field GetReagentSlotSchematic fun(self: self): CraftingReagentSlotSchematic
+---@field IsUnallocatable fun(self: self): boolean
 ---@field GetOriginalItem fun(self: self): ItemMixin?
 ---@field IsOriginalItemSet fun(self: self): boolean
 ---@field RestoreOriginalItem fun(self: self)
 ---@field ClearItem fun(self: self)
 
----@class RecraftSlot: ReagentSlot
+---@class OutputSlot: Frame
+
+---@class RecraftSlot: Frame
+---@field InputSlot ReagentSlot
+---@field OutputSlot OutputSlot
 ---@field Init fun(self: self, a: unknown, b: function, c: function, link: string)
 
----@class OrderFrame: Frame
----@field Form OrderForm
+---@class CustomerOrderFrame: Frame
+---@field Form CustomerOrderForm
 ProfessionsCustomerOrdersFrame = {}
 
----@class OrderForm: ProfessionForm
+---@class CustomerOrderForm: RecipeForm
+---@field committed boolean
 ---@field order CraftingOrderInfo
 ---@field PaymentContainer OrdersFormPayments
 ---@field ReagentContainer OrdersFormReagents
----@field AllocateBestQualityCheckbox CheckButton
----@field TrackRecipeCheckbox CheckButton
+---@field TrackRecipeCheckbox OrdersFormTrackRecipeCheckbox
 ---@field InitSchematic fun(self: self)
-
----@class OrdersFormReagents: Frame
 
 ---@class OrdersFormPayments: Frame
 ---@field ListOrderButton Button
+
+---@class OrdersFormReagents: Frame
+
+---@class OrdersFormTrackRecipeCheckbox
+---@field Checkbox CheckButton
 
 -- WoW methods
 
@@ -202,3 +248,10 @@ ProfessionsUtil = {}
 
 ---@enum Professions.ReagentInputMode
 Professions.ReagentInputMode = { Fixed = 1, Quality = 2, Any = 3 }
+
+-- VSCode Addon fixes
+
+---@diagnostic disable-next-line: duplicate-doc-alias
+---@alias WOWMONEY number
+---@diagnostic disable-next-line: duplicate-doc-alias
+---@alias WOWGUID string
