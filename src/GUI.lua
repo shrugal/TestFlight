@@ -460,7 +460,7 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
 
     if order and order.orderState ~= Enum.CraftingOrderState.Claimed then
         local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
-        allocation = allocations and allocations[math.max(order.minQuality, (next(allocations)))]
+        allocation = allocations and allocations[math.max(order.minQuality, (Util:TblFindMinKey(allocations)))]
     end
 
     if not allocation then return end
@@ -519,10 +519,12 @@ end
 
 ---@param self OutputSlot
 function Self.Hooks.RecipeCraftingForm:CraftOutputSlotOnEnter()
-    local form = craftingForm
+    local form = self:GetParent() --[[@as RecipeCraftingForm]]
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+
     local reagents = form.transaction:CreateCraftingReagentInfoTbl()
+    local op = form:GetRecipeOperationInfo()
 
     self:SetScript("OnUpdate", function()
         GameTooltip:SetRecipeResultItem(
@@ -530,14 +532,14 @@ function Self.Hooks.RecipeCraftingForm:CraftOutputSlotOnEnter()
             reagents,
             form.transaction:GetAllocationItemGUID(),
             form:GetCurrentRecipeLevel(),
-            form:GetRecipeOperationInfo().craftingQualityID
+            op and op.craftingQualityID
         )
     end)
 end
 
 ---@param self ReagentSlot
 function Self.Hooks.RecipeCraftingForm:RecraftInputSlotOnEnter()
-    local form = craftingForm
+    local form = self:GetParent() --[[@as RecipeCraftingForm]]
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
@@ -561,10 +563,11 @@ end
 
 ---@param self OutputSlot
 function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnEnter()
-    local form = craftingForm
+    local form = self:GetParent() --[[@as RecipeCraftingForm]]
 
     local itemGUID = form.transaction:GetRecraftAllocation()
     local reagents = form.transaction:CreateCraftingReagentInfoTbl()
+    local op = form:GetRecipeOperationInfo()
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
@@ -573,16 +576,17 @@ function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnEnter()
         reagents,
         itemGUID,
         form:GetCurrentRecipeLevel(),
-        form:GetRecipeOperationInfo().craftingQualityID
+        op and op.craftingQualityID
     )
 end
 
 ---@param self OutputSlot
 function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnClick()
-    local form = craftingForm
+    local form = self:GetParent() --[[@as RecipeCraftingForm]]
 
     local itemGUID = form.transaction:GetRecraftAllocation()
     local reagents = form.transaction:CreateCraftingReagentInfoTbl()
+    local op = form:GetRecipeOperationInfo()
 
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 
@@ -590,7 +594,7 @@ function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnClick()
         form.recipeSchematic.recipeID,
         reagents,
         itemGUID,
-        form:GetRecipeOperationInfo().craftingQualityID
+        op and op.craftingQualityID
     )
 
     if outputItemInfo and outputItemInfo.hyperlink then

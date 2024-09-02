@@ -223,14 +223,27 @@ function Self:TblScan(tbl, fn, start, stop)
     return currK, currV
 end
 
+local minScanFn = function (v, _, currV) return not currV or v < currV end
+
 ---@generic T, K
 ---@param tbl T[]
 ---@param start? K
 ---@param stop? K
 ---@return K, T
 function Self:TblFindMin(tbl, start, stop)
-    return self:TblScan(tbl, function (v, _, currV) return not currV or v < currV end, start, stop)
+    return self:TblScan(tbl, minScanFn, start, stop)
 end
+
+---@generic T, K
+---@param tbl T[]
+---@param start? K
+---@param stop? K
+---@return T
+function Self:TblMin(tbl, start, stop)
+    return select(2, self:TblFindMin(tbl, start, stop))
+end
+
+local maxScanFn = function (v, _, currV) return not currV or v > currV end
 
 ---@generic T, K
 ---@param tbl T[]
@@ -238,7 +251,38 @@ end
 ---@param stop? K
 ---@return K, T
 function Self:TblFindMax(tbl, start, stop)
-    return self:TblScan(tbl, function (v, _, currV) return not currV or v > currV end, start, stop)
+    return self:TblScan(tbl, maxScanFn, start, stop)
+end
+
+---@generic T, K
+---@param tbl T[]
+---@param start? K
+---@param stop? K
+---@return T
+function Self:TblMax(tbl, start, stop)
+    return select(2, self:TblFindMax(tbl, start, stop))
+end
+
+local minKeyScanFn = function (_, k, _, currK) return not currK or k < currK end
+
+---@generic T, K
+---@param tbl T[]
+---@param start? K
+---@param stop? K
+---@return K, T
+function Self:TblFindMinKey(tbl, start, stop)
+    return self:TblScan(tbl, minKeyScanFn, start, stop)
+end
+
+local maxKeyScanFn = function (_, k, _, currK) return not currK or k > currK end
+
+---@generic T, K
+---@param tbl T[]
+---@param start? K
+---@param stop? K
+---@return K, T
+function Self:TblFindMaxKey(tbl, start, stop)
+    return self:TblScan(tbl, maxKeyScanFn, start, stop)
 end
 
 ---@generic T
