@@ -203,8 +203,20 @@ function Self:TblIncludes(tbl, value)
     return self:TblIndexOf(tbl, value) ~= nil
 end
 
----@generic T, K
+---@generic T
 ---@param tbl T[]
+---@param fn fun(a: T, b: T): number
+---@return T[]
+function Self:TblSorted(tbl, fn)
+    local t = self:TblCopy(tbl)
+    table.sort(t, fn)
+    return t
+end
+
+-- Tbl scan
+
+---@generic T, K
+---@param tbl table<K, T>
 ---@param fn fun(v: T, k: K, currV: T?, currK: K?, tbl: T[]): boolean
 ---@param start? K
 ---@param stop? K
@@ -223,77 +235,51 @@ function Self:TblScan(tbl, fn, start, stop)
     return currK, currV
 end
 
-local minScanFn = function (v, _, currV) return not currV or v < currV end
-
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return K, T
-function Self:TblFindMin(tbl, start, stop)
-    return self:TblScan(tbl, minScanFn, start, stop)
+---@param fn fun(v: any, k: any, currV: any?, currK: any?, tbl: table): boolean
+local function CreateScanFn(fn)
+    ---@generic T, K
+    ---@param self Util
+    ---@param tbl table<K, T>
+    ---@param start? K
+    ---@param stop? K
+    ---@return K, T
+    return function (self, tbl, start, stop)
+        return self:TblScan(tbl, fn, start, stop)
+    end
 end
 
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return T
-function Self:TblMin(tbl, start, stop)
-    return select(2, self:TblFindMin(tbl, start, stop))
+---@param fn fun(v: any, k: any, currV: any?, currK: any?, tbl: table): boolean
+local function CreateScanValueFn(fn)
+    ---@generic T, K
+    ---@param self Util
+    ---@param tbl table<K, T>
+    ---@param start? K
+    ---@param stop? K
+    ---@return T
+    return function (self, tbl, start, stop)
+        return select(2, self:TblScan(tbl, fn, start, stop))
+    end
 end
 
-local maxScanFn = function (v, _, currV) return not currV or v > currV end
-
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return K, T
-function Self:TblFindMax(tbl, start, stop)
-    return self:TblScan(tbl, maxScanFn, start, stop)
+---@param fn fun(v: any, k: any, currV: any?, currK: any?, tbl: table): boolean
+local function CreateScanKeyFn(fn)
+    ---@generic T, K
+    ---@param self Util
+    ---@param tbl table<K, T>
+    ---@param start? K
+    ---@param stop? K
+    ---@return K
+    return function (self, tbl, start, stop)
+        return (self:TblScan(tbl, fn, start, stop))
+    end
 end
 
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return T
-function Self:TblMax(tbl, start, stop)
-    return select(2, self:TblFindMax(tbl, start, stop))
-end
-
-local minKeyScanFn = function (_, k, _, currK) return not currK or k < currK end
-
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return K, T
-function Self:TblFindMinKey(tbl, start, stop)
-    return self:TblScan(tbl, minKeyScanFn, start, stop)
-end
-
-local maxKeyScanFn = function (_, k, _, currK) return not currK or k > currK end
-
----@generic T, K
----@param tbl T[]
----@param start? K
----@param stop? K
----@return K, T
-function Self:TblFindMaxKey(tbl, start, stop)
-    return self:TblScan(tbl, maxKeyScanFn, start, stop)
-end
-
----@generic T
----@param tbl T[]
----@param fn fun(a: T, b: T): number
----@return T[]
-function Self:TblSorted(tbl, fn)
-    local t = self:TblCopy(tbl)
-    table.sort(t, fn)
-    return t
-end
+Self.TblFindMin = CreateScanFn(function (v, _, currV) return not currV or v < currV end)
+Self.TblFindMax = CreateScanFn(function (v, _, currV) return not currV or v > currV end)
+Self.TblMin = CreateScanValueFn(function (v, _, currV) return not currV or v < currV end)
+Self.TblMax = CreateScanValueFn(function (v, _, currV) return not currV or v > currV end)
+Self.TblMinKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k < currK end)
+Self.TblMaxKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k > currK end)
 
 -- Hook
 

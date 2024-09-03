@@ -38,10 +38,10 @@ function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalRe
     if not skillBase then return end
 
     -- Check allocations cache
-    local key = Self.Cache.Allocations:Key(recipe, skillBase, qualityReagents, optionalReagents)
-    if Self.Cache.Allocations:Has(key) then
-        return Self.Cache.Allocations:Get(key)
-    end
+    local cache = Self.Cache.Allocations
+    local key = cache:Key(recipe, skillBase, qualityReagents, optionalReagents)
+
+    if cache:Has(key) then return cache:Get(key) end
 
     local weights, prices = self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
     local maxWeight = self:GetMaxReagentWeight(qualityReagents)
@@ -80,7 +80,7 @@ function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalRe
         if breakpointFactor == 0 then break end
     end
 
-    Self.Cache.Allocations:Set(key, allocations)
+    cache:Set(key, allocations)
 
     return allocations
 end
@@ -91,10 +91,10 @@ end
 ---@return table<number, number>
 function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
     -- Check weights cache
-    local key = Self.Cache.WeightsAndPrices:Key(recipe, qualityReagents)
-    if Self.Cache.WeightsAndPrices:Has(key) then
-        return unpack(Self.Cache.WeightsAndPrices:Get(key))
-    end
+    local cache = Self.Cache.WeightsAndPrices
+    local key = cache:Key(recipe, qualityReagents)
+
+    if cache:Has(key) then return unpack(cache:Get(key)) end
 
     -- Intialize knapsack matrices
     ---@type table<number, table<number, number>>, table<number, table<number, number>>
@@ -126,7 +126,7 @@ function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
         end
     end
 
-    Self.Cache.WeightsAndPrices:Set(key, { weights, prices[1] })
+    cache:Set(key, { weights, prices[1] })
 
     return weights, prices[1]
 end
@@ -201,13 +201,13 @@ end
 ---@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@param order? CraftingOrderInfo
-function Self:CanChangeCraftQuality(recipe, recipeInfo, operationInfo, optionalReagents, order)
+function Self:CanChangeCraftQuality(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
     if recipeInfo.maxQuality == 0 then return false, false end
 
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
     local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
     local quality = math.floor(operationInfo.quality)
-    local skillBase, skillBest, skillCheapest = self:GetReagentSkillBounds(recipe, optionalReagents, nil, nil, order)
+    local skillBase, skillBest, skillCheapest = self:GetReagentSkillBounds(recipe, optionalReagents, nil, recraftItemGUID, order)
 
     local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
     local canIncrease = (breakpoints[quality+1] or math.huge) * difficulty <= skillBase + skillBest
@@ -394,7 +394,6 @@ function Self:GetReagentSkillBounds(recipe, optionalReagents, qualityReagents, r
     if optionalReagents then
         for _,reagent in pairs(optionalReagents) do tinsert(allocation, reagent) end
     end
-
     if order then
         for _,reagent in pairs(order.reagents) do tinsert(allocation, reagent.reagent) end
     end
