@@ -211,7 +211,7 @@ end
 ---@param form RecipeCraftingForm
 local function UpdateExperimentationElements(form)
     local info = form:GetRecipeInfo()
-    local show = not ProfessionsUtil.IsCraftingMinimized() and not info.isGatheringRecipe and not info.isDummyRecipe
+    local show = not ProfessionsUtil.IsCraftingMinimized() and not (info and (info.isGatheringRecipe or info.isDummyRecipe))
 
     Self.skillSpinners[form]:SetShown(show and Addon.enabled)
     Self.experimentBoxes[form]:SetShown(show)
