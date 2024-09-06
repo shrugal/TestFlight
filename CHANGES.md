@@ -1,3 +1,2 @@
-- Added support for order crafting form
-- Improve gatheing recipe handling
-- Bugfixes galore
+- Added option to show reagent craft weight and provided skill
+- Some minor refactoring

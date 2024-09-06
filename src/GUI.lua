@@ -15,7 +15,7 @@ Self.experimentBoxes = {}
 ---@type NumericInputSpinner[]
 Self.skillSpinners = {}
 ---@type table<table, NumericInputSpinner>, table<integer, integer>
-Self.amountSpinners, Self.amounts = {}, nil
+Self.amountSpinners = {}
 ---@type integer?
 Self.craftingRecipeID = nil
 ---@type number?, string?
@@ -80,13 +80,13 @@ function Self:Refresh()
     end
 
     -- ProfessionsFrame.CraftingPage
-    if craftingPage:IsVisible() then
+    if craftingPage and craftingPage:IsVisible() then
         craftingForm:Refresh()
         craftingPage:ValidateControls()
     end
 
     -- ProfessionsFrame.OrdersPage
-    if ordersView:IsVisible() then
+    if ordersView and ordersView:IsVisible() then
         ordersForm:Refresh()
     end
 
@@ -232,7 +232,7 @@ local function AmountSpinnerOnChange(GetRecipeID)
     return function (self, value)
         local recipeID = GetRecipeID()
         if not recipeID then return end
-        Self.amounts[recipeID] = value > 1 and value or nil
+        Addon.DB.amounts[recipeID] = value > 1 and value or nil
         ObjectiveTrackerFrame:Update()
     end
 end
@@ -411,7 +411,7 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
     UpdateAmountSpinner(self)
 
     local amountSpinner = Self.amountSpinners[self]
-    amountSpinner:SetValue(recipe and Self.amounts[recipe.recipeID] or 1)
+    amountSpinner:SetValue(recipe and Addon.DB.amounts[recipe.recipeID] or 1)
 
     self.OutputIcon:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.CraftOutputSlotOnEnter)
     self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftInputSlotOnEnter)
@@ -644,7 +644,7 @@ function Self.Hooks.CustomerOrderForm.InitSchematic(self)
     local amountSpinner = Self.amountSpinners[customerOrderForm]
 
     amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    amountSpinner:SetValue(recipeID and Self.amounts[recipeID] or 1)
+    amountSpinner:SetValue(recipeID and Addon.DB.amounts[recipeID] or 1)
 end
 
 ---@param self CustomerOrderForm
@@ -696,7 +696,7 @@ end
 
 function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-    local amount = Self.amounts[recipe.recipeID]
+    local amount = Addon.DB.amounts[recipe.recipeID]
 
     -- Set header
     local block = self:GetExistingBlock(NegateIf(recipeID, isRecraft))
@@ -724,7 +724,7 @@ function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
 
         local reagent = schematic.reagents[1]
         local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
-        local quantityRequired = schematic.quantityRequired * (Self.amounts[recipe.recipeID] or 1)
+        local quantityRequired = schematic.quantityRequired * (Addon.DB.amounts[recipe.recipeID] or 1)
         local metQuantity = quantity >= quantityRequired
         local name = nil
 
@@ -789,9 +789,18 @@ end
 --              Util
 ---------------------------------------
 
----@param form RecipeCraftingForm
+---@return RecipeForm?
+function Self:GetVisibleForm()
+    if craftingForm and craftingForm:IsVisible() then return craftingForm end
+    if ordersForm and ordersForm:IsVisible() then return ordersForm end
+    if customerOrderForm and customerOrderForm:IsVisible() then return customerOrderForm end
+end
+
+---@param form RecipeForm?
 function Self:GetFormOrder(form)
-    return form == ordersForm and ordersView.order or nil
+    if not form then form = self:GetVisibleForm() end
+    if form == ordersForm then return ordersView.order end
+    if form == customerOrderForm then return customerOrderForm.order end
 end
 
 function Self:SetRecraftRecipe(recipeId, link, transition)
@@ -932,6 +941,46 @@ function Self:ClearReagentSlot(form, slot)
 end
 
 ---------------------------------------
+--              Tooltip
+---------------------------------------
+
+-- Reagent tooltip
+
+TooltipDataProcessor.AddTooltipPostCall(
+    Enum.TooltipDataType.Item,
+    ---@param tooltip GameTooltip
+    function(tooltip)
+        if not Addon.DB.tooltip then return end
+
+        local _, link = tooltip:GetItem()
+        if not link then return end
+
+        local id = C_Item.GetItemIDForItemInfo(link)
+        if not id then return end
+
+        local reagentWeight = Addon.REAGENTS[id]
+        local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(link)
+        if not reagentWeight or not quality then return end
+
+        local itemWeight = reagentWeight * (quality - 1)
+
+        tooltip:AddDoubleLine("Craft weight", ("%d (%d)"):format(itemWeight, reagentWeight), nil, nil, nil, WHITE_FONT_COLOR.r, WHITE_FONT_COLOR.g, WHITE_FONT_COLOR.b)
+
+        local form = Self:GetVisibleForm()
+        if not form then return end
+
+        local recipe = form.transaction:GetRecipeSchematic()
+        local totalWeight = Optimization:GetMaxReagentWeight(recipe.reagentSlotSchematics)
+        local _, maxSkill = Optimization:GetReagentSkillBounds(recipe)
+        if not maxSkill or maxSkill == 0 then return end
+
+        local skill = Util:NumRound(maxSkill * itemWeight / totalWeight, 1)
+
+        tooltip:AddDoubleLine("Craft skill", skill, nil, nil, nil, WHITE_FONT_COLOR.r, WHITE_FONT_COLOR.g, WHITE_FONT_COLOR.b)
+    end
+)
+
+---------------------------------------
 --              Events
 ---------------------------------------
 
@@ -939,11 +988,6 @@ function Self:OnAddonLoaded(addonName)
     local isSelf = addonName == Name
 
     if isSelf then
-        -- TestFlight
-
-        TestFlightDB = TestFlightDB or { amounts = {} }
-        Self.amounts = TestFlightDB.amounts
-
         -- RecipeObjectiveTracker
 
         -- Hook update
@@ -1098,10 +1142,10 @@ function Self:OnSpellcastStoppedOrSucceeded()
     local recipeID = Self.craftingRecipeID
     Self.craftingRecipeID = nil
 
-    if not recipeID or not Self.amounts[recipeID] then return end
+    if not recipeID or not Addon.DB.amounts[recipeID] then return end
 
-    local amount = max(1, Self.amounts[recipeID] - 1)
-    Self.amounts[recipeID] = amount > 1 and amount or nil
+    local amount = max(1, Addon.DB.amounts[recipeID] - 1)
+    Addon.DB.amounts[recipeID] = amount > 1 and amount or nil
 
     local recipe = craftingForm:GetRecipeInfo()
     if recipe and recipe.recipeID == recipeID then

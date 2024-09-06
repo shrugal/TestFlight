@@ -4,6 +4,12 @@ local Name = ...
 local Addon = select(2, ...)
 local GUI = Addon.GUI
 
+---@class TestFlightDB
+TestFlightDB = {
+    amounts = {},
+    tooltip = false
+}
+
 ---@class TestFlight
 local Self = Addon
 
@@ -28,13 +34,17 @@ function Self:Debug(data, name)
 end
 
 ---@param msg string
-function Self:Print(msg)
-    print("|cff00bbbb[TestFlight]|r " .. msg)
+function Self:Print(msg, ...)
+    print("|cff00bbbb[TestFlight]|r " .. msg:format(...))
 end
 
 ---------------------------------------
 --             Lifecycle
 ---------------------------------------
+
+function Self:Load()
+    Self.DB = TestFlightDB
+end
 
 function Self:Enable()
     if Self.enabled then return end
@@ -91,7 +101,20 @@ function SlashCmdList.TESTFLIGHT(input)
     local args = ParseArgs(input)
     local cmd = args[1]
 
-    if cmd == "recraft" or cmd == "rc" then
+    if cmd == "tooltip" or cmd == "tt" then
+        if not args[2] then
+            args[2] = Self.DB.tooltip and "off" or "on"
+        end
+
+        if args[2] ~= "on" and args[2] ~= "off" then
+            Self:Print("Tooltip: Please pass 'on', 'off' or nothing as second parameter.")
+            return
+        end
+
+        Self.DB.tooltip = args[2] == "on"
+
+        Self:Print("Tooltip: Reagent info %s", Self.DB.tooltip and "enabled" or "disabled")
+    elseif cmd == "recraft" or cmd == "rc" then
         -- Get item ID
         local id = GetItemId(args[2])
         if not id then
@@ -118,6 +141,19 @@ function SlashCmdList.TESTFLIGHT(input)
         Self:Print("Recraft: No recipe for link found.")
     else
         Self:Print("Help")
-        Self:Print("|cffcccccc/testflight recraft [link]|r: Set recraft UI to an item given by link")
+        Self:Print("|cffcccccc/testflight recraft|rc [link]|r: Set recraft UI to an item given by link.")
+        Self:Print("|cffcccccc/testflight tooltip|tt [on|off]|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.tooltip and "on" or "off")
     end
 end
+
+---------------------------------------
+--              Events
+---------------------------------------
+
+---@param addonName string
+function Self:OnAddonLoaded(addonName)
+    if addonName ~= Name then return end
+    self:Load()
+end
+
+EventRegistry:RegisterFrameEventAndCallback("ADDON_LOADED", Self.OnAddonLoaded, Self)

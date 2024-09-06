@@ -316,6 +316,13 @@ function Self:StrFormatMoney(money)
     return ("%dg %ds %dc"):format(gold, silver, copper)
 end
 
+-- Num
+
+function Self:NumRound(n, p)
+    local f = math.pow(10, p or 0)
+    return math.floor(0.5 + n * f) / f
+end
+
 -- Fn
 
 function Self.FnInfinite() return math.huge end

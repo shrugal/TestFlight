@@ -1,3 +1,9 @@
+Version 2.03
+
+- Added support for order crafting form
+- Improve gatheing recipe handling
+- Bugfixes galore
+
 Version 2.02
 
 - Improve crafting cost calcuation
