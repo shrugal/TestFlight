@@ -1,3 +1,8 @@
+Version 2.04
+
+- Added option to show reagent craft weight and provided skill
+- Some minor refactoring
+
 Version 2.03
 
 - Added support for order crafting form

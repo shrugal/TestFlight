@@ -3,7 +3,7 @@ local Addon = select(2, ...)
 
 -- Source: CraftSim
 Addon.QUALITY_BREAKPOINTS = {
-	[0] = { 0 },
+    [0] = { 0 },
     [3] = { 0, 0.5, 1 },
     [5] = { 0, 0.2, 0.5, 0.8, 1 }
 }

@@ -337,8 +337,13 @@ function Self:CreateReagentAllocationsForWeight(reagent, weight)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
+function Self:IsModifyingReagent(reagent)
+    return reagent.reagentType == Enum.CraftingReagentType.Modifying
+end
+
+---@param reagent CraftingReagentSlotSchematic
 function Self:IsQualityReagent(reagent)
-    return Professions.GetReagentInputMode(reagent) == Professions.ReagentInputMode.Quality
+    return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents == 3
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -394,18 +399,29 @@ function Self:GetReagentSkillBounds(recipe, optionalReagents, qualityReagents, r
     if optionalReagents then
         for _,reagent in pairs(optionalReagents) do tinsert(allocation, reagent) end
     end
-    if order then
-        for _,reagent in pairs(order.reagents) do tinsert(allocation, reagent.reagent) end
+
+    -- Get required skill with base and best materials
+    ---@type CraftingOperationInfo?, CraftingOperationInfo?
+    local opBase, opBest
+    if not order then
+        opBase = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, allocation, recraftItemGUID, false)
+        for i=1,#qualityReagents do allocation[i].itemID = qualityReagents[i].reagents[3].itemID end
+        opBest = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, allocation, recraftItemGUID, false)
+    else
+        -- Add order materials
+        for _,reagent in pairs(order.reagents) do
+            local schematic = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", reagent.slotIndex)
+            if schematic and (Self:IsQualityReagent(schematic) or Self:IsModifyingReagent(schematic)) then
+                tinsert(allocation, reagent.reagent)
+            end
+        end
+
+        opBase = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, allocation, order.orderID, false)
+        for i=1,#qualityReagents do allocation[i].itemID = qualityReagents[i].reagents[3].itemID end
+        opBest = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, allocation, order.orderID, false)
     end
 
-    -- Get required skill with base materials
-    local opBase = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, allocation, recraftItemGUID, false)
-    if not opBase then return end
-
-    -- Get required skill with best materials
-    for i=1,#qualityReagents do allocation[i].itemID = qualityReagents[i].reagents[3].itemID end
-    local opBest = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, allocation, recraftItemGUID, false)
-    if not opBest then return end
+    if not opBase or not opBest then return end
 
     if Addon.enabled then
         opBase.baseSkill = opBase.baseSkill + Addon.extraSkill

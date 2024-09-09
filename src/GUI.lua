@@ -477,10 +477,12 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
         allocation = allocations and allocations[math.max(order.minQuality, Util:TblMinKey(allocations))]
     end
 
-    if not allocation then return end
-
-    local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, order)
-    local allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
+    ---@type string?
+    local allocationPriceStr
+    if allocation then
+        local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, order)
+        allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
+    end
 
     local function applyExtra()
         if self.recipeInfo == nil or ProfessionsUtil.IsCraftingMinimized() then return end
@@ -488,31 +490,31 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
         local statLine = self.statLinePool:Acquire() --[[@as RecipeStatLine]]
         statLine.layoutIndex = math.huge
         statLine:SetLabel(label)
-        statLine.RightLabel:SetText(allocationPriceStr)
+        statLine.RightLabel:SetText(allocationPriceStr or "-")
 
         statLine:SetScript("OnEnter", function(line)
             GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
 
-            GameTooltip_AddColoredDoubleLine(GameTooltip, label, allocationPriceStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+            GameTooltip_AddColoredDoubleLine(GameTooltip, label, allocationPriceStr or "Not craftable", HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
             GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, and without taking resourcefulness into account.")
 
             if supportsQualities and not isSalvage then
-                local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order) ---@cast allocations -?
+                local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
 
-                GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
+                if allocations then
+                    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                    GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
 
-                for i=1,5 do
-                    local qualityAllocation = allocations[i]
-                    if qualityAllocation then
-                        local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                        local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, order, allocation)
-                        local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
-                        GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
+                    for i=1,5 do
+                        local qualityAllocation = allocations[i]
+                        if qualityAllocation then
+                            local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                            local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, order, allocation)
+                            local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
+                            GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
+                        end
                     end
                 end
-            else
-                GameTooltip_AddNormalLine(GameTooltip, "Click to optimize cost.")
             end
 
             GameTooltip:Show()
@@ -948,9 +950,9 @@ end
 
 TooltipDataProcessor.AddTooltipPostCall(
     Enum.TooltipDataType.Item,
-    ---@param tooltip GameTooltip
+    ---@param tooltip? GameTooltip
     function(tooltip)
-        if not Addon.DB.tooltip then return end
+        if not Addon.DB.tooltip or not tooltip then return end
 
         local _, link = tooltip:GetItem()
         if not link then return end
