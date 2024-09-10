@@ -306,17 +306,13 @@ function Self:TblGetHooks(tbl)
     return self.hooks[tbl]
 end
 
--- Str
-
-function Self:StrFormatMoney(money)
-    local gold = math.floor(money / 10000)
-    local silver = math.floor(money % 10000 / 100)
-    local copper = money % 100
-
-    return ("%dg %ds %dc"):format(gold, silver, copper)
-end
-
 -- Num
+
+function Self:NumCurrencyString(amount)
+    local str = C_CurrencyInfo.GetCoinTextureString(math.abs(amount))
+    if amount < 0 then str = "|c00ff0000-" .. str .. "|r" end
+    return str
+end
 
 function Self:NumRound(n, p)
     local f = math.pow(10, p or 0)

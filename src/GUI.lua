@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local Optimization, Util = Addon.Optimization, Addon.Util
+local Optimization, Prices, Util = Addon.Optimization, Addon.Prices, Addon.Util
 
 ---@class GUI
 local Self = {}
@@ -277,7 +277,7 @@ end
 ---@param parent Frame
 ---@param form RecipeCraftingForm
 local function InsertOptimizationButtons(parent, form, ...)
-    if not Optimization:IsItemPriceSourceInstalled() then return end
+    if not Prices:IsItemPriceSourceInstalled() then return end
 
     local decreaseBtn = InsertButton("<",   	 parent, nil, DecreaseQualityButtonOnClick, ...) --[[@as OptimizationFormButton]]
     local optimizeBtn = InsertButton("Optimize", parent, nil, OptimizeQualityButtonOnClick, "LEFT", decreaseBtn, "RIGHT", 30) --[[@as OptimizationFormButton]]
@@ -298,7 +298,7 @@ end
 
 ---@param form RecipeCraftingForm
 local function UpdateOptimizationButtons(form)
-    if not Optimization:IsItemPriceSourceInstalled() then return end
+    if not Prices:IsItemPriceSourceInstalled() then return end
 
     local recipe, op = form.recipeSchematic, form:GetRecipeOperationInfo()
     local decreaseBtn, optimizeBtn, increaseBtn = Self.decreaseBtns[form], Self.optimizeBtns[form], Self.increaseBtns[form]
@@ -395,14 +395,6 @@ end
 ---@param self RecipeCraftingForm
 ---@param recipe CraftingRecipeSchematic
 function Self.Hooks.RecipeCraftingForm:Init(recipe)
-    if not Addon.CreateAllocations then
-        local allocation = self.transaction:GetAllocations(1)
-        if allocation then
-            local AllocationsMixin = Util:TblCreateMixin(allocation)
-            function Addon:CreateAllocations() return CreateAndInitFromMixin(AllocationsMixin) end
-        end
-    end
-
     UpdateExperimentationElements(self)
     UpdateOptimizationButtons(self)
 
@@ -413,9 +405,7 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
     local amountSpinner = Self.amountSpinners[self]
     amountSpinner:SetValue(recipe and Addon.DB.amounts[recipe.recipeID] or 1)
 
-    self.OutputIcon:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.CraftOutputSlotOnEnter)
     self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftInputSlotOnEnter)
-    self.recraftSlot.OutputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnClick)
 
     if Self.recraftRecipeID then
@@ -454,13 +444,11 @@ end
 ---@param isGatheringRecipe boolean
 function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQualities, isGatheringRecipe)
     if isGatheringRecipe then return end
-    if not Optimization:IsItemPriceSourceInstalled() then return end
-
-    local label = COSTS_LABEL:gsub(":", "")
+    if not Prices:IsItemPriceSourceInstalled() then return end
 
     local form = self:GetParent() --[[@as RecipeCraftingForm]]
     local recipeInfo, tx, order = self.recipeInfo, self.transaction, Self:GetFormOrder(form)
-    local recipe = C_TradeSkillUI.GetRecipeSchematic(operationInfo.recipeID, recipeInfo.isRecraft)
+    local recipe = tx:GetRecipeSchematic()
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
 
     ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[], string?
@@ -473,54 +461,114 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
     end
 
     if order and order.orderState ~= Enum.CraftingOrderState.Claimed then
+        local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
         local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
-        allocation = allocations and allocations[math.max(order.minQuality, Util:TblMinKey(allocations))]
+        allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
     end
 
-    ---@type string?
-    local allocationPriceStr
+    ---@type string?, number?, number?, number?, number?, number?, number?
+    local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, multicraft
     if allocation then
-        local allocationPrice = Optimization:GetRecipeAllocationPrice(recipe, allocation, order)
-        allocationPriceStr = C_CurrencyInfo.GetCoinTextureString(allocationPrice)
+        reagentPrice, _, profit, revenue, traderCut, resourcefulness, multicraft = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents, order and order.minQuality or nil)
+        reagentPriceStr = Util:NumCurrencyString(reagentPrice)
     end
 
     local function applyExtra()
         if self.recipeInfo == nil or ProfessionsUtil.IsCraftingMinimized() then return end
 
-        local statLine = self.statLinePool:Acquire() --[[@as RecipeStatLine]]
-        statLine.layoutIndex = math.huge
-        statLine:SetLabel(label)
-        statLine.RightLabel:SetText(allocationPriceStr or "-")
+        -- Cost
+        do
+            local label = COSTS_LABEL:gsub(":", "")
 
-        statLine:SetScript("OnEnter", function(line)
-            GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+            local statLine = self.statLinePool:Acquire() --[[@as RecipeStatLine]]
+            statLine.layoutIndex = 1000
+            statLine:SetLabel(label)
+            statLine.RightLabel:SetText(reagentPriceStr or "-")
 
-            GameTooltip_AddColoredDoubleLine(GameTooltip, label, allocationPriceStr or "Not craftable", HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-            GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, and without taking resourcefulness into account.")
+            statLine:SetScript("OnEnter", function(line)
+                GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
 
-            if supportsQualities and not isSalvage then
-                local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+                GameTooltip_AddColoredDoubleLine(GameTooltip, label, reagentPriceStr or "Not craftable", HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, not taking resourcefulness or multicraft into account.")
 
-                if allocations then
-                    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                    GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
+                if supportsQualities and not isSalvage then
+                    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
 
-                    for i=1,5 do
-                        local qualityAllocation = allocations[i]
-                        if qualityAllocation then
-                            local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                            local qualityPrice = Optimization:GetRecipeAllocationPrice(recipe, qualityAllocation, order, allocation)
-                            local qualityPriceStr = C_CurrencyInfo.GetCoinTextureString(qualityPrice)
-                            GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
+                    if allocations then
+                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                        GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
+
+                        for i=1,5 do
+                            local qualityAllocation = allocations[i]
+                            if qualityAllocation then
+                                local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                                local qualityPrice = Prices:GetRecipeAllocationPrice(recipe, qualityAllocation, order, optionalReagents)
+                                local qualityPriceStr = Util:NumCurrencyString(qualityPrice)
+
+                                GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
+                            end
                         end
                     end
                 end
-            end
 
-            GameTooltip:Show()
-        end)
+                GameTooltip:Show()
+            end)
 
-        statLine:Show()
+            statLine:Show()
+        end
+
+        -- Profit
+        if profit then
+            local label = "Profit" -- TODO
+            local profitStr = Util:NumCurrencyString(profit)
+
+            local statLine = self.statLinePool:Acquire() --[[@as RecipeStatLine]]
+            statLine.layoutIndex = 1001
+            statLine:SetLabel(label) -- TODO
+            statLine.RightLabel:SetText(profitStr or "-")
+
+            statLine:SetScript("OnEnter", function(line)
+                GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+
+                GameTooltip_AddColoredDoubleLine(GameTooltip, label, profitStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                GameTooltip_AddNormalLine(GameTooltip, "Based on reagent and result market prices, taking resourcefulness and multicraft into account.")
+
+                if recipeInfo.supportsCraftingStats then
+                    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                    GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
+
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Commission" or "Sell price", Util:NumCurrencyString(revenue), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Resourcefulness", Util:NumCurrencyString(resourcefulness), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Multicraft", Util:NumCurrencyString(multicraft), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagent costs", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                end
+
+                if supportsQualities and not isSalvage then
+                    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+
+                    if allocations then
+                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                        GameTooltip_AddNormalLine(GameTooltip, "Optimal profits:")
+
+                        for i=1,5 do
+                            local qualityAllocation = allocations[i]
+                            if qualityAllocation then
+                                local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                                local _, _, qualityProfit = Prices:GetRecipePrices(recipe, operationInfo, qualityAllocation, order, optionalReagents, i)
+                                local qualityProfitStr = Util:NumCurrencyString(qualityProfit)
+
+                                GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityProfitStr)
+                            end
+                        end
+                    end
+                end
+
+                GameTooltip:Show()
+            end)
+
+            statLine:Show()
+        end
 
         self.StatLines:Layout()
         self:Layout()
@@ -530,26 +578,6 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
     self.ApplyLayout = function() origApplyLayout() applyExtra() end
 
     applyExtra()
-end
-
----@param self OutputSlot
-function Self.Hooks.RecipeCraftingForm:CraftOutputSlotOnEnter()
-    local form = self:GetParent() --[[@as RecipeCraftingForm]]
-
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-
-    local reagents = form.transaction:CreateCraftingReagentInfoTbl()
-    local op = form:GetRecipeOperationInfo()
-
-    self:SetScript("OnUpdate", function()
-        GameTooltip:SetRecipeResultItem(
-            form.recipeSchematic.recipeID,
-            reagents,
-            form.transaction:GetAllocationItemGUID(),
-            form:GetCurrentRecipeLevel(),
-            op and op.craftingQualityID
-        )
-    end)
 end
 
 ---@param self ReagentSlot
@@ -574,25 +602,6 @@ function Self.Hooks.RecipeCraftingForm:RecraftInputSlotOnEnter()
     end
 
     GameTooltip:Show()
-end
-
----@param self OutputSlot
-function Self.Hooks.RecipeCraftingForm:RecraftOutputSlotOnEnter()
-    local form = self:GetParent():GetParent() --[[@as RecipeCraftingForm]]
-
-    local itemGUID = form.transaction:GetRecraftAllocation()
-    local reagents = form.transaction:CreateCraftingReagentInfoTbl()
-    local op = form:GetRecipeOperationInfo()
-
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-
-    GameTooltip:SetRecipeResultItem(
-        form.recipeSchematic.recipeID,
-        reagents,
-        itemGUID,
-        form:GetCurrentRecipeLevel(),
-        op and op.craftingQualityID
-    )
 end
 
 ---@param self OutputSlot

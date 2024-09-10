@@ -8,8 +8,10 @@
 src/Data.lua
 src/Util.lua
 
+src/mixins/Allocations.lua
 src/mixins/Cache.lua
 
+src/Prices.lua
 src/Optimization.lua
 src/GUI.lua
 src/Addon.lua

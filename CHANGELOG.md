@@ -1,3 +1,9 @@
+Version 2.05
+
+- Show cost line and tooltip for reachable qualities for non-fulfillable orders
+- Fix skill calculation for orders with basic materials provided
+- Fix tooltip post call for when the passed tooltip is nil
+
 Version 2.04
 
 - Added option to show reagent craft weight and provided skill

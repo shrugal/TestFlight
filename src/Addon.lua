@@ -30,7 +30,7 @@ if Self.DEBUG then TestFlight = Self end
 ---@param name? string
 function Self:Debug(data, name)
     if not DevTool or not self.DEBUG then return end
-    DevTool:AddData(data, name)
+    DevTool:AddData(data or "nil", name or "---")
 end
 
 ---@param msg string

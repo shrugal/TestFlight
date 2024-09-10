@@ -1,3 +1,6 @@
-- Show cost line and tooltip for reachable qualities for non-fulfillable orders
-- Fix skill calculation for orders with basic materials provided
-- Fix tooltip post call for when the passed tooltip is nil
+- Add multicraft, resourcefulness and profit calculations
+- Add profit line and tooltip to tradable crafts and crafting orders
+- Remove now redundant tooltip hooks
+- Fix AllocationsMixin creation to not require a craft with reagents to be opened
+- Fix crafting order allocation caches not invalidating correctly
+- Some refactoring and simplifications

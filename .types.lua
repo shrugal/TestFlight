@@ -66,6 +66,7 @@ TSM_API = {}
 ---@field GetAllocations fun(self: self, slotIndex: number): ProfessionTransationAllocations
 ---@field Enumerate fun(self: self): Enumerator<ProfessionTransationReagent, number>, ProfessionTransationReagent[], number
 ---@field EnumerateAllocations fun(self: self, slotIndex: number): Enumerator<ProfessionTransactionAllocation, number>, ProfessionTransactionAllocation[], number
+---@field IsApplyingConcentration fun(self: self): boolean
 
 ---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
 

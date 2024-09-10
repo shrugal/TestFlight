@@ -1,25 +1,10 @@
 ---@class TestFlight
 local Addon = select(2, ...)
-local Util = Addon.Util
+local Prices, Util = Addon.Prices, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization or {}
 Addon.Optimization = Self
-
-function Self:IsItemPriceSourceInstalled()
-    return C_AddOns.IsAddOnLoaded("TradeSkillMaster")
-end
-
-function Self:IsItemPriceSourceAvailable()
-    return TSM_API ~= nil
-end
-
----@param itemID number
-function Self:GetItemPrice(itemID)
-    if not Self:IsItemPriceSourceAvailable() then return 0 end
-
-    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. itemID) or 0
-end
 
 ---------------------------------------
 --              Crafts
@@ -39,11 +24,11 @@ function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalRe
 
     -- Check allocations cache
     local cache = Self.Cache.Allocations
-    local key = cache:Key(recipe, skillBase, qualityReagents, optionalReagents)
+    local key = cache:Key(recipe, skillBase, order, optionalReagents)
 
     if cache:Has(key) then return cache:Get(key) end
 
-    local weights, prices = self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
+    local weights, prices = self:GetRecipeWeightsAndPrices(recipe, qualityReagents, order)
     local maxWeight = self:GetMaxReagentWeight(qualityReagents)
 
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
@@ -87,12 +72,13 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param qualityReagents CraftingReagentSlotSchematic[]
+---@param order? CraftingOrderInfo
 ---@return table<number, table<number, number>>
 ---@return table<number, number>
-function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
+function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents, order)
     -- Check weights cache
     local cache = Self.Cache.WeightsAndPrices
-    local key = cache:Key(recipe, qualityReagents)
+    local key = cache:Key(recipe, order)
 
     if cache:Has(key) then return unpack(cache:Get(key)) end
 
@@ -106,7 +92,7 @@ function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
         prices[0], prices[1] = prices[1], wipe(prices[0])
 
         local itemWeight = self:GetReagentWeight(reagent)
-        local p1, p2, p3 = self:GetReagentPrices(reagent)
+        local p1, p2, p3 = Prices:GetReagentPrices(reagent)
         local s = math.min(0, 1 - itemWeight)
 
         for weight=0, 2 * reagent.quantityRequired do
@@ -132,74 +118,10 @@ function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents)
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param allocation RecipeAllocation | ItemMixin
----@param order? CraftingOrderInfo
----@param addOptional? RecipeAllocation
----@return number
-function Self:GetRecipeAllocationPrice(recipe, allocation, order, addOptional)
-    if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then ---@cast allocation ItemMixin
-        return recipe.quantityMin * self:GetReagentPrice(allocation:GetItemID())
-    end  ---@cast allocation RecipeAllocation
-
-    local price = 0
-
-    if not order or order.reagentState ~= Enum.CraftingOrderReagentsType.All then
-        for slotIndex,reagent in pairs(allocation) do
-            for _,item in reagent:Enumerate() do
-                local quantity = item.quantity
-
-                local orderReagent = order and Util:TblWhere(order.reagents, "slotIndex", slotIndex, "reagent.itemID", item.reagent.itemID)
-                if orderReagent then
-                    quantity = quantity - orderReagent.reagent.quantity
-                end
-
-                price = price + quantity * self:GetReagentPrice(item)
-            end
-        end
-    end
-
-    for _,reagent in pairs(recipe.reagentSlotSchematics) do
-        if reagent.required then
-            local missing = reagent.quantityRequired
-            local reagentAllocation = allocation[reagent.slotIndex]
-            if reagentAllocation then missing = missing - reagentAllocation:Accumulate() end
-
-            if missing > 0 then
-                price = price + missing * math.min(self:GetReagentPrices(reagent))
-            end
-        end
-    end
-
-    if addOptional then
-        for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
-            if not reagent.required and not allocation[reagent.slotIndex] then
-                local optionalAllocation = addOptional[reagent.slotIndex]
-
-                if optionalAllocation then
-                    local item = optionalAllocation:SelectFirst()
-
-                    if item then
-                        local quantity = item.quantity
-
-                        local orderReagent = order and Util:TblWhere(order.reagents, "slotIndex", slotIndex, "reagent.itemID", item.reagent.itemID)
-                        if orderReagent then
-                            quantity = quantity - orderReagent.reagent.quantity
-                        end
-
-                        price = price + quantity * self:GetReagentPrice(item)
-                    end
-                end
-            end
-        end
-    end
-
-    return price
-end
-
----@param recipe CraftingRecipeSchematic
 ---@param recipeInfo TradeSkillRecipeInfo
 ---@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
+---@param recraftItemGUID? string
 ---@param order? CraftingOrderInfo
 function Self:CanChangeCraftQuality(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
     if recipeInfo.maxQuality == 0 then return false, false end
@@ -227,30 +149,6 @@ function Self:GetReagentWeight(reagent)
     end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
 
     return Addon.REAGENTS[reagent] or 0
-end
-
----@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
-function Self:GetReagentPrice(reagent)
-    if not self:IsItemPriceSourceAvailable() then return 0 end
-
-    if type(reagent) == "table" then
-        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-        if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
-        do reagent = reagent.itemID end
-    end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
-
-    if not reagent then return 0 end
-
-    return self:GetItemPrice(reagent)
-end
-
----@param reagent CraftingReagentSlotSchematic
----@return number, number?, number?
-function Self:GetReagentPrices(reagent)
-    if #reagent.reagents == 1 then return self:GetReagentPrice(reagent) end
-
-    local r1, r2, r3 = unpack(reagent.reagents)
-    return self:GetReagentPrice(r1), self:GetReagentPrice(r2), self:GetReagentPrice(r3)
 end
 
 ---@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
@@ -287,7 +185,7 @@ end
 ---@param p2? number
 ---@param p3? number
 function Self:GetReagentQuantitiesForWeight(reagent, weight, p1, p2, p3)
-    if not p1 then p1, p2, p3 = self:GetReagentPrices(reagent) end
+    if not p1 then p1, p2, p3 = Prices:GetReagentPrices(reagent) end
 
     local q, q2, q3 = reagent.quantityRequired, 0, 0
 
@@ -310,6 +208,7 @@ end
 ---@param order? CraftingOrderInfo
 ---@return RecipeAllocation
 function Self:CreateReagentAllocation(order)
+    ---@type ProfessionTransationAllocations[]
     local allocation = {}
 
     if order then
@@ -440,38 +339,35 @@ end
 ---------------------------------------
 
 Self.Cache = {
-    ---@type Cache<table, fun(self: Cache, recipe: CraftingRecipeSchematic, qualityReagents: CraftingReagentSlotSchematic[]): string>
+    ---@type Cache<table, fun(self: Cache, recipe: CraftingRecipeSchematic, order?: CraftingOrderInfo): string>
     WeightsAndPrices = Addon:CreateCache(
         ---@param recipe CraftingRecipeSchematic
-        ---@param qualityReagents CraftingReagentSlotSchematic[]
-        function (_, recipe, qualityReagents) return Self:GetRecipeCacheKey(recipe, nil, qualityReagents) end,
+        ---@param order CraftingOrderInfo
+        function (_, recipe, order) return Self:GetRecipeCacheKey(recipe, nil, order) end,
         1
     ),
-    ---@type Cache<RecipeAllocation[], fun(self: Cache, recipe: CraftingRecipeSchematic, baseSkill: number, qualityReagents: CraftingReagentSlotSchematic[], optionalReagents?: CraftingReagentInfo[]): string>
+    ---@type Cache<RecipeAllocation[], fun(self: Cache, recipe: CraftingRecipeSchematic, baseSkill: number, order?: CraftingOrderInfo, optionalReagents?: CraftingReagentInfo[]): string>
     Allocations = Addon:CreateCache(
         ---@param recipe CraftingRecipeSchematic
         ---@param baseSkill? number
-        ---@param qualityReagents CraftingReagentSlotSchematic[]
+        ---@param order CraftingOrderInfo
         ---@param optionalReagents? CraftingReagentInfo[]
-        function(_, recipe, baseSkill, qualityReagents, optionalReagents) return Self:GetRecipeCacheKey(recipe, baseSkill, qualityReagents, optionalReagents) end,
+        function(_, recipe, baseSkill, order, optionalReagents) return Self:GetRecipeCacheKey(recipe, baseSkill, order, optionalReagents) end,
         10
     )
 }
 
 ---@param recipe CraftingRecipeSchematic
 ---@param baseSkill? number
----@param qualityReagents CraftingReagentSlotSchematic[]
+---@param order? CraftingOrderInfo
 ---@param optionalReagents? CraftingReagentInfo[]
-function Self:GetRecipeCacheKey(recipe, baseSkill, qualityReagents, optionalReagents)
-    local key = ("%d|%d|%d"):format(
+function Self:GetRecipeCacheKey(recipe, baseSkill, order, optionalReagents)
+    local key = ("%d|%d|%d|%d"):format(
         recipe.recipeID,
         recipe.isRecraft and 1 or 0,
-        baseSkill or 0
+        baseSkill or 0,
+        order and order.orderID or 0
     )
-
-    for _,reagent in ipairs(qualityReagents) do
-        key = key .. ("||%d|%d|%d"):format(self:GetReagentPrices(reagent))
-    end
 
     if optionalReagents then
         for _,reagent in pairs(optionalReagents) do
