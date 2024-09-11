@@ -19,29 +19,34 @@
 
 ---@class DevTool
 ---@field AddData fun(self: DevTool, data: any, name?: string)
-DevTool = {}
+DevTool = nil
 
 ---@class TSMAPI
 ---@field GetCustomPriceValue fun(customPriceStr: string, itemStr: string)
-TSM_API = {}
+---@field ToItemString fun(item: string): string
+TSM_API = nil
 
 ---@class Auctionator
----@field API { v1: { GetVendorPriceByItemID: (fun(callerID: string, itemID: number): number?), GetAuctionPriceByItemID: (fun(callerID: string, itemID: number): number?) } }
-Auctionator = {}
+---@field API { v1: AuctionatorAPIV1 }
+Auctionator = nil
+
+---@class AuctionatorAPIV1
+---@field GetVendorPriceByItemID fun(callerID: string, itemID: number): number?
+---@field GetAuctionPriceByItemID fun(callerID: string, itemID: number): number?
+---@field GetVendorPriceByItemLink fun(callerID: string, itemLink: string): number?
+---@field GetAuctionPriceByItemLink fun(callerID: string, itemLink: string): number?
 
 ---@type fun(itemID: number): number?
-RECrystallize_PriceCheckItemID = function () end
+RECrystallize_PriceCheckItemID = nil
+---@type fun(itemLink: string): number?
+RECrystallize_PriceCheck = nil
 
----@type fun(itemID: number, result: OribosExchangeResult)
-OEMarketInfo = function () end
-
----@class OribosExchangeResult
----@field market number?
----@field region number?
+---@type fun(itemLinkOrID: string | number, result: table): { market?: number, region?: number }?
+OEMarketInfo = nil
 
 ---@class Auctioneer
 ---@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: fun(self: self): number, unknown} }
-Auctioneer = {}
+Auctioneer = nil
 
 -- WoW frames
 

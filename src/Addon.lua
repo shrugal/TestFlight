@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI, Prices, Util = Addon.GUI, Addon.Prices, Addon.Util
+local GUI, Prices = Addon.GUI, Addon.Prices
 
 ---@class TestFlightDB
 TestFlightDB = {
@@ -160,7 +160,7 @@ function SlashCmdList.TESTFLIGHT(input)
         end
 
         Self.DB.priceSource = args[2] ~= "auto" and args[2] or nil
-        Prices.SOURCE = nil
+        Self.Prices.SOURCE = nil
 
         Self:Print("Price source: Set to %s", args[2])
     else
@@ -177,8 +177,8 @@ end
 
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
-    if addonName ~= Name then return end
-    self:Load()
+    if addonName == Name then self:Load() end
+    GUI:OnAddonLoaded(addonName)
 end
 
 EventRegistry:RegisterFrameEventAndCallback("ADDON_LOADED", Self.OnAddonLoaded, Self)

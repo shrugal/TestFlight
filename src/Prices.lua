@@ -22,30 +22,52 @@ Self.CUT_AUCTION_HOUSE = 0.05
 
 ---@class PriceSource
 ---@field IsAvailable fun(self: self): boolean
----@field GetItemPrice fun(self, itemID: number): number?
+---@field GetItemPrice fun(self, item: string | number): number?
 
 ---@type table<string, PriceSource>
 Self.SOURCES = {
     TradeSkillMaster = {
         IsAvailable = function () return TSM_API ~= nil end,
-        GetItemPrice = function (_, itemID) return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. itemID) end
+        GetItemPrice = function (_, item)
+            local itemStr = type(item) == "number" and "i:" .. item or TSM_API.ToItemString(item --[[@as string]])
+            return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", itemStr)
+        end
     },
     Auctionator = {
         IsAvailable = function () return Auctionator ~= nil end,
-        GetItemPrice = function (_, itemID) return Auctionator.API.v1.GetVendorPriceByItemID(Name, itemID) or Auctionator.API.v1.GetAuctionPriceByItemID(Name, itemID) end
+        GetItemPrice = function (_, item)
+            if type(item) == "number" then
+                return Auctionator.API.v1.GetVendorPriceByItemID(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemID(Name, item)
+            else
+                return Auctionator.API.v1.GetVendorPriceByItemLink(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemLink(Name, item)
+            end
+        end
     },
     RECrystallize = {
         IsAvailable = function () return RECrystallize_PriceCheckItemID ~= nil end,
-        GetItemPrice = function (_, itemID) return RECrystallize_PriceCheckItemID(itemID) end
+        GetItemPrice = function (_, item)
+            if type(item) == "number" then
+                return RECrystallize_PriceCheckItemID(item)
+            else
+                return RECrystallize_PriceCheck(item)
+            end
+        end
     },
     OribosExchange = {
-        result = {} --[[@as OribosExchangeResult]],
+        result = {},
         IsAvailable = function () return OEMarketInfo ~= nil end,
-        GetItemPrice = function (self, itemID) local r = self.result OEMarketInfo(itemID, r) return (r.market or 0) > 0 and r.market or (r.region or 0) > 0 and r.region or nil end
+        GetItemPrice = function (self, item)
+            local res = OEMarketInfo(item, self.result)
+            return res and ((res.market or 0) > 0 and res.market or (res.region or 0) > 0 and res.region) or nil
+        end
     },
     Auctioneer = {
         IsAvailable = function () return Auctioneer ~= nil end,
-        GetItemPrice = function (_, itemID) local stats = Auctioneer:Statistics(C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)) return stats["Stats:OverTime"] and stats["Stats:OverTime"]:Best() or nil end
+        GetItemPrice = function (_, item)
+            local itemKey = C_AuctionHouse.MakeItemKey(C_Item.GetItemInfoInstant(item), C_Item.GetDetailedItemLevelInfo(item), 0, 0)
+            local stats = Auctioneer:Statistics(itemKey)
+            return stats["Stats:OverTime"] and stats["Stats:OverTime"]:Best() or nil
+        end
     },
 }
 
@@ -77,10 +99,10 @@ function Self:IsSourceAvailable()
     return source and source:IsAvailable() or false
 end
 
----@param itemID number
-function Self:GetItemPrice(itemID)
+---@param itemLinkOrID string | number
+function Self:GetItemPrice(itemLinkOrID)
     if not Self:IsSourceAvailable() then return 0 end
-    return Self:GetSource():GetItemPrice(itemID) or 0
+    return Self:GetSource():GetItemPrice(itemLinkOrID) or 0
 end
 
 ---------------------------------------
@@ -179,20 +201,23 @@ function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qual
     if not qualityID then qualityID = operationInfo.craftingQualityID end
     if recipe.isRecraft then return 0 end
 
-    local itemID = recipe.outputItemID
+    ---@type string | number | nil
+    local itemLinkOrID
+
     if Addon.ENCHANTS[operationInfo.craftingDataID] then
-        itemID = Addon.ENCHANTS[operationInfo.craftingDataID][qualityID]
+        itemLinkOrID = Addon.ENCHANTS[operationInfo.craftingDataID][qualityID]
     else
         local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+        local id, link = data.itemID, data.hyperlink
 
-        if data.hyperlink and select(14, C_Item.GetItemInfo(data.hyperlink)) == Enum.ItemBind.OnAcquire then return 0 end
+        if link and select(14, C_Item.GetItemInfo(link)) == Enum.ItemBind.OnAcquire then return 0 end
 
-        itemID = data.itemID
+        itemLinkOrID = link or id
     end
 
-    if not itemID then return 0 end
+    if not itemLinkOrID then return 0 end
 
-    local price = self:GetItemPrice(itemID)
+    local price = self:GetItemPrice(itemLinkOrID)
     local quantity = (recipe.quantityMin + recipe.quantityMax) / 2 -- TODO
 
     return price * quantity

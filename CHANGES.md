@@ -1,2 +1,4 @@
 - Added more price sources: Auctionator, RECrystallize, OribosExchange, Auctioneer
 - Added command to set preferred price source
+- Use item link to get result item prices for better accuracy
+- Fix addon load handling order
