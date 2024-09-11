@@ -1,3 +1,12 @@
+Version 3.0
+
+- Add multicraft, resourcefulness and profit calculations
+- Add profit line and tooltip to tradable crafts and crafting orders
+- Remove now redundant tooltip hooks
+- Fix AllocationsMixin creation to not require a craft with reagents to be opened
+- Fix crafting order allocation caches not invalidating correctly
+- Some refactoring and simplifications
+
 Version 2.05
 
 - Show cost line and tooltip for reachable qualities for non-fulfillable orders

@@ -52,20 +52,11 @@ function Self:IEach(a, b, c, ...)
     end
 end
 
----@generic T, S: table
----@param tbl T[]
----@param fn? SearchFn<T, boolean, S>
----@param key? boolean
----@param obj? S
----@param ... any
----@return number
-function Self:TblCount(tbl, fn, key, obj, ...)
-    local c, k = 0, next(tbl)
-    while k do
-        if not fn or Self:FnCall(fn, tbl[k], k, obj, ...) then c = c + 1 end
-        k = next(tbl, k)
-    end
-    return c
+---@param tbl table
+function Self:TblKeys(tbl)
+    local t = {}
+    for k in pairs(tbl) do tinsert(t, k) end
+    return t
 end
 
 ---@generic T: table
@@ -281,6 +272,28 @@ Self.TblMax = CreateScanValueFn(function (v, _, currV) return not currV or v > c
 Self.TblMinKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k < currK end)
 Self.TblMaxKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k > currK end)
 
+---@generic T, S: table
+---@param tbl T[]
+---@param fn? SearchFn<T, boolean, S>
+---@param key? boolean
+---@param obj? S
+---@param ... any
+---@return number
+function Self:TblCount(tbl, fn, key, obj, ...)
+    local c, k = 0, next(tbl)
+    while k do
+        if not fn or Self:FnCall(fn, tbl[k], k, obj, ...) then c = c + 1 end
+        k = next(tbl, k)
+    end
+    return c
+end
+
+---@param tbl table
+---@param sep string
+function Self:TblJoin(tbl, sep)
+    return table.concat(tbl, sep)
+end
+
 -- Hook
 
 ---@type table<table, table<string, function>>
@@ -347,3 +360,26 @@ function Self:FnCall(fn, v, k, s, ...)
         return fn(v, ...)
     end
 end
+
+-- Chain
+
+local CHAIN_PREFIX = {
+    table = "Tbl",
+    string = "Num",
+    boolean = "Bool",
+    ["function"] = "Fn"
+}
+
+local chainKey, chainVal
+local chainFn = function (self, ...)
+    return Self(Self[(CHAIN_PREFIX[type(chainVal)] or "") .. chainKey](Self, chainVal, ...))
+end
+
+local Chain = setmetatable({}, {
+      __index = function (_, key) chainKey = key return chainFn end,
+      __call = function () return chainVal end
+})
+
+setmetatable(Self, {
+      __call = function (_, val) chainVal = val return Chain end
+})

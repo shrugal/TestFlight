@@ -2,12 +2,16 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI = Addon.GUI
+local GUI, Prices, Util = Addon.GUI, Addon.Prices, Addon.Util
 
 ---@class TestFlightDB
 TestFlightDB = {
+    ---@type number[]
     amounts = {},
-    tooltip = false
+    ---@type boolean
+    tooltip = false,
+    ---@type string?
+    priceSource = nil
 }
 
 ---@class TestFlight
@@ -36,6 +40,10 @@ end
 ---@param msg string
 function Self:Print(msg, ...)
     print("|cff00bbbb[TestFlight]|r " .. msg:format(...))
+end
+
+function Self:Error(msg, ...)
+    print("|cffff3333[TestFlight]|r " .. msg:format(...))
 end
 
 ---------------------------------------
@@ -118,14 +126,14 @@ function SlashCmdList.TESTFLIGHT(input)
         -- Get item ID
         local id = GetItemId(args[2])
         if not id then
-            Self:Print("Recraft: First parameter must be an item link.")
+            Self:Error("Recraft: First parameter must be an item link.")
             return
         end
 
         -- Make sure the crafting frame is open
         local frameOpen = ProfessionsFrame and ProfessionsFrame:IsShown()
         if not frameOpen then
-            Self:Print("Recraft: Please open the crafting window first.")
+            Self:Error("Recraft: Please open the crafting window first.")
             return
         end
 
@@ -138,11 +146,28 @@ function SlashCmdList.TESTFLIGHT(input)
             end
         end
 
-        Self:Print("Recraft: No recipe for link found.")
+        Self:Error("Recraft: No recipe for link found.")
+    elseif cmd == "pricesource" or cmd == "ps" then
+        if args[2] ~= "auto" and not Prices.SOURCES[args[2]] then
+            if args[2] then Self:Error("Price source: Unknown source '%s'", args[2]) end
+
+            Self:Print("Price sources:")
+            for name in pairs(Prices.SOURCES) do
+                Self:Print(" - %s%s", name, C_AddOns.IsAddOnLoaded(name) and " (installed)" or "")
+            end
+
+            return
+        end
+
+        Self.DB.priceSource = args[2] ~= "auto" and args[2] or nil
+        Prices.SOURCE = nil
+
+        Self:Print("Price source: Set to %s", args[2])
     else
         Self:Print("Help")
-        Self:Print("|cffcccccc/testflight recraft|rc [link]|r: Set recraft UI to an item given by link.")
-        Self:Print("|cffcccccc/testflight tooltip|tt [on|off]|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.tooltip and "on" or "off")
+        Self:Print("|cffcccccc/testflight recraft||rc <link>|r: Set recraft UI to an item given by link.")
+        Self:Print("|cffcccccc/testflight tooltip||tt on|off|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.tooltip and "on" or "off")
+        Self:Print("|cffcccccc/testflight pricesource||ps <name>||auto|r: Set preferred price source. (Current: %s)", Self.DB.priceSource or "auto")
     end
 end
 

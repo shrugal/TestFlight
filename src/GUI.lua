@@ -277,7 +277,7 @@ end
 ---@param parent Frame
 ---@param form RecipeCraftingForm
 local function InsertOptimizationButtons(parent, form, ...)
-    if not Prices:IsItemPriceSourceInstalled() then return end
+    if not Prices:IsSourceInstalled() then return end
 
     local decreaseBtn = InsertButton("<",   	 parent, nil, DecreaseQualityButtonOnClick, ...) --[[@as OptimizationFormButton]]
     local optimizeBtn = InsertButton("Optimize", parent, nil, OptimizeQualityButtonOnClick, "LEFT", decreaseBtn, "RIGHT", 30) --[[@as OptimizationFormButton]]
@@ -298,7 +298,7 @@ end
 
 ---@param form RecipeCraftingForm
 local function UpdateOptimizationButtons(form)
-    if not Prices:IsItemPriceSourceInstalled() then return end
+    if not Prices:IsSourceInstalled() then return end
 
     local recipe, op = form.recipeSchematic, form:GetRecipeOperationInfo()
     local decreaseBtn, optimizeBtn, increaseBtn = Self.decreaseBtns[form], Self.optimizeBtns[form], Self.increaseBtns[form]
@@ -444,7 +444,7 @@ end
 ---@param isGatheringRecipe boolean
 function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQualities, isGatheringRecipe)
     if isGatheringRecipe then return end
-    if not Prices:IsItemPriceSourceInstalled() then return end
+    if not Prices:IsSourceInstalled() then return end
 
     local form = self:GetParent() --[[@as RecipeCraftingForm]]
     local recipeInfo, tx, order = self.recipeInfo, self.transaction, Self:GetFormOrder(form)

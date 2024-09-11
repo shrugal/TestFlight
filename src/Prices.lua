@@ -1,6 +1,9 @@
+---@type string
+local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
 local Util = Addon.Util
+
 
 ---@class Prices
 local Self = Addon.Prices or {}
@@ -14,22 +17,70 @@ Self.STAT_BASE_MULTICRAFT = 2.5
 Self.CUT_AUCTION_HOUSE = 0.05
 
 ---------------------------------------
---              Items
+--              Sources
 ---------------------------------------
 
-function Self:IsItemPriceSourceInstalled()
-    return C_AddOns.IsAddOnLoaded("TradeSkillMaster")
+---@class PriceSource
+---@field IsAvailable fun(self: self): boolean
+---@field GetItemPrice fun(self, itemID: number): number?
+
+---@type table<string, PriceSource>
+Self.SOURCES = {
+    TradeSkillMaster = {
+        IsAvailable = function () return TSM_API ~= nil end,
+        GetItemPrice = function (_, itemID) return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. itemID) end
+    },
+    Auctionator = {
+        IsAvailable = function () return Auctionator ~= nil end,
+        GetItemPrice = function (_, itemID) return Auctionator.API.v1.GetVendorPriceByItemID(Name, itemID) or Auctionator.API.v1.GetAuctionPriceByItemID(Name, itemID) end
+    },
+    RECrystallize = {
+        IsAvailable = function () return RECrystallize_PriceCheckItemID ~= nil end,
+        GetItemPrice = function (_, itemID) return RECrystallize_PriceCheckItemID(itemID) end
+    },
+    OribosExchange = {
+        result = {} --[[@as OribosExchangeResult]],
+        IsAvailable = function () return OEMarketInfo ~= nil end,
+        GetItemPrice = function (self, itemID) local r = self.result OEMarketInfo(itemID, r) return (r.market or 0) > 0 and r.market or (r.region or 0) > 0 and r.region or nil end
+    },
+    Auctioneer = {
+        IsAvailable = function () return Auctioneer ~= nil end,
+        GetItemPrice = function (_, itemID) local stats = Auctioneer:Statistics(C_AuctionHouse.MakeItemKey(itemID, 0, 0, 0)) return stats["Stats:OverTime"] and stats["Stats:OverTime"]:Best() or nil end
+    },
+}
+
+---@type PriceSource?
+Self.SOURCE = nil
+
+function Self:GetSource()
+    if Self.SOURCE then return Self.SOURCE end
+
+    -- Use preferred or fist installed source
+    local pref = Addon.DB.priceSource
+    if pref and C_AddOns.IsAddOnLoaded(pref) then
+        Self.SOURCE = Self.SOURCES[pref]
+    else
+        for name,source in pairs(self.SOURCES) do
+            if C_AddOns.IsAddOnLoaded(name) then Self.SOURCE = source break end
+        end
+    end
+
+    return Self.SOURCE
 end
 
-function Self:IsItemPriceSourceAvailable()
-    return TSM_API ~= nil
+function Self:IsSourceInstalled()
+    return self:GetSource() ~= nil
+end
+
+function Self:IsSourceAvailable()
+    local source = self:GetSource()
+    return source and source:IsAvailable() or false
 end
 
 ---@param itemID number
 function Self:GetItemPrice(itemID)
-    if not Self:IsItemPriceSourceAvailable() then return 0 end
-
-    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", "i:" .. itemID) or 0
+    if not Self:IsSourceAvailable() then return 0 end
+    return Self:GetSource():GetItemPrice(itemID) or 0
 end
 
 ---------------------------------------
@@ -236,7 +287,7 @@ end
 
 ---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
 function Self:GetReagentPrice(reagent)
-    if not self:IsItemPriceSourceAvailable() then return 0 end
+    if not self:IsSourceAvailable() then return 0 end
 
     if type(reagent) == "table" then
         if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic

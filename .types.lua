@@ -25,6 +25,24 @@ DevTool = {}
 ---@field GetCustomPriceValue fun(customPriceStr: string, itemStr: string)
 TSM_API = {}
 
+---@class Auctionator
+---@field API { v1: { GetVendorPriceByItemID: (fun(callerID: string, itemID: number): number?), GetAuctionPriceByItemID: (fun(callerID: string, itemID: number): number?) } }
+Auctionator = {}
+
+---@type fun(itemID: number): number?
+RECrystallize_PriceCheckItemID = function () end
+
+---@type fun(itemID: number, result: OribosExchangeResult)
+OEMarketInfo = function () end
+
+---@class OribosExchangeResult
+---@field market number?
+---@field region number?
+
+---@class Auctioneer
+---@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: fun(self: self): number, unknown} }
+Auctioneer = {}
+
 -- WoW frames
 
 ---@class ButtonFitToText: Button
