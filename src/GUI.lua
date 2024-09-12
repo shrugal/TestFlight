@@ -469,7 +469,7 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
     ---@type string?, number?, number?, number?, number?, number?, number?
     local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, multicraft
     if allocation then
-        reagentPrice, _, profit, revenue, traderCut, resourcefulness, multicraft = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents, order and order.minQuality or nil)
+        reagentPrice, _, profit, revenue, traderCut, resourcefulness, multicraft = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents)
         reagentPriceStr = Util:NumCurrencyString(reagentPrice)
     end
 
@@ -568,6 +568,44 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
             end)
 
             statLine:Show()
+
+            -- Concentration tooltip
+            if allocation and (operationInfo.concentrationCost or 0) > 0 then --[[@cast reagentPrice -?]]
+                self.StatLines.ConcentrationStatLine:SetScript(
+                    "OnEnter",
+                    ---@param self RecipeStatLine
+                    ---@diagnostic disable-next-line: redefined-local
+                    function (self)
+                        if not self.statLineType or not self.professionType or not self.baseValue then return end
+
+                        local concentrationProfit = profit
+                        if not order and not tx:IsApplyingConcentration() then
+                            local resultPrice = Prices:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, operationInfo.craftingQualityID + 1)
+                            concentrationProfit = Prices:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, nil, optionalReagents)
+                        end
+                        
+                        local profitPerPointStr = Util:NumCurrencyString(concentrationProfit / operationInfo.concentrationCost)
+
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:ClearLines()
+
+                        local statString
+                        if self.bonusValue then
+                            statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(self.baseValue + self.bonusValue, self.baseValue, self.bonusValue)
+                        else
+                            statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(self.baseValue)
+                        end
+
+                        GameTooltip_AddColoredDoubleLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION, statString, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                        GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION_DESCRIPTION)
+
+                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit per point", profitPerPointStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+
+                        GameTooltip:Show()
+                    end
+                )
+            end
         end
 
         self.StatLines:Layout()

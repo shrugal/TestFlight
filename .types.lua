@@ -169,13 +169,20 @@ ProfessionsFrame = {}
 ---@field Layout fun(self: self)
 
 ---@class RecipeStatLines: Frame
----@field SkillStatLine Frame
+---@field SkillStatLine RecipeStatLine
+---@field ConcentrationStatLine RecipeStatLine
 ---@field Layout fun(self: self)
 
 ---@class RecipeStatLine: Frame
+---@field statLineType string
+---@field professionType string
 ---@field layoutIndex number
----@field SetLabel fun(self: self, text: string)
+---@field baseValue number
+---@field bonusValue number
+---@field displayAsPct boolean
 ---@field RightLabel FontString
+---@field SetLabel fun(self: self, text: string)
+---@field GetStatFormat fun(self: self): string
 
 ---@class Flyout: Frame
 ---@field OnElementEnabledImplementation fun(): boolean
