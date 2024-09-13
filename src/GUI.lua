@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local Optimization, Prices, Util = Addon.Optimization, Addon.Prices, Addon.Util
+local Optimization, Prices, Reagents, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Util
 
 ---@class GUI
 local Self = {}
@@ -383,6 +383,7 @@ Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo = function(self)
         local qualityID = self.currentRecipeInfo.qualityIDs[rank]
 
         op.quality = quality
+        ---@diagnostic disable-next-line: assign-type-mismatch
         op.craftingQuality = rank
         op.craftingQualityID = qualityID
         op.lowerSkillThreshold = difficulty * lower
@@ -450,6 +451,7 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
     local recipeInfo, tx, order = self.recipeInfo, self.transaction, Self:GetFormOrder(form)
     local recipe = tx:GetRecipeSchematic()
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
+    local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
 
     ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[], string?
     local allocation, optionalReagents, recraftItemGUID
@@ -460,16 +462,16 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
         optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
     end
 
-    if order and order.orderState ~= Enum.CraftingOrderState.Claimed then
+    if isUnclaimedOrder then
         local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
         local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
         allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
     end
 
-    ---@type string?, number?, number?, number?, number?, number?, number?
-    local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, multicraft
+    ---@type string?, number?, number?, number?, number?, number?, number?, number?
+    local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, rewards, multicraft
     if allocation then
-        reagentPrice, _, profit, revenue, traderCut, resourcefulness, multicraft = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents)
+        reagentPrice, _, profit, revenue, resourcefulness, multicraft, rewards, traderCut = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents)
         reagentPriceStr = Util:NumCurrencyString(reagentPrice)
     end
 
@@ -533,16 +535,24 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
                 GameTooltip_AddColoredDoubleLine(GameTooltip, label, profitStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
                 GameTooltip_AddNormalLine(GameTooltip, "Based on reagent and result market prices, taking resourcefulness and multicraft into account.")
 
-                if recipeInfo.supportsCraftingStats then
-                    GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                    GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
+                GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
 
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Commission" or "Sell price", Util:NumCurrencyString(revenue), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Resourcefulness", Util:NumCurrencyString(resourcefulness), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Multicraft", Util:NumCurrencyString(multicraft), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagent costs", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                -- Revenue
+                GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Commission" or "Sell price", Util:NumCurrencyString(revenue), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                if order and order.npcOrderRewards then
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Rewards", Util:NumCurrencyString(rewards), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
                 end
+                if recipeInfo.supportsCraftingStats then
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Resourcefulness", Util:NumCurrencyString(resourcefulness), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    if not order then
+                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Multicraft", Util:NumCurrencyString(multicraft), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    end
+                end
+
+                -- Costs
+                GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagent costs", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
                 if supportsQualities and not isSalvage then
                     local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
@@ -568,44 +578,54 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
             end)
 
             statLine:Show()
+        end
 
-            -- Concentration tooltip
-            if allocation and (operationInfo.concentrationCost or 0) > 0 then --[[@cast reagentPrice -?]]
-                self.StatLines.ConcentrationStatLine:SetScript(
-                    "OnEnter",
-                    ---@param self RecipeStatLine
-                    ---@diagnostic disable-next-line: redefined-local
-                    function (self)
-                        if not self.statLineType or not self.professionType or not self.baseValue then return end
+        -- Concentration tooltip
+        if allocation or order then
+            self.StatLines.ConcentrationStatLine:SetScript(
+                "OnEnter",
+                ---@param self RecipeStatLine
+                ---@diagnostic disable-next-line: redefined-local
+                function (self)
+                    if not self.statLineType or not self.professionType or not self.baseValue then return end
 
-                        local concentrationProfit = profit
-                        if not order and not tx:IsApplyingConcentration() then
-                            local resultPrice = Prices:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, operationInfo.craftingQualityID + 1)
-                            concentrationProfit = Prices:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, nil, optionalReagents)
-                        end
-                        
-                        local profitPerPointStr = Util:NumCurrencyString(concentrationProfit / operationInfo.concentrationCost)
+                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                    GameTooltip:ClearLines()
 
-                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                        GameTooltip:ClearLines()
-
-                        local statString
-                        if self.bonusValue then
-                            statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(self.baseValue + self.bonusValue, self.baseValue, self.bonusValue)
-                        else
-                            statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(self.baseValue)
-                        end
-
-                        GameTooltip_AddColoredDoubleLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION, statString, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                        GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION_DESCRIPTION)
-
-                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit per point", profitPerPointStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-
-                        GameTooltip:Show()
+                    local statString
+                    if self.bonusValue then
+                        statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(self.baseValue + self.bonusValue, self.baseValue, self.bonusValue)
+                    else
+                        statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(self.baseValue)
                     end
-                )
-            end
+
+                    GameTooltip_AddColoredDoubleLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION, statString, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                    GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION_DESCRIPTION)
+
+                    local noConProfit, conProfit, concentration
+                    if order then
+                        local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+                        if allocations then
+                            noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(recipe, operationInfo, allocations, optionalReagents, order)
+                        end
+                    elseif allocation then
+                        noConProfit, conProfit, concentration = Prices:GetConcentrationValue(recipe, operationInfo, allocation, optionalReagents, tx:IsApplyingConcentration())
+                    end
+
+                    if conProfit and concentration and concentration > 0 then
+                        local conProfitStr = Util:NumCurrencyString(conProfit / concentration)
+                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Final profit per point", conProfitStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+
+                        if noConProfit then
+                            local conProfitIncStr = Util:NumCurrencyString((conProfit - noConProfit) / concentration)
+                            GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit change per point", conProfitIncStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                        end
+                    end
+
+                    GameTooltip:Show()
+                end
+            )
         end
 
         self.StatLines:Layout()
@@ -920,7 +940,7 @@ function Self:SetReagentSlotAllocation(form, slotIndex, allocations, silent)
 
     if not Addon.enabled then
         for _,reagent in allocations:Enumerate() do
-            if reagent.quantity > Optimization:GetReagentQuantity(reagent) then Addon:Enable() break end
+            if reagent.quantity > Reagents:GetQuantity(reagent) then Addon:Enable() break end
         end
     end
 
@@ -943,7 +963,7 @@ function Self:ClearExperimentalReagentSlots(form)
             local slotIndex = slot:GetReagentSlotSchematic().slotIndex
 
             for _,allocation in form.transaction:EnumerateAllocations(slotIndex) do
-                local q = Optimization:GetReagentQuantity(allocation.reagent)
+                local q = Reagents:GetQuantity(allocation.reagent)
                 if allocation.quantity > q then
                     self:ResetReagentSlot(form, slot)
                     break
@@ -1019,8 +1039,8 @@ TooltipDataProcessor.AddTooltipPostCall(
         if not form then return end
 
         local recipe = form.transaction:GetRecipeSchematic()
-        local totalWeight = Optimization:GetMaxReagentWeight(recipe.reagentSlotSchematics)
-        local _, maxSkill = Optimization:GetReagentSkillBounds(recipe)
+        local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
+        local _, maxSkill = Reagents:GetSkillBounds(recipe)
         if not maxSkill or maxSkill == 0 then return end
 
         local skill = Util:NumRound(maxSkill * itemWeight / totalWeight, 1)

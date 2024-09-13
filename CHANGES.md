@@ -1,1 +1,4 @@
 - Added profit per concentration point to concentration tooltip
+- Added tradable order rewards to profit calculation
+- Added price sources as optional dependencies
+- Updated specialization data

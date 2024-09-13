@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local Util = Addon.Util
+local Reagents, Util = Addon.Reagents, Addon.Util
 
 
 ---@class Prices
@@ -119,9 +119,10 @@ end
 ---@return number resultPrice
 ---@return number? profit
 ---@return number? revenue
----@return number? traderCut
 ---@return number? resourcefulness
 ---@return number? multicraft
+---@return number? rewards
+---@return number? traderCut
 function Self:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents, qualityID)
     local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order, optionalReagents)
     local resultPrice = self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID or order and order.minQuality)
@@ -231,9 +232,10 @@ end
 ---@param order? CraftingOrderInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@return number profit
+---@return number revenue
 ---@return number resourcefulness
 ---@return number multicraft
----@return number revenue
+---@return number rewards
 ---@return number traderCut
 function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
     local revenue = order and order.tipAmount or resultPrice
@@ -241,14 +243,64 @@ function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, r
     local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice)
     local traderCut = order and order.consortiumCut or Self.CUT_AUCTION_HOUSE * resultPrice
 
-    local profit = revenue + resourcefulness + multicraft - reagentPrice - traderCut
+    local rewards = 0
+    if order and order.npcOrderRewards then
+        for _,reward in pairs(order.npcOrderRewards) do
+            rewards = rewards + reward.count * self:GetItemPrice(reward.itemLink)
+        end
+    end
 
-    return profit, revenue, traderCut, resourcefulness, multicraft
+    local profit = revenue + resourcefulness + multicraft + rewards - reagentPrice - traderCut
+
+    return profit, revenue, resourcefulness, multicraft, rewards, traderCut
 end
 
 ---------------------------------------
 --              Stats
 ---------------------------------------
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
+---@param allocation RecipeAllocation | ItemMixin
+---@param optionalReagents? CraftingReagentInfo[]
+---@param isApplyingConcentration? boolean
+---@return number? noConProfit
+---@return number? conProfit
+---@return number? concentration
+function Self:GetConcentrationValue(recipe, operationInfo, allocation, optionalReagents, isApplyingConcentration)
+    local quality = operationInfo.craftingQualityID
+    if isApplyingConcentration then quality = quality - 1 end
+
+    local noConProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, optionalReagents, quality))
+    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, optionalReagents, quality + 1))
+
+    return noConProfit, conProfit, operationInfo.concentrationCost
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
+---@param allocations RecipeAllocation[]
+---@param optionalReagents? CraftingReagentInfo[]
+---@param order CraftingOrderInfo
+---@return number? noConProfit
+---@return number? conProfit
+---@return number? concentration
+function Self:GetConcentrationValueForOrder(recipe, operationInfo, allocations, optionalReagents, order)
+    local noConAllocation, conAllocation = allocations[order.minQuality], allocations[order.minQuality - 1]
+
+    if not conAllocation then return end
+
+    local conInfos = Reagents:CreateCraftingInfosFromAllocation(recipe, conAllocation, optionalReagents)
+    local conOp = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, conInfos, order.orderID, false)
+
+    if not conOp then return end
+
+    local noConProfit = noConAllocation and select(3, self:GetRecipePrices(recipe, operationInfo, noConAllocation, order, optionalReagents))
+    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, conAllocation, order, optionalReagents))
+    local concentration = conOp.concentrationCost
+
+    return noConProfit, conProfit, concentration
+end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
