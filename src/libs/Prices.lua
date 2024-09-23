@@ -6,8 +6,7 @@ local Reagents, Util = Addon.Reagents, Addon.Util
 
 
 ---@class Prices
-local Self = Addon.Prices or {}
-Addon.Prices = Self
+local Self = Addon.Prices
 
 -- Profession stat base multipliers
 Self.STAT_BASE_RESOURCEFULNESS = 0.3
@@ -78,7 +77,7 @@ function Self:GetSource()
     if Self.SOURCE then return Self.SOURCE end
 
     -- Use preferred or fist installed source
-    local pref = Addon.DB.priceSource
+    local pref = Addon.DB.Account.priceSource
     if pref and C_AddOns.IsAddOnLoaded(pref) then
         Self.SOURCE = Self.SOURCES[pref]
     else

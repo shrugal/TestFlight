@@ -1,3 +1,10 @@
+Version 3.02
+
+- Added profit per concentration point to concentration tooltip
+- Added tradable order rewards to profit calculation
+- Added price sources as optional dependencies
+- Updated specialization data
+
 Version 3.01
 
 - Added more price sources: Auctionator, RECrystallize, OribosExchange, Auctioneer

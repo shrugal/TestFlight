@@ -6,7 +6,10 @@
 -- IDEs work with some external classes and types
 ---
 
--- Types
+
+-----------------------------------------------------
+---                    Types                       --
+-----------------------------------------------------
 
 ---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
@@ -15,7 +18,9 @@
 ---@class OptimizationFormButton: ButtonFitToText
 ---@field form RecipeCraftingForm
 
--- Globals
+-----------------------------------------------------
+---                   Globals                      --
+-----------------------------------------------------
 
 ---@class DevTool
 ---@field AddData fun(self: DevTool, data: any, name?: string)
@@ -48,7 +53,9 @@ OEMarketInfo = nil
 ---@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: fun(self: self): number, unknown} }
 Auctioneer = nil
 
--- WoW frames
+-----------------------------------------------------
+---                 WoW frames                    --
+-----------------------------------------------------
 
 ---@class ButtonFitToText: Button
 ---@field tooltipText? string
@@ -57,12 +64,13 @@ Auctioneer = nil
 
 ---@class FramePool
 ---@field Acquire fun(self: self): Frame
+---@field Release fun(self: self, widget: Frame)
 ---@field EnumerateActive fun(self:self): Enumerator<true, Frame>, Frame[]
 
 ---@class ReagentSlotFramePool
 ---@field EnumerateActive fun(self:self): Enumerator<true, ReagentSlot>, ReagentSlot[]
 
----@class RecipeForm: Frame
+---@class RecipeForm: Frame, CallbackRegistryMixin
 ---@field recipeSchematic CraftingRecipeSchematic
 ---@field transaction ProfessionTransaction
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
@@ -117,7 +125,7 @@ Auctioneer = nil
 ---@class ProfessionsFrame: Frame
 ---@field CraftingPage CraftingPage
 ---@field OrdersPage OrdersPage
-ProfessionsFrame = {}
+ProfessionsFrame = nil
 
 ---@class CraftingPage: Frame
 ---@field SchematicForm CraftingForm
@@ -208,7 +216,7 @@ ProfessionsFrame = {}
 
 ---@class CustomerOrderFrame: Frame
 ---@field Form CustomerOrderForm
-ProfessionsCustomerOrdersFrame = {}
+ProfessionsCustomerOrdersFrame = nil
 
 ---@class CustomerOrderForm: RecipeForm
 ---@field committed boolean
@@ -226,10 +234,27 @@ ProfessionsCustomerOrdersFrame = {}
 ---@class OrdersFormTrackRecipeCheckbox
 ---@field Checkbox CheckButton
 
--- WoW methods
+---@type ObjectiveTrackerModuleMixin
+WorldQuestObjectiveTracker = nil
+---@type ObjectiveTrackerModuleMixin
+BonusObjectiveTracker = nil
+
+-----------------------------------------------------
+---                 WoW methods                    --
+-----------------------------------------------------
 
 ---@type fun(reagent: ProfessionTransationReagent, quality: number): ProfessionTransactionAllocation
 function CreateAllocation() end
+
+---@param frameType string
+---@param parent? Frame
+---@param template? string
+---@param resetFunc? fun(self: FramePool, frame: Frame, new: boolean)
+---@param forbidden? boolean
+---@param frameInitializer? fun(frame: Frame)
+---@param capacity? number
+---@return FramePool
+function CreateFramePool(frameType, parent, template, resetFunc, forbidden, frameInitializer, capacity) end
 
 ---@class C_TradeSkillUI
 ---@field GetRecipeItemLink fun(recipeID: number): string
@@ -276,14 +301,205 @@ Professions = {}
 ---@field AccumulateReagentsInPossession fun(reagents: CraftingReagent[]): number
 ProfessionsUtil = {}
 
--- WoW Enums
+-----------------------------------------------------
+---                  WoW Enums                     --
+-----------------------------------------------------
 
 ---@enum Professions.ReagentInputMode
 Professions.ReagentInputMode = { Fixed = 1, Quality = 2, Any = 3 }
 
--- VSCode Addon fixes
+---@enum ObjectiveTrackerSlidingState
+ObjectiveTrackerSlidingState = { None = 1, SlideIn = 2, SlideOut = 3 }
 
----@diagnostic disable-next-line: duplicate-doc-alias
----@alias WOWMONEY number
----@diagnostic disable-next-line: duplicate-doc-alias
----@alias WOWGUID string
+---@enum ObjectiveTrackerModuleState
+ObjectiveTrackerModuleState = { Skipped = 1, NoObjectives = 2, NotShown = 3, ShownPartially = 4, ShownFully = 5 }
+
+-----------------------------------------------------
+---            WoW Templates & Mixins              --
+-----------------------------------------------------
+
+---@class DirtiableMixin
+---@field SetDirtyMethod fun(self: self, method: function)
+---@field MarkDirty fun(self: self)
+
+---@class ObjectiveTrackerContainerMixin
+---@field modules ObjectiveTrackerModuleMixin[]
+---@field topModulePadding number
+---@field moduleSpacing number
+---@field OnSizeChanged fun(self: self): unknown
+---@field OnShow fun(self: self): unknown
+---@field OnAdded fun(self: self, backgroundAlpha): unknown
+---@field Init fun(self: self): unknown
+---@field GetAvailableHeight fun(self: self): number
+---@field Update fun(self: self, dirtyUpdate): unknown
+---@field AddModule fun(self: self, module): unknown
+---@field RemoveModule fun(self: self, module): unknown
+---@field HasModule fun(self: self, module): unknown
+---@field GetHeightToModule fun(self: self, targetModule): unknown
+---@field SetBackgroundAlpha fun(self: self, alpha): unknown
+---@field ToggleCollapsed fun(self: self): unknown
+---@field SetCollapsed fun(self: self, collapsed): unknown
+---@field IsCollapsed fun(self: self): unknown
+---@field UpdateHeight fun(self: self): unknown
+---@field ForceExpand fun(self: self): unknown
+---@field ForEachModule fun(self: self, callback): unknown
+
+---@class ObjectiveTrackerSlidingMixin
+---@field IsSliding fun(self: self, ...: unknown): unknown
+---@field Slide fun(self: self, ...: unknown): unknown
+---@field OnSlideUpdate fun(self: self, ...: unknown): unknown
+---@field UpdateSlideProgress fun(self: self, ...: unknown): unknown
+---@field EndSlide fun(self: self, ...: unknown): unknown
+---@field AdjustSlideAnchor fun(self: self, ...: unknown): unknown
+---@field OnEndSlide fun(self: self, ...: unknown): unknown
+
+---@class ObjectiveTrackerModuleMixin: ObjectiveTrackerSlidingMixin
+---@field isModule boolean
+---@field blockTemplate string
+---@field lineTemplate string
+---@field progressBarTemplate string
+---@field headerHeight number
+---@field fromHeaderOffsetY number
+---@field blockOffsetX number
+---@field fromBlockOffsetY number
+---@field lineSpacing number
+---@field bottomSpacing number
+---@field rightEdgeFrameSpacing number
+---@field leftMargin number
+---@field hasDisplayPriority boolean
+---@field mustFit boolean
+---@field state ObjectiveTrackerModuleState
+---@field isDirty boolean
+---@field isCollapsed boolean
+---@field hasTriedBlocks boolean
+---@field hasSkippedBlocks boolean
+---@field hasContents boolean
+---@field contentsHeight number
+---@field availableHeight number
+---@field uiOrder number?
+---@field wasDisplayedLastLayout boolean
+---@field cachedOrderList table
+---@field cacheIndex number
+---@field numCachedBlocks number
+---@field init boolean?
+---@field headerText string?
+---@field parentContainer ObjectiveTrackerContainerMixin?
+---@field Header Frame
+---@field ContentsFrame Frame
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field OnEvent fun(self: self, ...: unknown): unknown
+---@field OnHide fun(self: self, ...: unknown): unknown
+---@field SetContainer fun(self: self, ...: unknown): unknown
+---@field InitModule fun(self: self, ...: unknown): unknown
+---@field MarkDirty fun(self: self, ...: unknown): unknown
+---@field IsDirty fun(self: self, ...: unknown): unknown
+---@field HasContents fun(self: self, ...: unknown): unknown
+---@field IsDisplayable fun(self: self, ...: unknown): unknown
+---@field IsFullyDisplayable fun(self: self, ...: unknown): unknown
+---@field IsComplete fun(self: self, ...: unknown): unknown
+---@field IsTruncated fun(self: self, ...: unknown): unknown
+---@field GetContentsHeight fun(self: self): number
+---@field SetHeader fun(self: self, text: string)
+---@field Update fun(self: self, availableHeight: number, dirtyUpdate?: boolean): number, boolean
+---@field BeginLayout fun(self: self, ...: unknown): unknown
+---@field CanUpdate fun(self: self, ...: unknown): unknown
+---@field LayoutContents fun(self: self, ...: unknown): unknown
+---@field EndLayout fun(self: self, ...: unknown): unknown
+---@field HasSkippedBlocks fun(self: self, ...: unknown): unknown
+---@field UpdateHeight fun(self: self, ...: unknown): unknown
+---@field SetHeightModifier fun(self: self, ...: unknown): unknown
+---@field ClearHeightModifier fun(self: self, ...: unknown): unknown
+---@field AcquireFrame fun(self: self, ...: unknown): unknown
+---@field GetBlock fun(self: self, id: any, optTemplate?: string): ObjectiveTrackerBlock
+---@field GetExistingBlock fun(self: self, id: any, optTemplate?: string): ObjectiveTrackerBlock
+---@field MarkBlocksUnused fun(self: self, ...: unknown): unknown
+---@field FreeUnusedBlocks fun(self: self, ...: unknown): unknown
+---@field FreeBlock fun(self: self, ...: unknown): unknown
+---@field OnFreeBlock fun(self: self, ...: unknown): unknown
+---@field ForceRemoveBlock fun(self: self, ...: unknown): unknown
+---@field GetNextBlockAnchoring fun(self: self, ...: unknown): unknown
+---@field LayoutBlock fun(self: self, block: ObjectiveTrackerBlock)
+---@field AddBlock fun(self: self, ...: unknown): unknown
+---@field CanFitBlock fun(self: self, ...: unknown): unknown
+---@field InternalAddBlock fun(self: self, ...: unknown): unknown
+---@field AnchorBlock fun(self: self, ...: unknown): unknown
+---@field GetLastBlock fun(self: self, ...: unknown): unknown
+---@field OnBlockHeaderClick fun(self: self, ...: unknown): unknown
+---@field OnBlockHeaderEnter fun(self: self, ...: unknown): unknown
+---@field OnBlockHeaderLeave fun(self: self, ...: unknown): unknown
+---@field ToggleCollapsed fun(self: self, ...: unknown): unknown
+---@field SetCollapsed fun(self: self, ...: unknown): unknown
+---@field IsCollapsed fun(self: self, ...: unknown): unknown
+---@field GetContextMenuParent fun(self: self, ...: unknown): unknown
+---@field GetTimerBar fun(self: self, ...: unknown): unknown
+---@field MarkTimerBarsUnused fun(self: self, ...: unknown): unknown
+---@field FreeUnusedTimerBars fun(self: self, ...: unknown): unknown
+---@field GetProgressBar fun(self: self, ...: unknown): unknown
+---@field MarkProgressBarsUnused fun(self: self, ...: unknown): unknown
+---@field FreeUnusedProgressBars fun(self: self, ...: unknown): unknown
+---@field GetRightEdgeFrame fun(self: self, ...: unknown): unknown
+---@field MarkRightEdgeFramesUnused fun(self: self, ...: unknown): unknown
+---@field FreeUnusedRightEdgeFrames fun(self: self, ...: unknown): unknown
+---@field AdjustSlideAnchor fun(self: self, ...: unknown): unknown
+---@field SetNeedsFanfare fun(self: self, ...: unknown): unknown
+---@field NeedsFanfare fun(self: self, ...: unknown): unknown
+---@field ClearFanfares fun(self: self, ...: unknown): unknown
+---@field ForceExpand fun(self: self, ...: unknown): unknown
+---@field AddBlockToCache fun(self: self, ...: unknown): unknown
+---@field RemoveBlockFromCache fun(self: self, ...: unknown): unknown
+---@field UpdateCachedOrderList fun(self: self, ...: unknown): unknown
+---@field CheckCachedBlocks fun(self: self, ...: unknown): unknown
+
+---@class ObjectiveTrackerBlock: Frame
+---@field height number
+---@field isHighlighted boolean
+---@field HeaderText Font
+---@field HeaderButton Button
+---@field Init fun(self: self, ...: unknown): unknown
+---@field Reset fun(self: self, ...: unknown): unknown
+---@field Free fun(self: self, ...: unknown): unknown
+---@field OnAddedRegion fun(self: self, ...: unknown): unknown
+---@field GetLine fun(self: self, objectiveKey: any, optTemplate?: string): ObjectiveTrackerLine
+---@field GetExistingLine fun(self: self, objectiveKey: any): ObjectiveTrackerLine
+---@field FreeUnusedLines fun(self: self, ...: unknown): unknown
+---@field FreeLine fun(self: self, ...: unknown): unknown
+---@field ForEachUsedLine fun(self: self, ...: unknown): unknown
+---@field SetStringText fun(self: self, ...: unknown): unknown
+---@field SetHeader fun(self: self, text: string)
+---@field AddObjective fun(self: self, objectiveKey: number | string, text: string, template?: string, useFullHeight?: boolean, dashStyle?: number, colorStyle?: ObjectiveTrackerColor, adjustForNoText?: boolean, overrideHeight?: number): ObjectiveTrackerLine
+---@field AddCustomRegion fun(self: self, ...: unknown): unknown
+---@field AddTimerBar fun(self: self, ...: unknown): unknown
+---@field AddProgressBar fun(self: self, ...: unknown): unknown
+---@field OnHeaderClick fun(self: self, ...: unknown): unknown
+---@field OnHeaderEnter fun(self: self, ...: unknown): unknown
+---@field OnHeaderLeave fun(self: self, ...: unknown): unknown
+---@field UpdateHighlight fun(self: self, ...: unknown): unknown
+---@field AdjustSlideAnchor fun(self: self, ...: unknown): unknown
+---@field AdjustRightEdgeOffset fun(self: self, ...: unknown): unknown
+---@field AddRightEdgeFrame fun(self: self, ...: unknown): unknown
+
+---@class ObjectiveTrackerAnimBlock: ObjectiveTrackerBlock
+
+---@class ObjectiveTrackerLine: Frame
+---@field itemName string
+---@field Button Button
+---@field Text FontString
+---@field Icon Texture
+---@field Dash FontString
+---@field dashStyle number
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field OnHyperlinkClick fun(self: self, ...: unknown): unknown
+---@field UpdateModule fun(self: self, ...: unknown): unknown
+---@field OnFree? fun(self: self, block: ObjectiveTrackerBlock)
+
+---@class ObjectiveTrackerAnimLine: ObjectiveTrackerLine
+---@field OnGlowAnimFinished fun(self: self, ...: unknown): unknown
+---@field OnFadeOutAnimFinished fun(self: self, ...: unknown): unknown
+---@field SetState fun(self: self, ...: unknown): unknown
+---@field SetNoIcon fun(self: self, ...: unknown): unknown
+---@field OnFree fun(self: self, ...: unknown): unknown
+
+---@class ObjectiveTrackerColor
+---@field r number
+---@field g number
+---@field b number

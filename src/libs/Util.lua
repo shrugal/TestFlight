@@ -2,8 +2,7 @@
 local Addon = select(2, ...)
 
 ---@class Util
-local Self = {}
-Addon.Util = Self
+local Self = Addon.Util
 
 ---@alias SearchFn<T, R, S> (fun(v: T, ...:any): R) | (fun(v: T, k: any, ...: any): R) | (fun(self: S, v: T, ...: any): R) | (fun(self: S, v: T, k: any, ...: any): R)
 
@@ -59,6 +58,12 @@ function Self:TblKeys(tbl)
     return t
 end
 
+function Self:TblValues(tbl)
+    local t = {}
+    for _,v in pairs(tbl) do tinsert(t, v) end
+    return t
+end
+
 ---@generic T: table
 ---@param tbl T[] | Enumerator<T>
 ---@param recursive? boolean
@@ -73,6 +78,29 @@ function Self:TblCopy(tbl, recursive)
         end
     end
     return t
+end
+
+
+---@generic T
+---@param tbl T[]
+---@param ... T
+---@return T[]
+function Self:TblPush(tbl, ...)
+    for i=1,select("#", ...) do
+        tinsert(tbl, (select(i, ...)))
+    end
+    return tbl
+end
+
+---@generic T
+---@param tbl T[]
+---@param ... T[]
+---@return T[]
+function Self:TblMerge(tbl, ...)
+    for i=1,select("#", ...) do
+        self:TblPush(tbl, unpack(select(i, ...)))
+    end
+    return tbl
 end
 
 ---@generic T: table
@@ -103,6 +131,30 @@ function Self:TblMap(tbl, fn, key, obj, ...)
     return t
 end
 
+---@generic T, R, S: table
+---@param tbl T[] | Enumerator<T>
+---@param by SearchFn<T, R, S> | string
+---@param key? boolean
+---@param obj? S
+---@param ... any
+---@return table<R, T[]>
+function Self:TblGroupBy(tbl, by, key, obj, ...)
+    local t, l = {}, self:TblIsList(tbl)
+    for k,v in self:Each(tbl) do
+        local g
+        if type(by) == "string" then
+            g = self:TblGet(v, by)
+        else
+            g = self:FnCall(by, v, key and k, obj, ...)
+        end
+        if g ~= nil then
+            if not t[g] then t[g] = {} end
+            if l then tinsert(t[g], v) else t[g][k] = v end
+        end
+    end
+    return t
+end
+
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
 ---@param fn SearchFn<T, boolean, S>
@@ -111,9 +163,11 @@ end
 ---@param ... any
 ---@return T[]
 function Self:TblFilter(tbl, fn, key, obj, ...)
-    local t = {}
+    local t, l = {}, self:TblIsList(tbl)
     for k,v in self:Each(tbl) do
-        if self:FnCall(fn, v, key and k, obj) then tinsert(t, v) end
+        if self:FnCall(fn, v, key and k, obj) then
+            if l then tinsert(t, v) else t[k] = v end
+        end
     end
     return t
 end
@@ -196,12 +250,15 @@ end
 
 ---@generic T
 ---@param tbl T[]
----@param fn fun(a: T, b: T): number
+---@param fn? fun(a: T, b: T): number
 ---@return T[]
-function Self:TblSorted(tbl, fn)
-    local t = self:TblCopy(tbl)
-    table.sort(t, fn)
-    return t
+function Self:TblSort(tbl, fn)
+    table.sort(tbl, fn)
+    return tbl
+end
+
+function Self:TblSortBy(tbl, by)
+    return Self:TblSort(tbl, self:FnCompareBy(by))
 end
 
 -- Tbl scan
@@ -272,6 +329,10 @@ Self.TblMax = CreateScanValueFn(function (v, _, currV) return not currV or v > c
 Self.TblMinKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k < currK end)
 Self.TblMaxKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k > currK end)
 
+function Self:TblIsList(tbl)
+    return #tbl == self:TblCount(tbl)
+end
+
 ---@generic T, S: table
 ---@param tbl T[]
 ---@param fn? SearchFn<T, boolean, S>
@@ -282,7 +343,7 @@ Self.TblMaxKey = CreateScanKeyFn(function (_, k, _, currK) return not currK or k
 function Self:TblCount(tbl, fn, key, obj, ...)
     local c, k = 0, next(tbl)
     while k do
-        if not fn or Self:FnCall(fn, tbl[k], k, obj, ...) then c = c + 1 end
+        if not fn or self:FnCall(fn, tbl[k], k, obj, ...) then c = c + 1 end
         k = next(tbl, k)
     end
     return c
@@ -299,24 +360,53 @@ end
 ---@type table<table, table<string, function>>
 Self.hooks = {}
 
-function Self:TblHook(tbl, name, fn)
-    if not tbl or self.hooks[tbl] and self.hooks[tbl][name] then return end
+---@param tbl? table
+---@param key string
+---@param fn? function
+---@return function?
+function Self:TblHook(tbl, key, fn)
+    if not tbl or self.hooks[tbl] and self.hooks[tbl][key] then return end
     self.hooks[tbl] = self.hooks[tbl] or {}
-    self.hooks[tbl][name] = tbl[name]
-    tbl[name] = fn
-    return self.hooks[tbl][name]
+    self.hooks[tbl][key] = tbl[key]
+    tbl[key] = fn
+    return self.hooks[tbl][key]
 end
 
-function Self:TblUnhook(tbl, name)
-    if not tbl or not self.hooks[tbl] or not self.hooks[tbl][name] then return end
-    local fn = tbl[name]
-    tbl[name] = self.hooks[tbl][name]
-    self.hooks[tbl][name] = nil
+---@param tbl? table
+---@param key string
+---@return function?
+function Self:TblUnhook(tbl, key)
+    if not tbl or not self.hooks[tbl] or not self.hooks[tbl][key] then return end
+    local fn = tbl[key]
+    tbl[key] = self.hooks[tbl][key]
+    self.hooks[tbl][key] = nil
     return fn
 end
 
+---@param tbl table
 function Self:TblGetHooks(tbl)
     return self.hooks[tbl]
+end
+
+---@param tbl table
+---@param key string
+function Self:TblIsHooked(tbl, key)
+    return self.hooks[tbl] and self.hooks[tbl][key] ~= nil
+end
+
+---@param tbl table
+---@param key string
+---@return function
+function Self:TblGetHooked(tbl, key)
+    if Self:TblIsHooked(tbl, key) then return self.hooks[tbl][key] end
+    return tbl[key]
+end
+
+-- Str
+
+---@param str string
+function Self:StrUcFirst(str)
+    return str:sub(1, 1):upper() .. str:sub(2)
 end
 
 -- Num
@@ -358,6 +448,17 @@ function Self:FnCall(fn, v, k, s, ...)
         return fn(v, k, ...)
     else
         return fn(v, ...)
+    end
+end
+
+function Self:FnCompareBy(by)
+    return function (a, b)
+        if type(by) == "string" then
+            a, b = self:TblGet(a, by), self:TblGet(b, by)
+        else
+            a, b = by(a), by(b)
+        end
+        return a and a < b or false
     end
 end
 

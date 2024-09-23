@@ -5,26 +5,26 @@ local Util = Addon.Util
 ---@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
 
 ---@class Cache
-local CacheMixin = {}
+local Self = {}
 
 ---@generic T, K: function
 ---@param getKey `K`
 ---@param limit? number
 ---@return Cache<T, K>
 function Addon:CreateCache(getKey, limit)
-    return CreateAndInitFromMixin(CacheMixin, getKey, limit)
+    return CreateAndInitFromMixin(Self, getKey, limit)
 end
 
 ---@param getKey function
 ---@param limit? number
-function CacheMixin:Init(getKey, limit)
+function Self:Init(getKey, limit)
     self.Key = getKey
     self.limit = limit
     self.keys = limit and {}
     self.values = {}
 end
 
-function CacheMixin:Set(key, value)
+function Self:Set(key, value)
     if self.limit and self:Has(key) then
         tremove(self.keys, Util:TblIndexOf(self.keys, key))
     end
@@ -37,15 +37,15 @@ function CacheMixin:Set(key, value)
     end
 end
 
-function CacheMixin:Has(key)
+function Self:Has(key)
     return self.values[key] ~= nil
 end
 
-function CacheMixin:Get(key)
+function Self:Get(key)
     return self.values[key]
 end
 
-function CacheMixin:Clear()
+function Self:Clear()
     wipe(self.values)
     if self.limit then wipe(self.keys) end
 end

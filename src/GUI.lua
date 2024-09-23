@@ -2,35 +2,37 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local Optimization, Prices, Reagents, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Util
+local Optimization, Prices, Reagents, Recipes, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI
-local Self = {}
-Addon.GUI = Self
+local Self = Addon.GUI
 
 Self.Hooks = {}
 
 ---@type CheckButton[]
 Self.experimentBoxes = {}
----@type NumericInputSpinner[]
-Self.skillSpinners = {}
----@type table<table, NumericInputSpinner>, table<integer, integer>
-Self.amountSpinners = {}
----@type integer?
-Self.craftingRecipeID = nil
----@type number?, string?
-Self.recraftRecipeID, Self.recraftItemLink = nil, nil
 ---@type OptimizationFormButton[], OptimizationFormButton[], OptimizationFormButton[]
 Self.decreaseBtns, Self.optimizeBtns, Self.increaseBtns = {}, {}, {}
+---@type table<RecipeForm, NumericInputSpinner>
+Self.skillSpinners = {}
+---@type table<RecipeForm, NumericInputSpinner>
+Self.amountSpinners = {}
+---@type CraftingRecipeSchematic?
+Self.craftingRecipe = nil
+---@type number?, string?
+Self.recraftRecipeID, Self.recraftItemLink = nil, nil
+---@type ReagentsTracker?
+Self.reagentsTracker = nil
 
 -- Blizzard frames
 
----@type CraftingPage, CraftingForm, Flyout
+---@type CraftingPage?, CraftingForm?, Flyout?
 local craftingPage, craftingForm, flyout
----@type OrdersView, OrdersForm
+---@type OrdersView?, OrdersForm?
 local ordersView, ordersForm
----@type CustomerOrderForm, OrdersFormReagents
+---@type CustomerOrderForm?, OrdersFormReagents?
 local customerOrderForm, customerOrderReagents
+---@type ObjectiveTrackerModuleMixin?
 local recipeTracker = ProfessionsRecipeTracker
 
 ---------------------------------------
@@ -46,9 +48,6 @@ function Self:OnEnable()
     -- ProfessionsFrame
     Util:TblHook(craftingForm, "GetRecipeOperationInfo", Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo)
     Util:TblHook(ordersForm, "GetRecipeOperationInfo", Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo)
-
-    -- ObjectiveTrackerFrame
-    Util:TblHook(recipeTracker, "Update", Self.Hooks.RecipeTracker.Update)
 
     Self:Refresh()
 end
@@ -68,9 +67,6 @@ function Self:OnDisable()
     self:ClearExperimentalReagentSlots(ordersForm)
     self:ClearExperimentalReagentSlots(customerOrderForm)
 
-    -- ObjectiveTrackerFrame
-    Util:TblUnhook(recipeTracker, "Update")
-
     Self:Refresh()
 end
 
@@ -80,13 +76,13 @@ function Self:Refresh()
     end
 
     -- ProfessionsFrame.CraftingPage
-    if craftingPage and craftingPage:IsVisible() then
+    if craftingPage and craftingPage:IsVisible() then ---@cast craftingForm -?
         craftingForm:Refresh()
         craftingPage:ValidateControls()
     end
 
     -- ProfessionsFrame.OrdersPage
-    if ordersView and ordersView:IsVisible() then
+    if ordersView and ordersView:IsVisible() then ---@cast ordersForm -?
         ordersForm:Refresh()
     end
 
@@ -199,10 +195,10 @@ end
 local function SkillSpinnerOnChange(self, value)
     Addon.extraSkill = max(0, value)
 
-    if craftingForm:IsVisible() then
+    if craftingForm and craftingForm:IsVisible() then
         craftingForm:UpdateDetailsStats()
         craftingForm:UpdateRecraftSlot()
-    elseif ordersForm:IsVisible() then
+    elseif ordersForm and ordersForm:IsVisible() then
         ordersForm:UpdateDetailsStats()
         ordersForm:UpdateRecraftSlot()
     end
@@ -226,22 +222,19 @@ local function AmountSpinnerOnEnter(self)
     GameTooltip:Show()
 end
 
----@param GetRecipeID fun(): number?
-local function AmountSpinnerOnChange(GetRecipeID)
-    ---@param self NumericInputSpinner
-    return function (self, value)
-        local recipeID = GetRecipeID()
-        if not recipeID then return end
-        Addon.DB.amounts[recipeID] = value > 1 and value or nil
-        ObjectiveTrackerFrame:Update()
-    end
+---@param self NumericInputSpinner
+---@param value number
+local function AmountSpinnerOnChange(self, value)
+    local form = self:GetParent() --[[@as CraftingForm]]
+    local recipe = form.recipeSchematic
+    if not recipe then return end
+    Recipes:SetTrackedAmount(recipe, value)
 end
 
 ---@param form RecipeForm
----@param GetRecipeID fun(): number?
 ---@return NumericInputSpinner
-local function InsertAmountSpinner(form, GetRecipeID, ...)
-    local input = InsertNumericSpinner(form, AmountSpinnerOnEnter, AmountSpinnerOnChange(GetRecipeID), ...)
+local function InsertAmountSpinner(form, ...)
+    local input = InsertNumericSpinner(form, AmountSpinnerOnEnter, AmountSpinnerOnChange, ...)
 
     input:SetMinMaxValues(1, math.huge)
 
@@ -346,7 +339,7 @@ end
 Self.Hooks.CraftingPage = {}
 
 ---@param self CraftingPage
-function Self.Hooks.CraftingPage.ValidateControls(self)
+function Self.Hooks.CraftingPage:ValidateControls()
     if not Addon.enabled then return end
     self.CreateButton:SetEnabled(false)
     self.CreateAllButton:SetEnabled(false)
@@ -359,7 +352,7 @@ end
 Self.Hooks.RecipeCraftingForm = {}
 
 ---@param self RecipeCraftingForm
-Self.Hooks.RecipeCraftingForm.GetRecipeOperationInfo = function(self)
+function Self.Hooks.RecipeCraftingForm:GetRecipeOperationInfo()
     ---@type CraftingOperationInfo
     local op = Util:TblGetHooks(self).GetRecipeOperationInfo(self)
     if not op then return end
@@ -399,12 +392,22 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
     UpdateExperimentationElements(self)
     UpdateOptimizationButtons(self)
 
+    -- Set or update tracked allocation
+    if Recipes:IsTracked(recipe) then
+        local allocation = Recipes:GetTrackedAllocation(recipe)
+        if allocation then
+            Self:SetReagentAllocation(self, allocation)
+        else
+            Recipes:SetTrackedAllocation(self)
+        end
+    end
+
     if self ~= craftingForm then return end
 
     UpdateAmountSpinner(self)
 
     local amountSpinner = Self.amountSpinners[self]
-    amountSpinner:SetValue(recipe and Addon.DB.amounts[recipe.recipeID] or 1)
+    amountSpinner:SetValue(recipe and Recipes:GetTrackedAmount(recipe) or 1)
 
     self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftInputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnClick)
@@ -462,7 +465,7 @@ function Self.Hooks.RecipeCraftingForm:DetailsSetStats(operationInfo, supportsQu
         optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
     end
 
-    if isUnclaimedOrder then
+    if isUnclaimedOrder then ---@cast order -?
         local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
         local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
         allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
@@ -708,12 +711,12 @@ Self.Hooks.CustomerOrderForm = {}
 
 ---@param self CustomerOrderForm
 function Self.Hooks.CustomerOrderForm.InitSchematic(self)
-    local recipeID = self.order.spellID
+    local recipe = self.transaction:GetRecipeSchematic()
     local trackBox = self.TrackRecipeCheckbox.Checkbox
     local amountSpinner = Self.amountSpinners[customerOrderForm]
 
     amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    amountSpinner:SetValue(recipeID and Addon.DB.amounts[recipeID] or 1)
+    amountSpinner:SetValue(recipe and Recipes:GetTrackedAmount(recipe) or 1)
 end
 
 ---@param self CustomerOrderForm
@@ -731,11 +734,12 @@ end
 
 Self.Hooks.RecipeTracker = {}
 
-function Self.Hooks.RecipeTracker.Update(...)
+---@param self ObjectiveTrackerModuleMixin
+function Self.Hooks.RecipeTracker:Update(...)
     local fn1 = Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
     local fn2 = Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
 
-    Util:TblGetHooks(recipeTracker).Update(...)
+    Util:TblGetHooks(self).Update(self, ...)
 
     Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", fn1)
     Util:TblHook(ItemUtil, "GetCraftingReagentCount", fn2)
@@ -743,7 +747,9 @@ end
 
 ---@param self Button
 ---@param mouseButton string
-function Self.Hooks.RecipeTracker.LineOnClick(self, mouseButton)
+function Self.Hooks.RecipeTracker:LineOnClick(mouseButton)
+    ---@cast recipeTracker -?
+
     local line = self:GetParent() --[[@as QuestObjectiveAnimLine]]
     local block = line:GetParent()
 
@@ -763,13 +769,16 @@ function Self.Hooks.RecipeTracker.LineOnClick(self, mouseButton)
     end
 end
 
-function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
+---@param self ObjectiveTrackerModuleMixin
+---@param recipeID number
+---@param isRecraft boolean
+function Self.Hooks.RecipeTracker:AddRecipe(recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-    local amount = Addon.DB.amounts[recipe.recipeID]
+    local amount = Recipes:GetTrackedAmount(recipe)
 
-    -- Set header
     local block = self:GetExistingBlock(NegateIf(recipeID, isRecraft))
 
+    -- Set header
     local blockName = recipe.name
     if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
     if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
@@ -793,7 +802,7 @@ function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
 
         local reagent = schematic.reagents[1]
         local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
-        local quantityRequired = schematic.quantityRequired * (Addon.DB.amounts[recipe.recipeID] or 1)
+        local quantityRequired = schematic.quantityRequired * (Recipes:GetTrackedAmount(recipe) or 1)
         local metQuantity = quantity >= quantityRequired
         local name = nil
 
@@ -814,7 +823,6 @@ function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
             local dashStyle = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
             local colorStyle = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
 
-            ---@type QuestObjectiveAnimLine
             local line = block:GetExistingLine(j)
 
             -- Dash style
@@ -833,14 +841,8 @@ function Self.Hooks.RecipeTracker.AddRecipe(self, recipeID, isRecraft)
             -- Icon
             line.Icon:SetShown(metQuantity)
 
-            -- OnClick
-            line.itemName = name
-            if not line.Button then
-                line.Button = CreateFrame("Button", nil, line)
-                line.Button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-                line.Button:SetAllPoints(line)
-                line.Button:SetScript("OnClick", Self.Hooks.RecipeTracker.LineOnClick)
-            end
+            -- Button
+            Self:SetReagentLineButton(line, name)
         end
     end
 end
@@ -849,14 +851,56 @@ end
 
 Self.Hooks.Flyout = {}
 
-function Self.Hooks.Flyout.InitializeContents(...)
-    flyout.OnElementEnabledImplementation = flyout.GetElementValidImplementation or Util.FnTrue
-    Util:TblGetHooks(flyout).InitializeContents(...)
+---@param self Flyout
+function Self.Hooks.Flyout:InitializeContents(...)
+    self.OnElementEnabledImplementation = self.GetElementValidImplementation or Util.FnTrue
+    Util:TblGetHooks(self).InitializeContents(...)
 end
 
 ---------------------------------------
 --              Util
 ---------------------------------------
+
+---@type FramePool
+Self.reagentLineButtonPool = nil
+
+function Self:GetReagentLineButtonPool()
+    if not Self.reagentLineButtonPool then
+        Self.reagentLineButtonPool = CreateFramePool("Button", nil, nil, function (_, f)
+            f:Hide()
+            f:SetParent()
+            f:ClearAllPoints()
+        end)
+    end
+    return Self.reagentLineButtonPool
+end
+
+---@param line ObjectiveTrackerLine 
+---@param itemName string
+function Self:SetReagentLineButton(line, itemName)
+    local pool = Self:GetReagentLineButtonPool()
+
+    -- Name
+    line.itemName = itemName
+
+    -- Button
+    local btn = pool:Acquire()
+    btn:SetParent(line)
+    btn = CreateFrame("Button", nil, line)
+    btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    btn:SetAllPoints(line)
+    btn:SetScript("OnClick", Self.Hooks.RecipeTracker.LineOnClick)
+    line.Button = btn
+
+    -- OnFree
+    local OnFree = line.OnFree
+    function line:OnFree(...)
+        pool:Release(self.Button)
+        self.itemName, self.Button =  nil, nil
+        self.OnFree = OnFree
+        if self.OnFree then return self:OnFree(...) end
+    end
+end
 
 ---@return RecipeForm?
 function Self:GetVisibleForm()
@@ -868,8 +912,9 @@ end
 ---@param form RecipeForm?
 function Self:GetFormOrder(form)
     if not form then form = self:GetVisibleForm() end
-    if form == ordersForm then return ordersView.order end
-    if form == customerOrderForm then return customerOrderForm.order end
+    if not form then return end
+    if form == ordersForm then --[[@cast ordersView -?]] return ordersView.order end
+    if form == customerOrderForm then --[[@cast customerOrderForm -?]] return customerOrderForm.order end
 end
 
 function Self:SetRecraftRecipe(recipeId, link, transition)
@@ -881,7 +926,7 @@ function Self:SetRecraftRecipe(recipeId, link, transition)
     Self.recraftRecipeID = recipeId
     Self.recraftItemLink = link
 
-    if not recipeId then return end
+    if not craftingForm or not recipeId then return end
 
     if transition then
         Professions.SetRecraftingTransitionData({ isRecraft = true, itemLink = link })
@@ -954,7 +999,7 @@ function Self:SetReagentSlotAllocation(form, slotIndex, allocations, silent)
     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
----@param form RecipeForm
+---@param form? RecipeForm
 function Self:ClearExperimentalReagentSlots(form)
     if not form or not form.reagentSlots then return end
 
@@ -1019,7 +1064,7 @@ TooltipDataProcessor.AddTooltipPostCall(
     Enum.TooltipDataType.Item,
     ---@param tooltip? GameTooltip
     function(tooltip)
-        if not Addon.DB.tooltip or not tooltip then return end
+        if not Addon.DB.Account.tooltip or not tooltip then return end
 
         local _, link = tooltip:GetItem()
         if not link then return end
@@ -1038,7 +1083,7 @@ TooltipDataProcessor.AddTooltipPostCall(
         local form = Self:GetVisibleForm()
         if not form then return end
 
-        local recipe = form.transaction:GetRecipeSchematic()
+        local recipe = form.recipeSchematic
         local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
         local _, maxSkill = Reagents:GetSkillBounds(recipe)
         if not maxSkill or maxSkill == 0 then return end
@@ -1056,11 +1101,33 @@ TooltipDataProcessor.AddTooltipPostCall(
 function Self:OnAddonLoaded(addonName)
     local isSelf = addonName == Name
 
-    if isSelf then
-        -- RecipeObjectiveTracker
+    if addonName == "Blizzard_ObjectiveTracker" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_ObjectiveTracker") then
+        -- ProfessionsRecipeTracker
 
-        -- Hook update
+        -- Recipes
+
         hooksecurefunc(recipeTracker, "AddRecipe", Self.Hooks.RecipeTracker.AddRecipe)
+
+        hooksecurefunc(recipeTracker, "BeginLayout", function ()
+            if not Addon.enabled then return end
+            Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
+            Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
+        end)
+
+        hooksecurefunc(recipeTracker, "EndLayout", function ()
+            if not Addon.enabled then return end
+            Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", Util.FnInfinite)
+            Util:TblHook(ItemUtil, "GetCraftingReagentCount", Util.FnInfinite)
+        end)
+
+        -- Reagents tracker
+
+        Self.reagentsTracker = Addon:CreateReagentsTracker()
+        Self.reagentsTracker:SetContainer(ObjectiveTrackerFrame)
+
+        hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate)
+            Self.reagentsTracker:UpdatePosition(dirtyUpdate)
+        end)
     end
 
     if addonName == "Blizzard_Professions" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
@@ -1086,10 +1153,6 @@ function Self:OnAddonLoaded(addonName)
         -- Insert tracked amount spinner
         InsertAmountSpinner(
             craftingForm,
-            function ()
-                local recipe = craftingForm:GetRecipeInfo()
-                return recipe and recipe.recipeID
-            end,
             "RIGHT", craftingForm.TrackRecipeCheckbox, "LEFT", -30, 1
         )
 
@@ -1113,7 +1176,6 @@ function Self:OnAddonLoaded(addonName)
         hooksecurefunc(craftingForm, "UpdateDetailsStats", Self.Hooks.RecipeCraftingForm.UpdateDetailsStats)
 
         hooksecurefunc(craftingForm.Details, "SetStats", Self.Hooks.RecipeCraftingForm.DetailsSetStats)
-
 
         -- ProfessionsFrame.OrdersPage
 
@@ -1173,7 +1235,6 @@ function Self:OnAddonLoaded(addonName)
         -- Insert tracked amount spinner
         InsertAmountSpinner(
             customerOrderForm,
-            function () return customerOrderForm.order and customerOrderForm.order.spellID end,
             "LEFT", customerOrderForm.TrackRecipeCheckbox, "RIGHT", 30, 1
         )
 
@@ -1185,44 +1246,46 @@ function Self:OnAddonLoaded(addonName)
 end
 
 function Self:OnTrackedRecipeUpdate(recipeID, tracked)
-    local recipe = craftingForm and craftingForm:GetRecipeInfo()
-    if recipe and recipe.recipeID == recipeID then
-        local amountSpinner = Self.amountSpinners[craftingForm]
-        amountSpinner:SetShown(tracked and not ProfessionsUtil.IsCraftingMinimized())
-        if not tracked then amountSpinner:SetValue(1) end
+    for form,amountSpinner in pairs(Self.amountSpinners) do
+        local recipe = form.recipeSchematic
+        if recipe and recipe.recipeID == recipeID then
+            amountSpinner:SetShown(Recipes:IsTracked(recipe) and not ProfessionsUtil.IsCraftingMinimized())
+            amountSpinner:SetValue(Recipes:GetTrackedAmount(recipe) or 1)
+        end
     end
 
-    if customerOrderForm and customerOrderForm.order and customerOrderForm.order.spellID == recipeID then
-        local amountSpinner = Self.amountSpinners[customerOrderForm]
-        amountSpinner:SetShown(tracked)
-        if not tracked then amountSpinner:SetValue(1) end
+    local form = Self:GetVisibleForm()
+    if not tracked then
+        Recipes:CheckUnsetTrackedAllocations(recipeID)
+    elseif form then
+        Recipes:SetTrackedAllocation(form)
     end
 end
 
-function Self:OnTradeSkillCraftBegin(recipeID)
-    Self.craftingRecipeID = recipeID
+function Self:OnTradeSkillCraftBegin()
+    local form = Self:GetVisibleForm()
+    if not form then return end
+    Self.craftingRecipe = form.recipeSchematic
 end
 
 function Self:OnUpdateTradeskillCastStopped()
-    Self.craftingRecipeID = nil
+    Self.craftingRecipe = nil
 end
 
 function Self:OnSpellcastStoppedOrSucceeded()
-    local recipeID = Self.craftingRecipeID
-    Self.craftingRecipeID = nil
+    local recipe = Self.craftingRecipe
+    Self.craftingRecipe = nil
 
-    if not recipeID or not Addon.DB.amounts[recipeID] then return end
+    local amount = recipe and Recipes:GetTrackedAmount(recipe)
+    if not recipe or not amount then return end
 
-    local amount = max(1, Addon.DB.amounts[recipeID] - 1)
-    Addon.DB.amounts[recipeID] = amount > 1 and amount or nil
+    amount = Recipes:SetTrackedAmount(recipe, max(1, amount - 1)) ---@cast amount -?
 
-    local recipe = craftingForm:GetRecipeInfo()
-    if recipe and recipe.recipeID == recipeID then
-        Self.amountSpinners[craftingForm]:SetValue(amount)
-    end
-
-    if customerOrderForm and customerOrderForm.order and customerOrderForm.order.spellID == recipeID then
-        Self.amountSpinners[customerOrderForm]:SetValue(amount)
+    for form,amountSpinner in pairs(Self.amountSpinners) do
+        local formRecipe = form.recipeSchematic
+        if formRecipe and formRecipe.recipeID == recipe.recipeID and formRecipe.isRecraft == recipe.isRecraft then
+            amountSpinner:SetValue(amount)
+        end
     end
 end
 

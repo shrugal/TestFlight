@@ -2,27 +2,36 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI, Prices = Addon.GUI, Addon.Prices
-
----@class TestFlightDB
-TestFlightDB = {
-    ---@type number[]
-    amounts = {},
-    ---@type boolean
-    tooltip = false,
-    ---@type string?
-    priceSource = nil
-}
+local GUI, Prices, Recipes, Util = Addon.GUI, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class TestFlight
 local Self = Addon
 
----@type boolean
-Self.DEBUG = false
+---@class TestFlightDB
+TestFlightDB = {
+    v = 1,
+    ---@type boolean
+    tooltip = false,
+    ---@type boolean
+    reagents = true,
+    ---@type string?
+    priceSource = nil
+}
+
+---@class TestFlightCharDB
+TestFlightCharDB = {
+    v = 1,
+    ---@type table<boolean, number[]>
+    amounts = { [false] = {}, [true] = {} },
+}
+
 ---@type boolean
 Self.enabled = false
 ---@type number
 Self.extraSkill = 0
+
+---@type boolean
+Self.DEBUG = false
 
 --@do-not-package@
 Self.DEBUG = true
@@ -51,7 +60,19 @@ end
 ---------------------------------------
 
 function Self:Load()
-    Self.DB = TestFlightDB
+    Self.DB = {
+        Account = TestFlightDB,
+        Char = TestFlightCharDB
+    }
+
+    -- Migrations
+
+    if not Self.DB.Account.v then
+        ---@diagnostic disable-next-line: inject-field
+        Self.DB.Account.amounts = nil
+        Self.DB.Account.reagents = true
+        Self.DB.Account.v = 1
+    end
 end
 
 function Self:Enable()
@@ -109,20 +130,37 @@ function SlashCmdList.TESTFLIGHT(input)
     local args = ParseArgs(input)
     local cmd = args[1]
 
-    if cmd == "tooltip" or cmd == "tt" then
+    -- Shorthands
+    if cmd == "tt" then cmd = "tooltip" end
+    if cmd == "re" then cmd = "reagents" end
+    if cmd == "rc" then cmd = "recraft" end
+    if cmd == "pc" then cmd = "pricesource" end
+
+    if cmd == "tooltip" or cmd == "reagents" then
+        local name = Util:StrUcFirst(cmd)
+
         if not args[2] then
-            args[2] = Self.DB.tooltip and "off" or "on"
+            args[2] = Self.DB.Account[cmd] and "off" or "on"
         end
 
         if args[2] ~= "on" and args[2] ~= "off" then
-            Self:Print("Tooltip: Please pass 'on', 'off' or nothing as second parameter.")
+            Self:Print("%s: Please pass 'on', 'off' or nothing as second parameter.", name)
             return
         end
 
-        Self.DB.tooltip = args[2] == "on"
+        local enabled = args[2] == "on"
+        Self.DB.Account[cmd] = enabled
 
-        Self:Print("Tooltip: Reagent info %s", Self.DB.tooltip and "enabled" or "disabled")
-    elseif cmd == "recraft" or cmd == "rc" then
+        Self:Print("%s: %s", name, enabled and "enabled" or "disabled")
+
+        if cmd == "reagents" and GUI.reagentsTracker then
+            if enabled then
+                GUI.reagentsTracker:UpdatePosition()
+            else
+                GUI.reagentsTracker:RemoveFromParent()
+            end
+        end
+    elseif cmd == "recraft" then
         -- Get item ID
         local id = GetItemId(args[2])
         if not id then
@@ -147,7 +185,7 @@ function SlashCmdList.TESTFLIGHT(input)
         end
 
         Self:Error("Recraft: No recipe for link found.")
-    elseif cmd == "pricesource" or cmd == "ps" then
+    elseif cmd == "pricesource" then
         if args[2] ~= "auto" and not Prices.SOURCES[args[2]] then
             if args[2] then Self:Error("Price source: Unknown source '%s'", args[2]) end
 
@@ -159,15 +197,16 @@ function SlashCmdList.TESTFLIGHT(input)
             return
         end
 
-        Self.DB.priceSource = args[2] ~= "auto" and args[2] or nil
+        Self.DB.Account.priceSource = args[2] ~= "auto" and args[2] or nil
         Self.Prices.SOURCE = nil
 
         Self:Print("Price source: Set to %s", args[2])
     else
         Self:Print("Help")
         Self:Print("|cffcccccc/testflight recraft||rc <link>|r: Set recraft UI to an item given by link.")
-        Self:Print("|cffcccccc/testflight tooltip||tt on|off|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.tooltip and "on" or "off")
-        Self:Print("|cffcccccc/testflight pricesource||ps <name>||auto|r: Set preferred price source. (Current: %s)", Self.DB.priceSource or "auto")
+        Self:Print("|cffcccccc/testflight tooltip||tt on|off|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.Account.tooltip and "on" or "off")
+        Self:Print("|cffcccccc/testflight reagents||re on|off|r: Toggle reagents tracker. (Current: %s)", Self.DB.Account.reagents and "on" or "off")
+        Self:Print("|cffcccccc/testflight pricesource||ps <name>||auto|r: Set preferred price source. (Current: %s)", Self.DB.Account.priceSource or "auto")
     end
 end
 
@@ -178,6 +217,8 @@ end
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if addonName == Name then self:Load() end
+
+    Recipes:OnAddonLoaded(addonName)
     GUI:OnAddonLoaded(addonName)
 end
 

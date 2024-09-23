@@ -4,19 +4,24 @@
 ## Notes-deDE: Experimentiere mit Berufsrezepten ohne Reagenz- oder Spezialisierungslimits.
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
+## SavedVariablesPerCharacter: TestFlightCharDB
 ## OptionalDeps: Auctionator, TradeSkillMaster, RECrystallize, OribosExchange, Auctioneer
 
+src/Init.lua
 src/Data.lua
-src/Util.lua
+src/Addon.lua
 
 src/mixins/Allocations.lua
 src/mixins/Cache.lua
+src/mixins/ReagentsTracker.lua
 
-src/Reagents.lua
-src/Prices.lua
-src/Optimization.lua
+src/libs/Util.lua
+src/libs/Recipes.lua
+src/libs/Reagents.lua
+src/libs/Prices.lua
+src/libs/Optimization.lua
+
 src/GUI.lua
-src/Addon.lua
 
 #@do-not-package@
 ## Version: 0-dev0

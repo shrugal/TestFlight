@@ -3,8 +3,7 @@ local Addon = select(2, ...)
 local Reagents, Prices = Addon.Reagents, Addon.Prices
 
 ---@class Optimization
-local Self = Addon.Optimization or {}
-Addon.Optimization = Self
+local Self = Addon.Optimization
 
 ---------------------------------------
 --              Crafts

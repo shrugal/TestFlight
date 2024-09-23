@@ -1,10 +1,9 @@
 ---@class TestFlight
 local Addon = select(2, ...)
-local Util = Addon.Util
+local Recipes, Util = Addon.Recipes, Addon.Util
 
----@class Crafting
-local Self = Addon.Reagents or {}
-Addon.Reagents = Self
+---@class Reagents
+local Self = Addon.Reagents
 
 ---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
 function Self:GetWeight(reagent)
@@ -194,4 +193,60 @@ function Self:GetSkillBounds(recipe, optionalReagents, qualityReagents, recraftI
     local skillBest = opBest.baseSkill + opBest.bonusSkill - skillBase
 
     return skillBase, skillBest
+end
+
+---@return number[] reagents
+---@return number[] orderReagents
+function Self:GetTracked()
+    local order = C_CraftingOrders.GetClaimedOrder()
+
+    ---@type number[], number[]
+    local reagents, orderReagents = {}, {}
+
+    for i=0,1 do
+        local isRecraft = i == 1
+        local recipeIDs = C_TradeSkillUI.GetRecipesTracked(isRecraft)
+
+        for _,recipeID in pairs(recipeIDs) do
+            local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+            local amount = Recipes:GetTrackedAmount(recipe)
+            local allocation = Recipes:GetTrackedAllocation(recipe)
+            local isOrder = order and order.spellID == recipeID and order.isRecraft == isRecraft
+
+            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+                local missing = reagent.required and reagent.quantityRequired or 0
+
+                if allocation and allocation[slotIndex] then
+                    for _, alloc in allocation[slotIndex]:Enumerate() do
+                        missing = missing - alloc.quantity
+
+                        local itemID = alloc.reagent.itemID
+                        local reagentAmount = amount
+
+                        if itemID then
+                            if isOrder and --[[@cast order -?]] Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
+                                reagentAmount = reagentAmount - 1
+                            end
+
+                            if reagentAmount > 0 then
+                                reagents[itemID] = (reagents[itemID] or 0) + reagentAmount * alloc.quantity
+                            end
+                        end
+                    end
+                end
+
+                if missing > 0 then
+                    reagents[reagent.reagents[1].itemID] = (reagents[reagent.reagents[1].itemID] or 0) + amount * missing
+                end
+            end
+        end
+    end
+
+    if order and C_TradeSkillUI.IsRecipeTracked(order.spellID, order.isRecraft) then
+        for _,reagent in pairs(order.reagents) do
+            orderReagents[reagent.reagent.itemID] = reagent.reagent.quantity
+        end
+    end
+
+    return reagents, orderReagents
 end
