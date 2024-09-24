@@ -53,6 +53,15 @@ OEMarketInfo = nil
 ---@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: fun(self: self): number, unknown} }
 Auctioneer = nil
 
+---@class WorldQuestTracker
+---@field TrackerHeight number
+---@field RefreshTrackerAnchor fun(self: self)
+---@field db { profile: { tracker_attach_to_questlog: boolean } }
+WorldQuestTrackerAddon = nil
+
+---@type Frame
+WorldQuestTrackerScreenPanel = nil
+
 -----------------------------------------------------
 ---                 WoW frames                    --
 -----------------------------------------------------

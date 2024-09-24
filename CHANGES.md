@@ -1,7 +1,3 @@
-- Added objective tracker module showing reagents for all tracked recipes
-- Added command to enable/disable reagents tracker
-- Restore previous reagent allocations when navigating to tracked recipes
-- Made tracked recipe amounts character specific
-- Cleanup modified objective tracker lines to prevent taint
-- Use secure hooks for recipe tracker bypass to prevent taint
-- Some more refactoring
+- Fix crafting reagents flyout window
+- Fix WorldQuestTracker objective tracker compatibility
+- Remove recipe tracker Update hook for real this time

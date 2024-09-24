@@ -734,17 +734,6 @@ end
 
 Self.Hooks.RecipeTracker = {}
 
----@param self ObjectiveTrackerModuleMixin
-function Self.Hooks.RecipeTracker:Update(...)
-    local fn1 = Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
-    local fn2 = Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
-
-    Util:TblGetHooks(self).Update(self, ...)
-
-    Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", fn1)
-    Util:TblHook(ItemUtil, "GetCraftingReagentCount", fn2)
-end
-
 ---@param self Button
 ---@param mouseButton string
 function Self.Hooks.RecipeTracker:LineOnClick(mouseButton)
@@ -854,7 +843,24 @@ Self.Hooks.Flyout = {}
 ---@param self Flyout
 function Self.Hooks.Flyout:InitializeContents(...)
     self.OnElementEnabledImplementation = self.GetElementValidImplementation or Util.FnTrue
-    Util:TblGetHooks(self).InitializeContents(...)
+    Util:TblGetHooks(self).InitializeContents(self, ...)
+end
+
+-- WorldQuestTracker
+
+Self.Hooks.WorldQuestTracker = {}
+
+function Self.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
+    if not WorldQuestTrackerScreenPanel or not WorldQuestTrackerScreenPanel:IsShown() then return end
+    if not WorldQuestTrackerAddon.db.profile.tracker_attach_to_questlog then return end
+    if not Self.reagentsTracker then return end
+
+    local point, relativeTo, relativePoint, x, y = ObjectiveTrackerFrame:GetPoint(1)
+    if not point then return end
+
+    local height = Self.reagentsTracker:IsShown() and Self.reagentsTracker:GetHeight() or 0
+
+    WorldQuestTrackerScreenPanel:SetPoint(point, relativeTo, relativePoint, x - 10, y - 20 - WorldQuestTrackerAddon.TrackerHeight - height)
 end
 
 ---------------------------------------
@@ -1098,10 +1104,12 @@ TooltipDataProcessor.AddTooltipPostCall(
 --              Events
 ---------------------------------------
 
-function Self:OnAddonLoaded(addonName)
-    local isSelf = addonName == Name
+local function IsAddOn(targetAddonName, addonName)
+    return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
+end
 
-    if addonName == "Blizzard_ObjectiveTracker" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_ObjectiveTracker") then
+function Self:OnAddonLoaded(addonName)
+    if IsAddOn("Blizzard_ObjectiveTracker", addonName) then
         -- ProfessionsRecipeTracker
 
         -- Recipes
@@ -1130,7 +1138,7 @@ function Self:OnAddonLoaded(addonName)
         end)
     end
 
-    if addonName == "Blizzard_Professions" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
+    if IsAddOn("Blizzard_Professions", addonName) then
         -- Flyout
 
         flyout = OpenProfessionsItemFlyout()
@@ -1217,7 +1225,7 @@ function Self:OnAddonLoaded(addonName)
         hooksecurefunc(ordersForm.Details, "SetStats", Self.Hooks.RecipeCraftingForm.DetailsSetStats)
     end
 
-    if addonName == "Blizzard_ProfessionsCustomerOrders" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_ProfessionsCustomerOrders") then
+    if IsAddOn("Blizzard_ProfessionsCustomerOrders", addonName) then
         -- ProfessionsCustomerOrdersFrame
 
         customerOrderForm = ProfessionsCustomerOrdersFrame.Form
@@ -1242,6 +1250,12 @@ function Self:OnAddonLoaded(addonName)
 
         hooksecurefunc(customerOrderForm, "InitSchematic", Self.Hooks.CustomerOrderForm.InitSchematic)
         hooksecurefunc(customerOrderForm, "UpdateListOrderButton", Self.Hooks.CustomerOrderForm.UpdateListOrderButton)
+    end
+
+    if IsAddOn("WorldQuestTracker", addonName) then
+        -- WorldQuestTracker
+
+        hooksecurefunc(WorldQuestTrackerAddon, "RefreshTrackerAnchor", Self.Hooks.WorldQuestTracker.RefreshTrackerAnchor)
     end
 end
 

@@ -140,6 +140,11 @@ function Self:AddReagents(key, header, reagents, provided)
     return self:LayoutBlock(block)
 end
 
+function Self:ShouldHideInCombat()
+    return WorldQuestObjectiveTracker:GetContentsHeight() > 0
+        or BonusObjectiveTracker:GetContentsHeight() > 0
+end
+
 ---@param self ReagentsTracker
 ---@param dirtyUpdate? boolean
 function Self:UpdatePosition(dirtyUpdate)
@@ -179,11 +184,8 @@ function Self:UpdatePosition(dirtyUpdate)
 
     ProfessionsRecipeTracker:ClearAllPoints()
     ProfessionsRecipeTracker:SetPoint("TOP",self, "BOTTOM", 0, -parent.moduleSpacing)
-end
 
-function Self:ShouldHideInCombat()
-    return WorldQuestObjectiveTracker:GetContentsHeight() > 0
-        or BonusObjectiveTracker:GetContentsHeight() > 0
+    GUI.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
 end
 
 ---@param self ReagentsTracker
@@ -204,6 +206,8 @@ function Self:RemoveFromParent()
     else
         ProfessionsRecipeTracker:SetPoint("TOP", 0, -parent.topModulePadding)
     end
+
+    GUI.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
 end
 
 ---------------------------------------
