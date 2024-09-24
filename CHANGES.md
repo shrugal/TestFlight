@@ -1,3 +1,3 @@
-- Fix crafting reagents flyout window
-- Fix WorldQuestTracker objective tracker compatibility
-- Remove recipe tracker Update hook for real this time
+- Fix some errors caused by missing recipes or tracked recipe amounts
+- Fix reagents tracker positioning if not all blocks can be shown
+- Don't show reagents tracker if missing reagents block can't be shown

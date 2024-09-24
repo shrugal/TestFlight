@@ -1,3 +1,9 @@
+Version 3.04
+
+- Fix crafting reagents flyout window
+- Fix WorldQuestTracker objective tracker compatibility
+- Remove recipe tracker Update hook for real this time
+
 Version 3.03
 
 - Added objective tracker module showing reagents for all tracked recipes

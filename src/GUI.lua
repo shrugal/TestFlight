@@ -393,7 +393,7 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
     UpdateOptimizationButtons(self)
 
     -- Set or update tracked allocation
-    if Recipes:IsTracked(recipe) then
+    if recipe and Recipes:IsTracked(recipe) then
         local allocation = Recipes:GetTrackedAllocation(recipe)
         if allocation then
             Self:SetReagentAllocation(self, allocation)
@@ -412,7 +412,7 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
     self.recraftSlot.InputSlot:SetScript("OnEnter", Self.Hooks.RecipeCraftingForm.RecraftInputSlotOnEnter)
     self.recraftSlot.OutputSlot:SetScript("OnClick", Self.Hooks.RecipeCraftingForm.RecraftOutputSlotOnClick)
 
-    if Self.recraftRecipeID then
+    if recipe and Self.recraftRecipeID then
         local same = Self.recraftRecipeID == recipe.recipeID
         Self:SetRecraftRecipe(same and Self.recraftRecipeID or nil, same and Self.recraftItemLink or nil)
     end
@@ -1293,7 +1293,7 @@ function Self:OnSpellcastStoppedOrSucceeded()
     local amount = recipe and Recipes:GetTrackedAmount(recipe)
     if not recipe or not amount then return end
 
-    amount = Recipes:SetTrackedAmount(recipe, max(1, amount - 1)) ---@cast amount -?
+    amount = Recipes:SetTrackedAmount(recipe, max(1, amount - 1)) or 1
 
     for form,amountSpinner in pairs(Self.amountSpinners) do
         local formRecipe = form.recipeSchematic

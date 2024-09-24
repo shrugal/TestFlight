@@ -91,7 +91,9 @@ function Self:AddBlocks(reagents, orderReagents)
         return GetCraftingReagentCount(itemID) < quantityRequired
     end, true)
 
-    self:AddReagents("missing", ADDON_MISSING, grouped[true])
+    local addedMissing = self:AddReagents("missing", ADDON_MISSING, grouped[true])
+    if not addedMissing then return end
+
     self:AddReagents("complete", COMPLETE, grouped[false])
     self:AddReagents("order", "Provided", orderReagents, true)
 end
@@ -169,9 +171,9 @@ function Self:UpdatePosition(dirtyUpdate)
         if module:GetContentsHeight() > 0 then self.prevModule = module end
     end
 
-    local height, isTruncated = self:Update(nil, dirtyUpdate)
+    local height = self:Update(nil, dirtyUpdate)
 
-    if height == 0 or isTruncated then return end
+    if height == 0 then return end
 
     self:ClearAllPoints()
     self:SetPoint("LEFT", parent, "LEFT", self.leftMargin, 0)
@@ -183,7 +185,7 @@ function Self:UpdatePosition(dirtyUpdate)
     end
 
     ProfessionsRecipeTracker:ClearAllPoints()
-    ProfessionsRecipeTracker:SetPoint("TOP",self, "BOTTOM", 0, -parent.moduleSpacing)
+    ProfessionsRecipeTracker:SetPoint("TOP", self, "BOTTOM", 0, -parent.moduleSpacing)
 
     GUI.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
 end
