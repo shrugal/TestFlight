@@ -9,6 +9,8 @@ Addon.Prices = {}
 Addon.Recipes = {}
 ---@type Reagents
 Addon.Reagents = {}
+---@type Orders
+Addon.Orders = {}
 ---@type Optimization
 Addon.Optimization = {}
 ---@type GUI

@@ -1,6 +1,6 @@
 ---@class TestFlight
 local Addon = select(2, ...)
-local Recipes, Util = Addon.Recipes, Addon.Util
+local Orders, Recipes, Util = Addon.Orders, Addon.Recipes, Addon.Util
 
 ---@class Reagents
 local Self = Addon.Reagents
@@ -198,8 +198,6 @@ end
 ---@return number[] reagents
 ---@return number[] orderReagents
 function Self:GetTracked()
-    local order = C_CraftingOrders.GetClaimedOrder()
-
     ---@type number[], number[]
     local reagents, orderReagents = {}, {}
 
@@ -211,7 +209,7 @@ function Self:GetTracked()
             local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
             local amount = Recipes:GetTrackedAmount(recipe)
             local allocation = Recipes:GetTrackedAllocation(recipe)
-            local isOrder = order and order.spellID == recipeID and order.isRecraft == isRecraft
+            local order = Orders:GetTracked(recipe)
 
             for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
                 local missing = reagent.required and reagent.quantityRequired or 0
@@ -224,7 +222,7 @@ function Self:GetTracked()
                         local reagentAmount = amount
 
                         if itemID then
-                            if isOrder and --[[@cast order -?]] Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
+                            if order and Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
                                 reagentAmount = reagentAmount - 1
                             end
 
@@ -242,9 +240,10 @@ function Self:GetTracked()
         end
     end
 
-    if order and C_TradeSkillUI.IsRecipeTracked(order.spellID, order.isRecraft) then
+    for _,order in pairs(Orders.tracked) do
         for _,reagent in pairs(order.reagents) do
-            orderReagents[reagent.reagent.itemID] = reagent.reagent.quantity
+            local itemID = reagent.reagent.itemID
+            orderReagents[itemID] = (orderReagents[itemID] or 0) + reagent.reagent.quantity
         end
     end
 

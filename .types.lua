@@ -323,6 +323,11 @@ ObjectiveTrackerSlidingState = { None = 1, SlideIn = 2, SlideOut = 3 }
 ---@enum ObjectiveTrackerModuleState
 ObjectiveTrackerModuleState = { Skipped = 1, NoObjectives = 2, NotShown = 3, ShownPartially = 4, ShownFully = 5 }
 
+ProfessionsRecipeSchematicFormMixin = {
+    ---@enum ProfessionsRecipeSchematicFormEvent
+    Event = { UseBestQualityModified = "UseBestQualityModified", AllocationsModified = "AllocationsModified" }
+}
+
 -----------------------------------------------------
 ---            WoW Templates & Mixins              --
 -----------------------------------------------------

@@ -1,3 +1,9 @@
+Version 3.05
+
+- Fix some errors caused by missing recipes or tracked recipe amounts
+- Fix reagents tracker positioning if not all blocks can be shown
+- Don't show reagents tracker if missing reagents block can't be shown
+
 Version 3.04
 
 - Fix crafting reagents flyout window

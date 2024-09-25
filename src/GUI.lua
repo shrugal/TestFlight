@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local Optimization, Prices, Reagents, Recipes, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Optimization, Orders, Prices, Reagents, Recipes, Util = Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI
 local Self = Addon.GUI
@@ -398,7 +398,7 @@ function Self.Hooks.RecipeCraftingForm:Init(recipe)
         if allocation then
             Self:SetReagentAllocation(self, allocation)
         else
-            Recipes:SetTrackedAllocation(self)
+            Recipes:SetTrackedAllocationByForm(self)
         end
     end
 
@@ -1060,6 +1060,13 @@ function Self:ClearReagentSlot(form, slot)
     form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
+---@param reagents? boolean
+---@param recipes? boolean
+function Self:UpdateObjectiveTrackers(reagents, recipes)
+    if reagents and Self.reagentsTracker then Self.reagentsTracker:MarkDirty() end
+    if recipes and recipeTracker then recipeTracker:MarkDirty() end
+end
+
 ---------------------------------------
 --              Tooltip
 ---------------------------------------
@@ -1259,6 +1266,8 @@ function Self:OnAddonLoaded(addonName)
     end
 end
 
+---@param recipeID number
+---@param tracked boolean
 function Self:OnTrackedRecipeUpdate(recipeID, tracked)
     for form,amountSpinner in pairs(Self.amountSpinners) do
         local recipe = form.recipeSchematic
@@ -1266,13 +1275,6 @@ function Self:OnTrackedRecipeUpdate(recipeID, tracked)
             amountSpinner:SetShown(Recipes:IsTracked(recipe) and not ProfessionsUtil.IsCraftingMinimized())
             amountSpinner:SetValue(Recipes:GetTrackedAmount(recipe) or 1)
         end
-    end
-
-    local form = Self:GetVisibleForm()
-    if not tracked then
-        Recipes:CheckUnsetTrackedAllocations(recipeID)
-    elseif form then
-        Recipes:SetTrackedAllocation(form)
     end
 end
 

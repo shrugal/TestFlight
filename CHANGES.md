@@ -1,3 +1,4 @@
-- Fix some errors caused by missing recipes or tracked recipe amounts
-- Fix reagents tracker positioning if not all blocks can be shown
-- Don't show reagents tracker if missing reagents block can't be shown
+- Remember all tracked orders, instead of just the claimed order
+- Use optimal allocation for min. crafting order quality when tracking unclaimed orders
+- Fix more errors caused by missing recipes
+- Fix reagents tracker not showing when no reagents are missing

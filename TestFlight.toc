@@ -18,6 +18,7 @@ src/mixins/ReagentsTracker.lua
 src/libs/Util.lua
 src/libs/Recipes.lua
 src/libs/Reagents.lua
+src/libs/Orders.lua
 src/libs/Prices.lua
 src/libs/Optimization.lua
 

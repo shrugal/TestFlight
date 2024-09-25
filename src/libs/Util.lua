@@ -6,6 +6,16 @@ local Self = Addon.Util
 
 ---@alias SearchFn<T, R, S> (fun(v: T, ...:any): R) | (fun(v: T, k: any, ...: any): R) | (fun(self: S, v: T, ...: any): R) | (fun(self: S, v: T, k: any, ...: any): R)
 
+---@generic T
+---@param val T
+---@param ... T
+function Self:OneOf(val, ...)
+    for i=1,select("#", ...) do
+        if select(i, ...) == val then return true end
+    end
+    return false
+end
+
 -- Tbl
 
 ---@param tbl table
@@ -473,7 +483,9 @@ local CHAIN_PREFIX = {
 
 local chainKey, chainVal
 local chainFn = function (self, ...)
-    return Self(Self[(CHAIN_PREFIX[type(chainVal)] or "") .. chainKey](Self, chainVal, ...))
+    local prefix = CHAIN_PREFIX[type(chainVal)]
+    local fn = Self[(prefix or "") .. chainKey]
+    return Self(fn(Self, chainVal, ...))
 end
 
 local Chain = setmetatable({}, {

@@ -92,7 +92,7 @@ function Self:AddBlocks(reagents, orderReagents)
     end, true)
 
     local addedMissing = self:AddReagents("missing", ADDON_MISSING, grouped[true])
-    if not addedMissing then return end
+    if not addedMissing and grouped[true] then return end
 
     self:AddReagents("complete", COMPLETE, grouped[false])
     self:AddReagents("order", "Provided", orderReagents, true)

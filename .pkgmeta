@@ -9,4 +9,5 @@ ignore:
   - release.sh
   - _config.yml
   - Test.lua
+  - TODO.md
   
