@@ -74,6 +74,7 @@ WorldQuestTrackerScreenPanel = nil
 ---@class FramePool
 ---@field Acquire fun(self: self): Frame
 ---@field Release fun(self: self, widget: Frame)
+---@field IsActive fun(self: self, widget: Frame): boolean
 ---@field EnumerateActive fun(self:self): Enumerator<true, Frame>, Frame[]
 
 ---@class ReagentSlotFramePool

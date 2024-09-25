@@ -1,4 +1,1 @@
-- Remember all tracked orders, instead of just the claimed order
-- Use optimal allocation for min. crafting order quality when tracking unclaimed orders
-- Fix more errors caused by missing recipes
-- Fix reagents tracker not showing when no reagents are missing
+- Fix error when hiding objective tracker lines

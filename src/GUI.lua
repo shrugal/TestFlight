@@ -884,15 +884,16 @@ end
 ---@param line ObjectiveTrackerLine 
 ---@param itemName string
 function Self:SetReagentLineButton(line, itemName)
-    local pool = Self:GetReagentLineButtonPool()
-
     -- Name
     line.itemName = itemName
 
+    if line.Button then return end
+
+    local pool = Self:GetReagentLineButtonPool()
+
     -- Button
-    local btn = pool:Acquire()
+    local btn = pool:Acquire() --[[@as Button]]
     btn:SetParent(line)
-    btn = CreateFrame("Button", nil, line)
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     btn:SetAllPoints(line)
     btn:SetScript("OnClick", Self.Hooks.RecipeTracker.LineOnClick)
