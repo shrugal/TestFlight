@@ -1,3 +1,7 @@
+Version 3.07
+
+- Fix error when hiding objective tracker lines
+
 Version 3.06
 
 - Remember all tracked orders, instead of just the claimed order

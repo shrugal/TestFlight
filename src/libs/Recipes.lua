@@ -10,42 +10,36 @@ local Self = Addon.Recipes
 ---@type table<boolean, RecipeAllocation[]>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
 
--- Blizzard frames
-
----@type ObjectiveTrackerModuleMixin?
-local recipeTracker = ProfessionsRecipeTracker
-
 ---------------------------------------
 --              Tracking
 ---------------------------------------
 
----@param recipe CraftingRecipeSchematic
-function Self:IsTracked(recipe)
-    return C_TradeSkillUI.IsRecipeTracked(recipe.recipeID, recipe.isRecraft)
+---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
+function Self:IsTracked(recipeOrOrder)
+    return C_TradeSkillUI.IsRecipeTracked(recipeOrOrder.recipeID or recipeOrOrder.spellID, recipeOrOrder.isRecraft)
 end
 
----@param recipe CraftingRecipeSchematic
+---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
 ---@param amount? number
-function Self:SetTrackedAmount(recipe, amount)
+function Self:SetTrackedAmount(recipeOrOrder, amount)
     if amount and amount <= 1 then amount = nil end
-    Addon.DB.Char.amounts[recipe.isRecraft or false][recipe.recipeID] = amount
+    Addon.DB.Char.amounts[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID] = amount
 
-    if recipeTracker then recipeTracker:MarkDirty() end
-    if GUI.reagentsTracker then GUI.reagentsTracker:MarkDirty() end
+    GUI:UpdateObjectiveTrackers(true, true)
 
     return amount
 end
 
----@param recipe CraftingRecipeSchematic
-function Self:GetTrackedAmount(recipe)
-    if not Self:IsTracked(recipe) then return end
-    return Addon.DB.Char.amounts[recipe.isRecraft or false][recipe.recipeID] or 1
+---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
+function Self:GetTrackedAmount(recipeOrOrder)
+    if not Self:IsTracked(recipeOrOrder) then return end
+    return Addon.DB.Char.amounts[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID] or 1
 end
 
----@param recipe CraftingRecipeSchematic
+---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
 ---@param allocation? RecipeAllocation
-function Self:SetTrackedAllocation(recipe, allocation)
-    Self.trackedAllocations[recipe.isRecraft or false][recipe.recipeID] = allocation
+function Self:SetTrackedAllocation(recipeOrOrder, allocation)
+    Self.trackedAllocations[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID] = allocation
 
     GUI:UpdateObjectiveTrackers(true, true)
 
@@ -54,13 +48,13 @@ end
 
 ---@param form RecipeForm
 function Self:SetTrackedAllocationByForm(form)
-    local recipe = form.recipeSchematic
+    local recipe = form.transaction:GetRecipeSchematic()
     if not recipe then return end
 
     local order, allocation = GUI:GetFormOrder(form), nil
     if not self:IsTracked(recipe) then
         allocation = nil
-    elseif order and order.orderState ~= Enum.CraftingOrderState.Claimed then ---@cast form RecipeCraftingForm
+    elseif order and order.orderID and order.orderState ~= Enum.CraftingOrderState.Claimed then ---@cast form RecipeCraftingForm
         local recipeInfo, operationInfo, tx = form.currentRecipeInfo, form:GetRecipeOperationInfo(), form.transaction
         local optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
         local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
@@ -84,9 +78,9 @@ function Self:CheckUnsetTrackedAllocations(recipeID)
     end
 end
 
----@param recipe CraftingRecipeSchematic
-function Self:GetTrackedAllocation(recipe)
-    return Self.trackedAllocations[recipe.isRecraft or false][recipe.recipeID]
+---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
+function Self:GetTrackedAllocation(recipeOrOrder)
+    return Self.trackedAllocations[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID]
 end
 
 ---------------------------------------
@@ -94,14 +88,24 @@ end
 ---------------------------------------
 
 function Self:OnAddonLoaded(addonName)
-    local isSelf = addonName == Name
+    if Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then
+        -- ProfessionsFrame.CraftingPage
 
-    if addonName == "Blizzard_Professions" or isSelf and C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
         local craftingForm = ProfessionsFrame.CraftingPage.SchematicForm
-        local ordersForm = ProfessionsFrame.OrdersPage.OrderView.OrderDetails.SchematicForm
-
         craftingForm:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, Self.SetTrackedAllocationByForm, Self, craftingForm)
+
+        -- ProfessionsFrame.OrdersPage
+
+        local ordersForm = ProfessionsFrame.OrdersPage.OrderView.OrderDetails.SchematicForm
         ordersForm:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, Self.SetTrackedAllocationByForm, Self, ordersForm)
+    end
+
+    if Util:IsAddonLoadingOrLoaded("Blizzard_ProfessionsCustomerOrders", addonName) then
+        -- ProfessionsCustomerOrdersFrame
+
+        local customerOrderForm = ProfessionsCustomerOrdersFrame.Form
+
+        hooksecurefunc(customerOrderForm, "UpdateListOrderButton", function (self) Self:SetTrackedAllocationByForm(self) end)
     end
 end
 

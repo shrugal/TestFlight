@@ -80,8 +80,7 @@ WorldQuestTrackerScreenPanel = nil
 ---@class ReagentSlotFramePool
 ---@field EnumerateActive fun(self:self): Enumerator<true, ReagentSlot>, ReagentSlot[]
 
----@class RecipeForm: Frame, CallbackRegistryMixin
----@field recipeSchematic CraftingRecipeSchematic
+---@class RecipeForm: Frame
 ---@field transaction ProfessionTransaction
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
 ---@field reagentSlotPool ReagentSlotFramePool
@@ -158,7 +157,8 @@ ProfessionsFrame = nil
 ---@class OrdersDetails: Frame
 ---@field SchematicForm OrdersForm
 
----@class RecipeCraftingForm: RecipeForm
+---@class RecipeCraftingForm: RecipeForm, CallbackRegistryMixin
+---@field recipeSchematic CraftingRecipeSchematic
 ---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
 ---@field OutputIcon OutputSlot
@@ -208,14 +208,17 @@ ProfessionsFrame = nil
 
 ---@class ReagentSlot: Frame
 ---@field reagentSlotSchematic CraftingReagentSlotSchematic
+---@field Checkbox CheckButton
 ---@field Update fun(self: self)
 ---@field GetSlotIndex fun(self: self): number
 ---@field GetReagentSlotSchematic fun(self: self): CraftingReagentSlotSchematic
 ---@field IsUnallocatable fun(self: self): boolean
+---@field SetUnallocatable fun(self: self, val: boolean)
 ---@field GetOriginalItem fun(self: self): ItemMixin?
 ---@field IsOriginalItemSet fun(self: self): boolean
 ---@field RestoreOriginalItem fun(self: self)
 ---@field ClearItem fun(self: self)
+---@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
 
 ---@class OutputSlot: Frame
 

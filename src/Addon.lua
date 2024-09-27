@@ -2,7 +2,7 @@
 local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI, Prices, Recipes, Util = Addon.GUI, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class TestFlight
 local Self = Addon
@@ -219,6 +219,7 @@ function Self:OnAddonLoaded(addonName)
     if addonName == Name then self:Load() end
 
     Recipes:OnAddonLoaded(addonName)
+    Orders:OnAddonLoaded(addonName)
     GUI:OnAddonLoaded(addonName)
 end
 

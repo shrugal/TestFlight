@@ -1,3 +1,4 @@
+local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
 
@@ -14,6 +15,12 @@ function Self:OneOf(val, ...)
         if select(i, ...) == val then return true end
     end
     return false
+end
+
+---@param targetAddonName string
+---@param addonName string
+function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)
+    return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
 end
 
 -- Tbl

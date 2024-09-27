@@ -201,6 +201,8 @@ function Self:GetTracked()
     ---@type number[], number[]
     local reagents, orderReagents = {}, {}
 
+    -- Reagents provided by ourselves
+
     for i=0,1 do
         local isRecraft = i == 1
         local recipeIDs = C_TradeSkillUI.GetRecipesTracked(isRecraft)
@@ -214,6 +216,7 @@ function Self:GetTracked()
             for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
                 local missing = reagent.required and reagent.quantityRequired or 0
 
+                -- Account for allocated items
                 if allocation and allocation[slotIndex] then
                     for _, alloc in allocation[slotIndex]:Enumerate() do
                         missing = missing - alloc.quantity
@@ -222,7 +225,7 @@ function Self:GetTracked()
                         local reagentAmount = amount
 
                         if itemID then
-                            if order and Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
+                            if order and order.reagents and Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
                                 reagentAmount = reagentAmount - 1
                             end
 
@@ -233,17 +236,36 @@ function Self:GetTracked()
                     end
                 end
 
+                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
+
+                -- Account for reagents provided by crafter
+                if Orders:IsCreating(order) then
+                    missing = missing - (Orders.creatingProvidedReagents[itemID] or 0)
+                end
+
+                -- Fill up with lowest quality reagents
                 if missing > 0 then
-                    reagents[reagent.reagents[1].itemID] = (reagents[reagent.reagents[1].itemID] or 0) + amount * missing
+                    reagents[itemID] = (reagents[itemID] or 0) + amount * missing
                 end
             end
         end
     end
 
-    for _,order in pairs(Orders.tracked) do
-        for _,reagent in pairs(order.reagents) do
-            local itemID = reagent.reagent.itemID
-            orderReagents[itemID] = (orderReagents[itemID] or 0) + reagent.reagent.quantity
+    -- Order reagents provided by others
+
+    for _,orders in pairs(Orders.tracked) do
+        for _,order in pairs(orders) do
+            if Orders:IsCreating(order) then
+                local amount = Recipes:GetTrackedAmount(order)
+                for itemID,quantity in pairs(Orders.creatingProvidedReagents) do
+                    orderReagents[itemID] = (orderReagents[itemID] or 0) + amount * quantity
+                end
+            else
+                for _,reagent in pairs(order.reagents) do
+                    local itemID, quantity = reagent.reagent.itemID, reagent.reagent.quantity
+                    orderReagents[itemID] = (orderReagents[itemID] or 0) + quantity
+                end
+            end
         end
     end
 
