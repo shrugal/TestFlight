@@ -9,18 +9,18 @@
 
 src/Init.lua
 src/Data.lua
+src/Util.lua
 src/Addon.lua
 
 src/mixins/Allocations.lua
 src/mixins/Cache.lua
 src/mixins/ReagentsTracker.lua
 
-src/libs/Util.lua
-src/libs/Recipes.lua
-src/libs/Reagents.lua
-src/libs/Orders.lua
-src/libs/Prices.lua
-src/libs/Optimization.lua
+src/modules/Recipes.lua
+src/modules/Reagents.lua
+src/modules/Orders.lua
+src/modules/Prices.lua
+src/modules/Optimization.lua
 
 src/GUI.lua
 
