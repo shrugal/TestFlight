@@ -1,3 +1,12 @@
+Version 3.08
+
+- Only ever track one order per recipe
+- Take customer order reagents provided by crafter into account
+- Fix updating reagents tracker after tracked recipe amount changes
+- Fix customer order form tracked recipe amount input
+- Fix reagents tracker for customer orders form
+- Fix reagents in tracker not being clickable sometimes
+
 Version 3.07
 
 - Fix error when hiding objective tracker lines

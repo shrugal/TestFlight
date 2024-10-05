@@ -83,12 +83,14 @@ function Self:GetCreating()
     end
 end
 
----@param reagent CraftingReagentSlotSchematic
----@param provided boolean
-function Self:UpdateCreatingReagent(reagent, provided)
+---@param slot ReagentSlot
+function Self:UpdateCreatingReagent(slot)
+    local reagent = slot:GetReagentSlotSchematic()
     local itemID = reagent.reagents[1].itemID ---@cast itemID -?
+    local provided = slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
+    local required = reagent.required and reagent.quantityRequired
 
-    Self.creatingProvidedReagents[itemID] = provided and reagent.required and reagent.quantityRequired or nil
+    Self.creatingProvidedReagents[itemID] = provided and required or nil
 
     GUI:UpdateObjectiveTrackers(true)
 end
@@ -105,11 +107,7 @@ function Self:UpdateCreatingReagents(hook)
 
     if recipe and (tracked or hook) then
         for slot in form.reagentSlotPool:EnumerateActive() do
-            local reagent = slot:GetReagentSlotSchematic()
-
-            if tracked then
-                Self:UpdateCreatingReagent(reagent, not slot.Checkbox:GetChecked())
-            end
+            if tracked then Self:UpdateCreatingReagent(slot) end
 
             if hook then
                 local origCb = slot.Checkbox:GetScript("OnClick")
@@ -117,9 +115,7 @@ function Self:UpdateCreatingReagents(hook)
                     origCb(checked)
 
                     local tracked = Self:GetTracked(recipe) == form.order
-                    if tracked then
-                        Self:UpdateCreatingReagent(reagent, not slot.Checkbox:GetChecked())
-                    end
+                    if tracked then Self:UpdateCreatingReagent(slot) end
                 end)
             end
         end
