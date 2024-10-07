@@ -14,13 +14,28 @@ src/Addon.lua
 
 src/mixins/Allocations.lua
 src/mixins/Cache.lua
-src/mixins/ReagentsTracker.lua
 
 src/modules/Recipes.lua
 src/modules/Reagents.lua
 src/modules/Orders.lua
 src/modules/Prices.lua
 src/modules/Optimization.lua
+
+src/gui/ItemFlyout.lua
+src/gui/CraftingPage.lua
+src/gui/OrdersView.lua
+
+src/gui/ObjectiveTracker/mixins/ProfessionsTrackerModule.lua
+src/gui/ObjectiveTracker/RecipeTracker.lua
+src/gui/ObjectiveTracker/ReagentsTracker.lua
+src/gui/ObjectiveTracker/WorldQuestTracker.lua
+
+src/gui/RecipeForm/mixins/RecipeForm.lua
+src/gui/RecipeForm/mixins/RecipeCraftingForm.lua
+src/gui/RecipeForm/mixins/AmountForm.lua
+src/gui/RecipeForm/CraftingForm.lua
+src/gui/RecipeForm/OrdersForm.lua
+src/gui/RecipeForm/CustomerOrderForm.lua
 
 src/GUI.lua
 

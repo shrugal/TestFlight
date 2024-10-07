@@ -18,14 +18,14 @@ local settings = {
     lineTemplate = "ObjectiveTrackerAnimLineTemplate",
 }
 
----@class ReagentsTrackerMixin: ObjectiveTrackerModuleMixin, DirtiableMixin
+---@class GUI.ObjectiveTracker.ReagentsTracker: GUI.ObjectiveTracker.ProfessionsTrackerModule, ObjectiveTrackerModuleMixin, DirtiableMixin
 ---@field GetBlock fun(self: self, id: number | string): ObjectiveTrackerAnimBlock
-local Self = CreateFromMixins(ObjectiveTrackerModuleMixin, settings)
+local Self = Mixin(GUI.ObjectiveTracker.ReagentsTracker, ObjectiveTrackerModuleMixin, GUI.ObjectiveTracker.ProfessionsTrackerModule, settings)
 
----@class ReagentsTracker: ReagentsTrackerMixin, Frame
+---@class ReagentsTrackerFrame: GUI.ObjectiveTracker.ReagentsTracker, Frame
 
-function Addon:CreateReagentsTracker()
-    local frame = Mixin(CreateFrame("Frame", nil, nil, "ObjectiveTrackerModuleTemplate"), Self) --[[@as ReagentsTracker]]
+function Self:Create()
+    local frame = Mixin(CreateFrame("Frame", nil, nil, "ObjectiveTrackerModuleTemplate"), self) --[[@as ReagentsTrackerFrame]]
 
     frame:SetScript("OnLoad", frame.OnLoad)
     frame:SetScript("OnEvent", frame.OnEvent)
@@ -136,7 +136,7 @@ function Self:AddReagents(key, header, reagents, provided)
         end
 
         -- Button
-        GUI:SetReagentLineButton(line, name)
+        self:SetReagentLineButton(line, name)
     end
 
     return self:LayoutBlock(block)
@@ -147,7 +147,7 @@ function Self:ShouldHideInCombat()
         or BonusObjectiveTracker:GetContentsHeight() > 0
 end
 
----@param self ReagentsTracker
+---@param self ReagentsTrackerFrame
 ---@param dirtyUpdate? boolean
 function Self:UpdatePosition(dirtyUpdate)
     if not Addon.DB.Account.reagents then return end
@@ -187,10 +187,10 @@ function Self:UpdatePosition(dirtyUpdate)
     ProfessionsRecipeTracker:ClearAllPoints()
     ProfessionsRecipeTracker:SetPoint("TOP", self, "BOTTOM", 0, -parent.moduleSpacing)
 
-    GUI.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
+    GUI.ObjectiveTracker.WorldQuestTracker:RefreshTrackerAnchor()
 end
 
----@param self ReagentsTracker
+---@param self ReagentsTrackerFrame
 function Self:RemoveFromParent()
     if not self:IsShown() or self:GetContentsHeight() == 0 then return end
 
@@ -209,14 +209,24 @@ function Self:RemoveFromParent()
         ProfessionsRecipeTracker:SetPoint("TOP", 0, -parent.topModulePadding)
     end
 
-    GUI.Hooks.WorldQuestTracker.RefreshTrackerAnchor()
+    GUI.ObjectiveTracker.WorldQuestTracker:RefreshTrackerAnchor()
 end
 
 ---------------------------------------
 --              Events
 ---------------------------------------
 
----@param self ReagentsTracker
+---@param addonName string
+function Self:OnAddonLoaded(addonName)
+    if not Util:IsAddonLoadingOrLoaded("Blizzard_ObjectiveTracker", addonName) then return end
+
+    self.module = self:Create()
+    self.module:SetContainer(ObjectiveTrackerFrame)
+
+    hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate) self.module:UpdatePosition(dirtyUpdate) end)
+end
+
+---@param self ReagentsTrackerFrame
 function Self:OnEvent(event)
     if event == "PLAYER_REGEN_DISABLED" then
         if not self:ShouldHideInCombat() then return end

@@ -1,1 +1,2 @@
 - Show optimization button for crafts without qualities but with quality reagents
+- Major refactoring of GUI code

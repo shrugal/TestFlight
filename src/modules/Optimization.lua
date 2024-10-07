@@ -22,7 +22,7 @@ function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalRe
     if not skillBase then return end
 
     -- Check allocations cache
-    local cache = Self.Cache.Allocations
+    local cache = self.Cache.Allocations
     local key = cache:Key(recipe, skillBase, order, optionalReagents)
 
     if cache:Has(key) then return cache:Get(key) end
@@ -76,7 +76,7 @@ end
 ---@return table<number, number>
 function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents, order)
     -- Check weights cache
-    local cache = Self.Cache.WeightsAndPrices
+    local cache = self.Cache.WeightsAndPrices
     local key = cache:Key(recipe, order)
 
     if cache:Has(key) then return unpack(cache:Get(key)) end

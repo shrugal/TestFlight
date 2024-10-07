@@ -46,7 +46,7 @@ end
 ---@param reagents CraftingReagentSlotSchematic[]
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:CreateCraftingInfosFromSchematics(reagents, optionalReagents)
-    local infos = Util:TblMap(reagents, Self.CreateCraftingInfoFromSchematic, false, self)
+    local infos = Util:TblMap(reagents, self.CreateCraftingInfoFromSchematic, false, self)
 
     -- Add optional reagents
     if optionalReagents then

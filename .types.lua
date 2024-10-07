@@ -15,9 +15,6 @@
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
 
----@class OptimizationFormButton: ButtonFitToText
----@field form RecipeCraftingForm
-
 -----------------------------------------------------
 ---                   Globals                      --
 -----------------------------------------------------

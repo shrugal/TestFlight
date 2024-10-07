@@ -74,19 +74,19 @@ Self.SOURCES = {
 Self.SOURCE = nil
 
 function Self:GetSource()
-    if Self.SOURCE then return Self.SOURCE end
+    if self.SOURCE then return self.SOURCE end
 
     -- Use preferred or fist installed source
     local pref = Addon.DB.Account.priceSource
     if pref and C_AddOns.IsAddOnLoaded(pref) then
-        Self.SOURCE = Self.SOURCES[pref]
+        self.SOURCE = self.SOURCES[pref]
     else
         for name,source in pairs(self.SOURCES) do
-            if C_AddOns.IsAddOnLoaded(name) then Self.SOURCE = source break end
+            if C_AddOns.IsAddOnLoaded(name) then self.SOURCE = source break end
         end
     end
 
-    return Self.SOURCE
+    return self.SOURCE
 end
 
 function Self:IsSourceInstalled()
@@ -100,8 +100,8 @@ end
 
 ---@param itemLinkOrID string | number
 function Self:GetItemPrice(itemLinkOrID)
-    if not Self:IsSourceAvailable() then return 0 end
-    return Self:GetSource():GetItemPrice(itemLinkOrID) or 0
+    if not self:IsSourceAvailable() then return 0 end
+    return self:GetSource():GetItemPrice(itemLinkOrID) or 0
 end
 
 ---------------------------------------
@@ -240,7 +240,7 @@ function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, r
     local revenue = order and order.tipAmount or resultPrice
     local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
     local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice)
-    local traderCut = order and order.consortiumCut or Self.CUT_AUCTION_HOUSE * resultPrice
+    local traderCut = order and order.consortiumCut or self.CUT_AUCTION_HOUSE * resultPrice
 
     local rewards = 0
     if order and order.npcOrderRewards then
@@ -313,7 +313,7 @@ function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagent
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = Self.STAT_BASE_RESOURCEFULNESS + self:GetRecipePerkStats(recipe, "rf")
+    local yield = self.STAT_BASE_RESOURCEFULNESS + self:GetRecipePerkStats(recipe, "rf")
 
     if order and order.reagentState ~= Enum.CraftingOrderReagentsType.None then
         reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, nil, optionalReagents)
@@ -331,9 +331,9 @@ function Self:GetMulticraftValue(recipe, operationInfo, resultPrice)
 
     local itemPrice = resultPrice * 2 / (recipe.quantityMax + recipe.quantityMin)
     local chance = stat.ratingPct / 100
-    local yield = (1 + Self.STAT_BASE_MULTICRAFT * recipe.quantityMax * (1 + self:GetRecipePerkStats(recipe, "mc"))) / 2
+    local yield = (1 + self.STAT_BASE_MULTICRAFT * recipe.quantityMax * (1 + self:GetRecipePerkStats(recipe, "mc"))) / 2
 
-    return (1 - Self.CUT_AUCTION_HOUSE) * itemPrice * chance * yield
+    return (1 - self.CUT_AUCTION_HOUSE) * itemPrice * chance * yield
 end
 
 ---@param recipe CraftingRecipeSchematic

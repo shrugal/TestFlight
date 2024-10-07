@@ -380,12 +380,16 @@ Self.hooks = {}
 ---@param tbl? table
 ---@param key string
 ---@param fn? function
+---@param obj? table
 ---@return function?
-function Self:TblHook(tbl, key, fn)
+function Self:TblHook(tbl, key, fn, obj)
     if not tbl or self.hooks[tbl] and self.hooks[tbl][key] then return end
+    if fn and obj then fn = self:FnBind(fn, obj) end
+
     self.hooks[tbl] = self.hooks[tbl] or {}
     self.hooks[tbl][key] = tbl[key]
     tbl[key] = fn
+
     return self.hooks[tbl][key]
 end
 
@@ -394,9 +398,11 @@ end
 ---@return function?
 function Self:TblUnhook(tbl, key)
     if not tbl or not self.hooks[tbl] or not self.hooks[tbl][key] then return end
+
     local fn = tbl[key]
     tbl[key] = self.hooks[tbl][key]
     self.hooks[tbl][key] = nil
+
     return fn
 end
 
@@ -415,7 +421,7 @@ end
 ---@param key string
 ---@return function
 function Self:TblGetHooked(tbl, key)
-    if Self:TblIsHooked(tbl, key) then return self.hooks[tbl][key] end
+    if self:TblIsHooked(tbl, key) then return self.hooks[tbl][key] end
     return tbl[key]
 end
 
@@ -477,6 +483,12 @@ function Self:FnCompareBy(by)
         end
         return a and a < b or false
     end
+end
+
+---@param fn function
+---@param obj table
+function Self:FnBind(fn, obj)
+    return function (...) return fn(obj, ...) end
 end
 
 -- Chain

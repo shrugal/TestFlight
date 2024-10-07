@@ -30,9 +30,59 @@ Self.enabled = false
 ---@type number
 Self.extraSkill = 0
 
+---@param value number
+function Self:SetExtraSkill(value)
+    self.extraSkill = max(0, value)
+
+    GUI:OnExtraSkillChange()
+end
+
+---------------------------------------
+--             Lifecycle
+---------------------------------------
+
+function Self:Load()
+    self.DB = {
+        Account = TestFlightDB,
+        Char = TestFlightCharDB
+    }
+
+    -- Migrations
+
+    if not self.DB.Account.v then
+        ---@diagnostic disable-next-line: inject-field
+        self.DB.Account.amounts = nil
+        self.DB.Account.reagents = true
+        self.DB.Account.v = 1
+    end
+end
+
+function Self:Enable()
+    if self.enabled then return end
+    self.enabled = true
+
+    GUI:OnEnable()
+end
+
+function Self:Disable()
+    if not self.enabled then return end
+    self.enabled = false
+
+    self:SetExtraSkill(0)
+
+    GUI:OnDisable()
+end
+
+function Self:Toggle()
+    if self.enabled then self:Disable() else self:Enable() end
+end
+
+---------------------------------------
+--              Console
+---------------------------------------
+
 ---@type boolean
 Self.DEBUG = false
-
 --@do-not-package@
 Self.DEBUG = true
 --@end-do-not-package@
@@ -54,49 +104,6 @@ end
 function Self:Error(msg, ...)
     print("|cffff3333[TestFlight]|r " .. msg:format(...))
 end
-
----------------------------------------
---             Lifecycle
----------------------------------------
-
-function Self:Load()
-    Self.DB = {
-        Account = TestFlightDB,
-        Char = TestFlightCharDB
-    }
-
-    -- Migrations
-
-    if not Self.DB.Account.v then
-        ---@diagnostic disable-next-line: inject-field
-        Self.DB.Account.amounts = nil
-        Self.DB.Account.reagents = true
-        Self.DB.Account.v = 1
-    end
-end
-
-function Self:Enable()
-    if Self.enabled then return end
-    Self.enabled = true
-
-    GUI:OnEnable()
-end
-
-function Self:Disable()
-    if not Self.enabled then return end
-    Self.enabled = false
-
-    Self.extraSkill = 0
-
-    GUI:OnDisable()
-end
-
-function Self:Toggle()
-    if Self.enabled then Self:Disable() else Self:Enable() end
-end
----------------------------------------
---              Commands
----------------------------------------
 
 SLASH_TESTFLIGHT1 = "/testflight"
 SLASH_TESTFLIGHT2 = "/tf"
@@ -153,11 +160,13 @@ function SlashCmdList.TESTFLIGHT(input)
 
         Self:Print("%s: %s", name, enabled and "enabled" or "disabled")
 
-        if cmd == "reagents" and GUI.reagentsTracker then
+        local reagentsTracker = GUI.ObjectiveTracker.ReagentsTracker.module
+
+        if cmd == "reagents" and reagentsTracker then
             if enabled then
-                GUI.reagentsTracker:UpdatePosition()
+                reagentsTracker:UpdatePosition()
             else
-                GUI.reagentsTracker:RemoveFromParent()
+                reagentsTracker:RemoveFromParent()
             end
         end
     elseif cmd == "recraft" then
@@ -179,7 +188,7 @@ function SlashCmdList.TESTFLIGHT(input)
             local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string ]]
             if id == GetItemId(link) then
                 Self:Enable()
-                GUI:SetRecraftRecipe(recipeId, args[2], true)
+                GUI.RecipeForm.CraftingForm:SetRecraftRecipe(recipeId, args[2], true)
                 return
             end
         end

@@ -1,5 +1,3 @@
----@type string
-local Name = ...
 ---@class TestFlight
 local Addon = select(2, ...)
 local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
@@ -20,14 +18,14 @@ Self.creatingProvidedReagents = {}
 
 ---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
 function Self:GetTracked(recipeOrOrder)
-    return Self.tracked[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID]
+    return self.tracked[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID]
 end
 
 ---@param order CraftingOrderInfo
 function Self:SetTracked(order)
-    Self.tracked[order.isRecraft or false][order.spellID] = order
+    self.tracked[order.isRecraft or false][order.spellID] = order
 
-    Self:UpdateCreatingReagents()
+    self:UpdateCreatingReagents()
     GUI:UpdateObjectiveTrackers(true)
 end
 
@@ -37,33 +35,33 @@ function Self:SetTrackedByForm(form)
     if not recipe then return end
 
     if not Recipes:IsTracked(recipe) then
-        Self:ClearTracked(recipe)
+        self:ClearTracked(recipe)
     elseif form.order then
-        Self:SetTracked(form.order)
+        self:SetTracked(form.order)
     end
 end
 
 ---@param recipeOrOrder CraftingRecipeSchematic | CraftingOrderInfo
 function Self:ClearTracked(recipeOrOrder)
-    Self.tracked[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID] = nil
+    self.tracked[recipeOrOrder.isRecraft or false][recipeOrOrder.recipeID or recipeOrOrder.spellID] = nil
 
-    Self:UpdateCreatingReagents()
+    self:UpdateCreatingReagents()
     GUI:UpdateObjectiveTrackers(true)
 end
 
 ---@param orderID number
 function Self:ClearTrackedByOrderID(orderID)
-    for _,orders in pairs(Self.tracked) do
+    for _,orders in pairs(self.tracked) do
         local order = Util:TblWhere(orders, "orderID", orderID)
-        if order then Self:ClearTracked(order) break end
+        if order then self:ClearTracked(order) break end
     end
 end
 
 ---@param recipeID number
 function Self:ClearTrackedByRecipeID(recipeID)
-    for _,orders in pairs(Self.tracked) do
+    for _,orders in pairs(self.tracked) do
         local order = orders[recipeID]
-        if order then Self:ClearTracked(order) end
+        if order then self:ClearTracked(order) end
     end
 end
 
@@ -77,7 +75,7 @@ function Self:IsCreating(order)
 end
 
 function Self:GetCreating()
-    for _,orders in pairs(Self.tracked) do
+    for _,orders in pairs(self.tracked) do
         local order = Util:TblWhere(orders, "orderID", nil)
         if order then return order end
     end
@@ -90,7 +88,7 @@ function Self:UpdateCreatingReagent(slot)
     local provided = slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
     local required = reagent.required and reagent.quantityRequired
 
-    Self.creatingProvidedReagents[itemID] = provided and required or nil
+    self.creatingProvidedReagents[itemID] = provided and required or nil
 
     GUI:UpdateObjectiveTrackers(true)
 end
@@ -99,23 +97,23 @@ end
 function Self:UpdateCreatingReagents(hook)
     if not ProfessionsCustomerOrdersFrame then return end
 
-    wipe(Self.creatingProvidedReagents)
+    wipe(self.creatingProvidedReagents)
 
     local form = ProfessionsCustomerOrdersFrame.Form
     local recipe = form.transaction:GetRecipeSchematic()
-    local tracked = recipe and Self:GetTracked(recipe) == form.order
+    local tracked = recipe and self:GetTracked(recipe) == form.order
 
     if recipe and (tracked or hook) then
         for slot in form.reagentSlotPool:EnumerateActive() do
-            if tracked then Self:UpdateCreatingReagent(slot) end
+            if tracked then self:UpdateCreatingReagent(slot) end
 
             if hook then
                 local origCb = slot.Checkbox:GetScript("OnClick")
                 slot:SetCheckboxCallback(function (checked)
                     origCb(checked)
 
-                    local tracked = Self:GetTracked(recipe) == form.order
-                    if tracked then Self:UpdateCreatingReagent(slot) end
+                    local tracked = self:GetTracked(recipe) == form.order
+                    if tracked then self:UpdateCreatingReagent(slot) end
                 end)
             end
         end
@@ -134,7 +132,7 @@ function Self:OnAddonLoaded(addonName)
         -- ProfessionsFrame.OrdersPage
 
         local ordersForm = ProfessionsFrame.OrdersPage.OrderView.OrderDetails.SchematicForm
-        ordersForm:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, Self.SetTrackedByForm, Self, ordersForm)
+        ordersForm:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.SetTrackedByForm, self, ordersForm)
     end
 
     if Util:IsAddonLoadingOrLoaded("Blizzard_ProfessionsCustomerOrders", addonName) then
@@ -142,8 +140,8 @@ function Self:OnAddonLoaded(addonName)
 
         local customerOrderForm = ProfessionsCustomerOrdersFrame.Form
 
-        hooksecurefunc(customerOrderForm, "UpdateListOrderButton", function (self) Self:SetTrackedByForm(self) end)
-        hooksecurefunc(customerOrderForm, "UpdateReagentSlots", function () Self:UpdateCreatingReagents(true) end)
+        hooksecurefunc(customerOrderForm, "UpdateListOrderButton", Util:FnBind(self.SetTrackedByForm, self))
+        hooksecurefunc(customerOrderForm, "UpdateReagentSlots", function () self:UpdateCreatingReagents(true) end)
     end
 end
 
@@ -152,27 +150,27 @@ end
 function Self:OnTrackedRecipeUpdate(recipeID, tracked)
     local order = GUI:GetFormOrder()
     if not tracked then
-        Self:ClearTrackedByRecipeID(recipeID)
+        self:ClearTrackedByRecipeID(recipeID)
     elseif order and order.spellID == recipeID then
-        Self:SetTracked(order)
+        self:SetTracked(order)
     end
 end
 
 ---@param orderID number
 function Self:OnClaimedAdded(orderID)
-    Self.claimed = orderID
+    self.claimed = orderID
 
     local order = C_CraftingOrders.GetClaimedOrder()
     if not order or not C_TradeSkillUI.IsRecipeTracked(order.spellID, order.isRecraft) then return end
 
-    Self:SetTracked(order)
+    self:SetTracked(order)
 end
 
 function Self:OnClaimedRemoved()
-    if not Self.claimed then return end
+    if not self.claimed then return end
 
-    Self:ClearTrackedByOrderID(Self.claimed)
-    Self.claimed = nil
+    self:ClearTrackedByOrderID(self.claimed)
+    self.claimed = nil
 end
 
 ---@param result Enum.CraftingOrderResult
@@ -181,8 +179,8 @@ function Self:OnClaimedFulfilled(result, orderID)
     local R = Enum.CraftingOrderResult
     if not Util:OneOf(result, R.Ok, R.Expired) then return end
 
-    Self:ClearTrackedByOrderID(orderID)
-    Self.claimed = nil
+    self:ClearTrackedByOrderID(orderID)
+    self.claimed = nil
 end
 
 EventRegistry:RegisterFrameEventAndCallback("TRACKED_RECIPE_UPDATE", Self.OnTrackedRecipeUpdate, Self)
