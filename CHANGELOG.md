@@ -1,3 +1,7 @@
+Version 3.09
+
+- Fix reagents tracker showing missing reagents as provided when creating public orders
+
 Version 3.08
 
 - Only ever track one order per recipe

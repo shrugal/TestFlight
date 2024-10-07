@@ -1,1 +1,1 @@
-- Fix reagents tracker showing missing reagents as provided when creating public orders
+- Show optimization button for crafts without qualities but with quality reagents
