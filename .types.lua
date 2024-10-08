@@ -300,6 +300,7 @@ C_TradeSkillUI = {}
 ---@field GetIconForQuality fun(qualityID: number): string
 ---@field CreateCraftingReagentInfo fun(itemID: number, dataSlotIndex: number, quantity: number): CraftingReagentInfo
 ---@field GetReagentInputMode fun(reagent: CraftingReagentSlotSchematic): Professions.ReagentInputMode
+---@field InspectRecipe fun(recipeID: number)
 Professions = {}
 
 ---@class ProfessionsUtil
@@ -497,6 +498,7 @@ ProfessionsRecipeSchematicFormMixin = {
 
 ---@class ObjectiveTrackerLine: Frame
 ---@field itemName string
+---@field itemID number
 ---@field Button Button
 ---@field Text FontString
 ---@field Icon Texture

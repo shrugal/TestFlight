@@ -1,6 +1,8 @@
 ---@class TestFlight
 local Addon = select(2, ...)
-local GUI, Reagents, Util = Addon.GUI, Addon.Reagents, Addon.Util
+local GUI, Reagents, Recipes, Util = Addon.GUI, Addon.Reagents, Addon.Recipes, Addon.Util
+
+local Parent = GUI.ObjectiveTracker.ProfessionsTrackerModule
 
 local settings = {
     headerText = PROFESSIONS_COLUMN_HEADER_REAGENTS or "Reagents",
@@ -20,7 +22,7 @@ local settings = {
 
 ---@class GUI.ObjectiveTracker.ReagentsTracker: GUI.ObjectiveTracker.ProfessionsTrackerModule, ObjectiveTrackerModuleMixin, DirtiableMixin
 ---@field GetBlock fun(self: self, id: number | string): ObjectiveTrackerAnimBlock
-local Self = Mixin(GUI.ObjectiveTracker.ReagentsTracker, ObjectiveTrackerModuleMixin, GUI.ObjectiveTracker.ProfessionsTrackerModule, settings)
+local Self = Mixin(GUI.ObjectiveTracker.ReagentsTracker, ObjectiveTrackerModuleMixin, Parent, settings)
 
 ---@class ReagentsTrackerFrame: GUI.ObjectiveTracker.ReagentsTracker, Frame
 
@@ -86,23 +88,36 @@ end
 ---@param orderReagents number[]
 function Self:AddBlocks(reagents, orderReagents)
     local GetCraftingReagentCount = Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")
+    local craftingResults = Recipes:GetTrackedResultItems()
 
-    local grouped = Util:TblGroupBy(reagents, function (quantityRequired, itemID)
-        return GetCraftingReagentCount(itemID) < quantityRequired
-    end, true)
+    local reagentsOwned, reagentsCrafting, reagentsMissing = {}, {}, {}
+    for itemID,required in pairs(reagents) do
+        local owned = GetCraftingReagentCount(itemID)
+        if owned > 0 then
+            reagentsOwned[itemID], required = owned, max(0, required - owned)
+        end
+        local crafting = min(required, craftingResults[itemID] or 0)
+        if crafting > 0 then
+            reagentsCrafting[itemID], required = crafting, required - crafting
+        end
+        if required > 0 then
+            reagentsMissing[itemID] = required
+        end
+    end
 
-    local addedMissing = self:AddReagents("missing", ADDON_MISSING, grouped[true])
-    if not addedMissing and grouped[true] then return end
+    local addedMissing = self:AddReagents("missing", ADDON_MISSING, reagentsMissing)
+    if not addedMissing and next(reagentsMissing) then return end
 
-    self:AddReagents("complete", COMPLETE, grouped[false])
-    self:AddReagents("order", "Provided", orderReagents, true)
+    self:AddReagents("crafting", "Crafting", reagentsCrafting)
+    self:AddReagents("owned", "Owned", reagentsOwned, reagents)
+    self:AddReagents("provided", "Provided", orderReagents, true)
 end
 
 ---@param key any
 ---@param header string
 ---@param reagents? number[]
----@param provided? boolean
-function Self:AddReagents(key, header, reagents, provided)
+---@param providedOrTotal? number[] | true
+function Self:AddReagents(key, header, reagents, providedOrTotal)
     if not reagents or not next(reagents) then return end
 
     local block = self:GetBlock(key)
@@ -110,7 +125,6 @@ function Self:AddReagents(key, header, reagents, provided)
     block:SetHeader(header)
 
     local itemIDs = Util(reagents):Keys():Sort()()
-    local GetCraftingReagentCount = Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")
 
     for _,itemID in pairs(itemIDs) do
         local name = C_Item.GetItemInfo(itemID)
@@ -118,28 +132,60 @@ function Self:AddReagents(key, header, reagents, provided)
         local qualityIcon = quality and C_Texture.GetCraftingReagentQualityChatIcon(quality)
         local label = name .. (qualityIcon and " " .. qualityIcon or "")
 
-        local quantityRequired = reagents[itemID]
-        local quantity = provided and quantityRequired or GetCraftingReagentCount(itemID)
-        local metQuantity = quantity >= quantityRequired
+        local quantity = reagents[itemID]
 
-        local count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityRequired)
+        local count, complete = quantity, false
+        if providedOrTotal then
+            local quantityTotal = providedOrTotal == true and quantity or providedOrTotal[itemID]
+            count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityTotal)
+            complete = quantity >= quantityTotal
+        end
+
         local text = PROFESSIONS_TRACKER_REAGENT_FORMAT:format(count, label)
-        local dashStyle = metQuantity and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
-        local colorStyle = OBJECTIVE_TRACKER_COLOR[metQuantity and "Complete" or "Normal"]
+        local dashStyle = complete and OBJECTIVE_DASH_STYLE_HIDE or OBJECTIVE_DASH_STYLE_SHOW
+        local colorStyle = OBJECTIVE_TRACKER_COLOR[complete and "Complete" or "Normal"]
 
         local line = block:AddObjective(itemID, text, nil, nil, dashStyle, colorStyle)
 
         -- Icon
-        line.Icon:SetShown(metQuantity)
-        if metQuantity then
+        line.Icon:SetShown(complete)
+        if complete then
             line.Icon:SetAtlas("ui-questtracker-tracker-check", false)
         end
 
         -- Button
-        self:SetReagentLineButton(line, name)
+        self:SetReagentLineButton(line, name, key == "crafting" and itemID or nil)
     end
 
     return self:LayoutBlock(block)
+end
+
+---@param btn Button
+---@param mouseButton string
+function Self:LineOnClick(btn, mouseButton)
+    local line = btn:GetParent() --[[@as ObjectiveTrackerLine]]
+
+    if line.itemID and mouseButton ~= "RightButton" then
+        for _,recipeID in pairs(C_TradeSkillUI.GetRecipesTracked(false)) do
+            local output = C_TradeSkillUI.GetRecipeOutputItemData(recipeID, nil, nil, Recipes:GetTrackedQuality(recipeID))
+
+            if output and output.itemID == line.itemID then
+                if not ProfessionsFrame then ProfessionsFrame_LoadUI() end
+
+                if IsModifiedClick("RECIPEWATCHTOGGLE") then
+                    C_TradeSkillUI.SetRecipeTracked(recipeID, false, false)
+                elseif C_TradeSkillUI.IsRecipeProfessionLearned(recipeID) then
+					C_TradeSkillUI.OpenRecipe(recipeID)
+				else
+					Professions.InspectRecipe(recipeID);
+				end
+
+                return
+            end
+        end
+    end
+
+    return Parent.LineOnClick(self, btn, mouseButton)
 end
 
 function Self:ShouldHideInCombat()

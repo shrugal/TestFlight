@@ -35,9 +35,10 @@ end
 
 ---@param line ObjectiveTrackerLine 
 ---@param itemName string
-function Self:SetReagentLineButton(line, itemName)
+function Self:SetReagentLineButton(line, itemName, itemID)
     -- Name
     line.itemName = itemName
+    line.itemID = itemID
 
     if line.Button then line.Button:Show() return end
 
@@ -56,7 +57,7 @@ function Self:SetReagentLineButton(line, itemName)
     local OnFree = line.OnFree
     function line:OnFree(...)
         pool:Release(self.Button)
-        self.itemName, self.Button =  nil, nil
+        self.itemName, self.itemID, self.Button =  nil, nil, nil
         self.OnFree = OnFree
         if self.OnFree then return self:OnFree(...) end
     end

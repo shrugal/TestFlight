@@ -34,7 +34,7 @@ end
 function Self:InsertAmountSpinner(...)
     local input = GUI:InsertNumericSpinner(self.form, Util:FnBind(self.AmountSpinnerOnEnter, self), Util:FnBind(self.AmountSpinnerOnChange, self), ...)
 
-    input:SetMinMaxValues(1, math.huge)
+    input:SetMinMaxValues(0, math.huge)
 
     Self.amountSpinners[self.form] = input
 
@@ -85,7 +85,7 @@ function Self:OnSpellcastStoppedOrSucceeded()
     local amount = recipe and Recipes:GetTrackedAmount(recipe)
     if not recipe or not amount then return end
 
-    amount = Recipes:SetTrackedAmount(recipe, max(1, amount - 1)) or 1
+    amount = Recipes:SetTrackedAmount(recipe, amount - 1) or 1
 
     for form,amountSpinner in pairs(Self.amountSpinners) do
         local formRecipe = form.transaction and form.transaction:GetRecipeSchematic()

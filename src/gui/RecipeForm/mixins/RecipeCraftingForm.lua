@@ -155,7 +155,7 @@ function Self:Init(_, recipe)
         if allocation then
             self:SetReagentAllocation(allocation)
         else
-            Recipes:SetTrackedAllocationByForm(self.form)
+            Recipes:SetTrackedByForm(self.form)
         end
     end
 end

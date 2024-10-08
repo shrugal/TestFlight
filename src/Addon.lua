@@ -20,9 +20,11 @@ TestFlightDB = {
 
 ---@class TestFlightCharDB
 TestFlightCharDB = {
-    v = 1,
+    v = 2,
     ---@type table<boolean, number[]>
     amounts = { [false] = {}, [true] = {} },
+    ---@type table<boolean, number[]>
+    qualities = { [false] = {}, [true] = {} },
 }
 
 ---@type boolean
@@ -49,11 +51,18 @@ function Self:Load()
 
     -- Migrations
 
+    -- Account
     if not self.DB.Account.v then
         ---@diagnostic disable-next-line: inject-field
         self.DB.Account.amounts = nil
         self.DB.Account.reagents = true
         self.DB.Account.v = 1
+    end
+
+    -- Char
+    if self.DB.Char.v < 2 then
+        self.DB.Char.qualities = { [false] = {}, [true] = {} }
+        self.DB.Char.v = 2
     end
 end
 

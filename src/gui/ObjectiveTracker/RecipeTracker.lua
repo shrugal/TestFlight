@@ -30,13 +30,21 @@ end
 function Self:AddRecipe(_, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
     local amount = Recipes:GetTrackedAmount(recipe)
+    local quality = Recipes:GetTrackedQuality(recipe)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
 
     -- Set header
     local blockName = recipe.name
-    if isRecraft then blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName) end
-    if (amount or 1) > 1 then blockName = ("%s (%d)"):format(blockName, amount) end
+    if isRecraft then
+        blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName)
+    end
+    if (amount or 1) ~= 1 then
+        blockName = ("%d %s"):format(amount, blockName)
+    end
+    if quality then
+        blockName = ("%s %s"):format(blockName, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+    end
 
     block:SetHeader(blockName);
 
