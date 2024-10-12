@@ -30,7 +30,7 @@ end
 ---@param isRecraft boolean
 function Self:AddRecipe(_, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-    local amount = Recipes:GetTrackedAmount(recipe)
+    local amount = Recipes:GetTrackedAmount(recipe) or 1
     local quality = Recipes:GetTrackedQuality(recipe)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
@@ -40,7 +40,7 @@ function Self:AddRecipe(_, recipeID, isRecraft)
     if isRecraft then
         blockName = PROFESSIONS_CRAFTING_FORM_RECRAFTING_HEADER:format(blockName)
     end
-    if (amount or 1) ~= 1 then
+    if amount ~= 1 then
         blockName = ("%d %s"):format(amount, blockName)
     end
     if quality then
@@ -66,7 +66,7 @@ function Self:AddRecipe(_, recipeID, isRecraft)
 
         local reagent = schematic.reagents[1]
         local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
-        local quantityRequired = schematic.quantityRequired * (Recipes:GetTrackedAmount(recipe) or 1)
+        local quantityRequired = schematic.quantityRequired * Recipes:GetTrackedAmount(recipe)
         local metQuantity = quantity >= quantityRequired
         local name = nil
 
