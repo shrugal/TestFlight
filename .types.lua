@@ -99,11 +99,13 @@ WorldQuestTrackerScreenPanel = nil
 ---@field OverwriteAllocations fun(self: self, slotIndex: number, allocations: { allocs: ProfessionTransationAllocations[] })
 ---@field OverwriteAllocation fun(self: self, slotIndex: number, reagent: CraftingReagent | CraftingReagentInfo, quantity: number)
 ---@field HasAnyAllocations fun(self: self, slotIndex: number): boolean
+---@field IsManuallyAllocated fun(self: self): boolean
 ---@field SetManuallyAllocated fun(self: self, manuallyAllocated: boolean)
 ---@field GetAllocations fun(self: self, slotIndex: number): ProfessionTransationAllocations
 ---@field Enumerate fun(self: self): Enumerator<ProfessionTransationReagent, number>, ProfessionTransationReagent[], number
 ---@field EnumerateAllocations fun(self: self, slotIndex: number): Enumerator<ProfessionTransactionAllocation, number>, ProfessionTransactionAllocation[], number
 ---@field IsApplyingConcentration fun(self: self): boolean
+---@field ShouldUseCharacterInventoryOnly fun(self: self): boolean
 
 ---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
 
@@ -301,6 +303,8 @@ C_TradeSkillUI = {}
 ---@field CreateCraftingReagentInfo fun(itemID: number, dataSlotIndex: number, quantity: number): CraftingReagentInfo
 ---@field GetReagentInputMode fun(reagent: CraftingReagentSlotSchematic): Professions.ReagentInputMode
 ---@field InspectRecipe fun(recipeID: number)
+---@field AllocateBasicReagents fun(transaction: ProfessionTransaction, slotIndex: number, useBestQuality?: boolean)
+---@field AllocateAllBasicReagents fun(transaction: ProfessionTransaction, useBestQuality?: boolean)
 Professions = {}
 
 ---@class ProfessionsUtil

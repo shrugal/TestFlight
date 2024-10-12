@@ -149,12 +149,16 @@ function Self:Init(_, recipe)
 
     self:Refresh()
 
-    if not Recipes:IsTracked(recipe) or Orders:GetTracked(recipe) ~= self:GetOrder() then return end
+    if not Recipes:IsTracked(recipe) then return end
+
+    local order = self:GetOrder()
+    if order and not Orders:IsTracked(order) then return end
+    if not order and Orders:GetTracked(recipe) then return end
 
     -- Set or update tracked allocation
     local allocation = Recipes:GetTrackedAllocation(recipe)
     if allocation then
-        self:SetReagentAllocation(allocation)
+        self:AllocateReagents(allocation)
     else
         Recipes:SetTrackedByForm(self)
     end
@@ -398,7 +402,7 @@ function Self:SetCraftingFormQuality(quality, exact)
 
     if not qualityAllocation then return end
 
-    self:SetReagentAllocation(qualityAllocation)
+    self:AllocateReagents(qualityAllocation)
 end
 
 
@@ -413,16 +417,14 @@ end
 ---------------------------------------
 
 function Self:OnEnabled()
-    Parent.OnEnabled(self)
-
     if not self.form then return end
+
     Util:TblHook(self.form, "GetRecipeOperationInfo", self.GetRecipeOperationInfo, self)
 end
 
 function Self:OnDisabled()
-    Parent.OnDisabled(self)
-
     if not self.form then return end
+
     Util:TblUnhook(self.form, "GetRecipeOperationInfo")
 end
 
@@ -430,6 +432,7 @@ function Self:OnRefresh()
     Parent.OnRefresh(self)
 
     if not self.form or not self.form:IsVisible() then return end
+
     self.form:Refresh()
 end
 
@@ -445,5 +448,7 @@ function Self:OnAddonLoaded()
 
     self.form:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.OnAllocationModified, self)
 
+    Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
+    Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)
     Addon:RegisterCallback(Addon.Event.ExtraSkillUpdated, self.OnExtraSkillUpdated, self)
 end

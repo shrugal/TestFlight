@@ -21,6 +21,7 @@ end
 
 function Self:OnRefresh()
     if not self.frame or not self.frame:IsVisible() then return end
+
     self:ValidateControls()
 end
 

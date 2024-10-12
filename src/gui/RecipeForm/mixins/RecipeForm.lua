@@ -55,14 +55,10 @@ end
 
 -- Set allocation
 
----@param slotIndex number
+---@param slot ReagentSlot
 ---@param allocations ProfessionTransationAllocations
-function Self:SetReagentSlotAllocation(slotIndex, allocations, silent)
-    ---@type ReagentSlot
-    local slot
-    for s in self.form.reagentSlotPool:EnumerateActive() do if s:GetSlotIndex() == slotIndex then slot = s break end end
-
-    if not slot or slot:IsUnallocatable() then return end
+function Self:AllocateReagent(slot, allocations, silent)
+    if slot:IsUnallocatable() then return end
 
     if not Addon.enabled then
         for _,reagent in allocations:Enumerate() do
@@ -70,44 +66,54 @@ function Self:SetReagentSlotAllocation(slotIndex, allocations, silent)
         end
     end
 
-    self.form.transaction:OverwriteAllocations(slotIndex, allocations)
+    self.form.transaction:OverwriteAllocations(slot:GetSlotIndex(), allocations)
     self.form.transaction:SetManuallyAllocated(true)
 
-    if silent then return end
-
     slot:Update()
+
+    if silent then return end
 
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
 ---@param allocation RecipeAllocation
-function Self:SetReagentAllocation(allocation)
-    for slotIndex,allocations in pairs(allocation) do
-        self:SetReagentSlotAllocation(slotIndex, allocations, true)
-    end
+function Self:AllocateReagents(allocation)
+    self:AllocateBasicReagents()
 
-    for slot in self.form.reagentSlotPool:EnumerateActive() do slot:Update() end
+    for slot in self.form.reagentSlotPool:EnumerateActive() do
+        local allocations = allocation[slot:GetSlotIndex()]
+        if allocations then
+            self:AllocateReagent(slot, allocations, true)
+        end
+    end
 
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
--- Clear slots
 
-function Self:ClearExperimentalReagentSlots()
+-- Restore slots
+
+function Self:AllocateBasicReagents()
+	local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    for slot in self.form.reagentSlotPool:EnumerateActive() do
+        if Reagents:IsBasicReagent(slot:GetReagentSlotSchematic()) then
+            self:AllocateBasicReagent(slot)
+        end
+	end
+end
+
+function Self:ResetReagentSlots()
     if not self.form.reagentSlots then return end
 
-    for _,slots in pairs(self.form.reagentSlots) do
-        for _, slot in pairs(slots) do
-            if not slot:IsUnallocatable() then
-                local slotIndex = slot:GetReagentSlotSchematic().slotIndex
+    local characterInventoryOnly = self.form.transaction:ShouldUseCharacterInventoryOnly()
 
-                for _,allocation in self.form.transaction:EnumerateAllocations(slotIndex) do
-                    local q = Reagents:GetQuantity(allocation.reagent)
-                    if allocation.quantity > q then
-                        self:ResetReagentSlot(slot)
-                        break
-                    end
-                end
+    for slot in self.form.reagentSlotPool:EnumerateActive() do
+        if not slot:IsUnallocatable() then
+            for _,allocation in self.form.transaction:EnumerateAllocations(slot:GetSlotIndex()) do
+                local q = Reagents:GetQuantity(allocation.reagent, characterInventoryOnly)
+                if allocation.quantity > q then self:ResetReagentSlot(slot) break end
             end
         end
     end
@@ -115,18 +121,34 @@ end
 
 ---@param slot ReagentSlot
 function Self:ResetReagentSlot(slot)
+    if slot:IsUnallocatable() then return end
+
     if slot:GetOriginalItem() then
         self:RestoreOriginalSlotItem(slot)
-    elseif self.form.transaction:HasAnyAllocations(slot:GetReagentSlotSchematic().slotIndex) then
+    elseif slot:GetReagentSlotSchematic().reagentType == Enum.CraftingReagentType.Basic then
+        self:AllocateBasicReagent(slot)
+    elseif self.form.transaction:HasAnyAllocations(slot:GetSlotIndex()) then
         self:ClearReagentSlot(slot)
     end
 end
 
 ---@param slot ReagentSlot
 function Self:ClearReagentSlot(slot)
-    self.form.transaction:ClearAllocations(slot:GetReagentSlotSchematic().slotIndex)
+    self.form.transaction:ClearAllocations(slot:GetSlotIndex())
     slot:ClearItem()
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
+end
+
+---@param slot ReagentSlot
+function Self:AllocateBasicReagent(slot)
+    if slot:IsUnallocatable() then return end
+
+    local isManuallyAllocated = self.form.transaction:IsManuallyAllocated()
+    local useBestQuality = self.form.AllocateBestQualityCheckbox:GetChecked()
+
+    Professions.AllocateBasicReagents(self.form.transaction, slot:GetSlotIndex(), useBestQuality)
+
+    self.form.transaction:SetManuallyAllocated(isManuallyAllocated)
 end
 
 ---@param slot ReagentSlot
@@ -150,15 +172,15 @@ end
 --             Events
 ---------------------------------------
 
-function Self:OnEnabled() end
-
-function Self:OnDisabled()
-    if not self.form then return end
-    self:ClearExperimentalReagentSlots()
-end
-
 function Self:OnRefresh()
-    if not self.form then return end
+    if self.form:IsShown() then return end
+
+    if not Addon.enabled then
+        self:ResetReagentSlots()
+    elseif self.form.AllocateBestQualityCheckbox:GetChecked() then
+        Professions.AllocateAllBasicReagents(self.form.transaction, true)
+    end
+
     self.experimentBox:SetChecked(Addon.enabled)
 end
 
@@ -184,8 +206,5 @@ end
 
 function Self:OnAddonLoaded()
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
-
-    Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
-    Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 end

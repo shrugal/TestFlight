@@ -144,7 +144,7 @@ function Self:OnEnabled()
     Util:TblHook(Professions, "GetReagentSlotStatus", Util.FnFalse)
     Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", Util.FnInfinite)
 
-    self:Refresh()
+    C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end
 
 function Self:OnDisabled()
@@ -152,7 +152,7 @@ function Self:OnDisabled()
     Util:TblUnhook(Professions, "GetReagentSlotStatus")
     Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
 
-    self:Refresh()
+    C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end
 
 function Self:Refresh()

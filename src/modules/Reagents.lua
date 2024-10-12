@@ -16,10 +16,11 @@ function Self:GetWeight(reagent)
 end
 
 ---@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
-function Self:GetQuantity(reagent)
+---@param characterInventoryOnly? boolean
+function Self:GetQuantity(reagent, characterInventoryOnly)
     if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
     if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
-    return ProfessionsUtil.GetReagentQuantityInPossession(reagent)
+    return ProfessionsUtil.GetReagentQuantityInPossession(reagent, characterInventoryOnly)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -115,6 +116,11 @@ end
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsModifyingReagent(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Modifying
+end
+
+---@param reagent CraftingReagentSlotSchematic
+function Self:IsBasicReagent(reagent)
+    return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents == 1
 end
 
 ---@param reagent CraftingReagentSlotSchematic
