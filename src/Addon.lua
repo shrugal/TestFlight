@@ -35,6 +35,8 @@ Self.extraSkill = 0
 
 ---@param value number
 function Self:SetExtraSkill(value)
+    if self.extraSkill == value then return end
+
     self.extraSkill = max(0, value)
 
     self:TriggerEvent(self.Event.ExtraSkillUpdated)

@@ -34,6 +34,11 @@ function Self:InsertExperimentBox(parent, ...)
     return input
 end
 
+function Self:UpdateExperimentBox()
+    self.experimentBox:SetShown(not ProfessionsUtil.IsCraftingMinimized())
+    self.experimentBox:SetChecked(Addon.enabled)
+end
+
 ---------------------------------------
 --               Util
 ---------------------------------------
@@ -181,7 +186,7 @@ function Self:OnRefresh()
         Professions.AllocateAllBasicReagents(self.form.transaction, true)
     end
 
-    self.experimentBox:SetChecked(Addon.enabled)
+    self:UpdateExperimentBox()
 end
 
 function Self:OnAllocationModified()

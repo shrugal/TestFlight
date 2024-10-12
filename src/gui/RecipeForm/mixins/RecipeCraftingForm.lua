@@ -17,6 +17,16 @@ function Self:GetTrackCheckbox()
     return self.form.TrackRecipeCheckbox
 end
 
+-- Experiment box
+
+function Self:UpdateExperimentBox()
+    Parent.UpdateExperimentBox(self)
+
+    if self:IsCraftingRecipe() then return end
+
+    self.experimentBox:SetShown(false)
+end
+
 -- Skill spinner
 
 ---@param frame NumericInputSpinner
@@ -27,6 +37,7 @@ function Self:SkillSpinnerOnEnter(frame)
 end
 
 ---@param frame NumericInputSpinner
+---@param value number
 function Self:SkillSpinnerOnChange(frame, value)
     Addon:SetExtraSkill(value)
 end
@@ -41,12 +52,9 @@ function Self:InsertSkillSpinner(parent, ...)
     )
 end
 
-function Self:UpdateExperimentationElements()
-    local info = self.form:GetRecipeInfo()
-    local show = not ProfessionsUtil.IsCraftingMinimized() and not (info and (info.isGatheringRecipe or info.isDummyRecipe))
-
-    self.skillSpinner:SetShown(show and Addon.enabled)
-    self.experimentBox:SetShown(show)
+function Self:UpdateSkillSpinner()
+    self.skillSpinner:SetShown(Addon.enabled and not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe())
+    self.skillSpinner:SetValue(Addon.extraSkill)
 end
 
 -- Optimization buttons
@@ -165,7 +173,8 @@ function Self:Init(_, recipe)
 end
 
 function Self:Refresh()
-    self:UpdateExperimentationElements()
+    self:UpdateExperimentBox()
+    self:UpdateSkillSpinner()
     self:UpdateOptimizationButtons()
 end
 
@@ -405,11 +414,17 @@ function Self:SetCraftingFormQuality(quality, exact)
     self:AllocateReagents(qualityAllocation)
 end
 
-
 ---@param by number
 function Self:ChangeCraftingFormQualityBy(by)
     local quality = math.floor(self.form:GetRecipeOperationInfo().quality)
     self:SetCraftingFormQuality(quality + by, true)
+end
+
+function Self:IsCraftingRecipe()
+    local recipeInfo = self.form:GetRecipeInfo()
+    if not recipeInfo then return end
+
+    return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
 end
 
 ---------------------------------------

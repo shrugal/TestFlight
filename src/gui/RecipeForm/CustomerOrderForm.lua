@@ -25,6 +25,7 @@ end
 ---------------------------------------
 
 function Self:InitSchematic()
+    self:UpdateExperimentBox()
     self:UpdateAmountSpinner()
     self:UpdateTrackOrderBox()
 end

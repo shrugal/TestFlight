@@ -64,8 +64,6 @@ function Self:Init(_, recipe)
 
     if not recipe then return end
 
-    self:UpdateAmountSpinner()
-
     self.form.recraftSlot.InputSlot:SetScript("OnEnter", Util:FnBind(self.RecraftInputSlotOnEnter, self))
     self.form.recraftSlot.OutputSlot:SetScript("OnClick", Util:FnBind(self.RecraftOutputSlotOnClick, self))
 
