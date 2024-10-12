@@ -157,11 +157,7 @@ function Self:Init(_, recipe)
 
     self:Refresh()
 
-    if not Recipes:IsTracked(recipe) then return end
-
-    local order = self:GetOrder()
-    if order and not Orders:IsTracked(order) then return end
-    if not order and Orders:GetTracked(recipe) then return end
+    if not self:CanAllocateReagents() then return end
 
     -- Set or update tracked allocation
     local allocation = Recipes:GetTrackedAllocation(recipe)
@@ -425,6 +421,24 @@ function Self:IsCraftingRecipe()
     if not recipeInfo then return end
 
     return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
+end
+
+function Self:CanAllocateReagents()
+    local recipe = self:GetRecipe()
+    if not recipe or not Recipes:IsTracked(recipe) then return false end
+
+    local order = self:GetOrder()
+    if order then
+        -- The order is not claimed
+        if order.orderState ~= Enum.CraftingOrderState.Claimed then return false end
+        -- The order is not tracked
+        if not Orders:IsTracked(order) then return false end
+    else
+        -- The recipe has a tracked order
+        if Orders:GetTracked(recipe) then return false end
+    end
+
+    return true
 end
 
 ---------------------------------------

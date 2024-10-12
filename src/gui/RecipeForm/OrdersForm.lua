@@ -16,6 +16,7 @@ local Self = Mixin(NS.OrdersForm, Parent)
 ---@param recipe CraftingRecipeSchematic
 function Self:Init(_, recipe)
     Parent.Init(self, _, recipe)
+
     self:UpdateTrackOrderBox()
 end
 
