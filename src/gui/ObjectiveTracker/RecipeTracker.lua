@@ -1,12 +1,13 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
+local NS = GUI.ObjectiveTracker
 
-local Parent = GUI.ObjectiveTracker.ProfessionsTrackerModule
+local Parent = NS.ProfessionsTrackerModule
 
 ---@class GUI.ObjectiveTracker.RecipeTracker: GUI.ObjectiveTracker.ProfessionsTrackerModule
 ---@field module ObjectiveTrackerModuleMixin
-local Self = Mixin(GUI.ObjectiveTracker.RecipeTracker, Parent)
+local Self = Mixin(NS.RecipeTracker, Parent)
 
 ---@param btn Button
 ---@param mouseButton string
@@ -21,7 +22,7 @@ function Self:LineOnClick(btn, mouseButton)
         return self.module:OnBlockHeaderClick(block, mouseButton)
     end
 
-    return Parent.LineOnClick(self, btn, mouseButton)
+    return GUI.ObjectiveTracker.LineOnClick(self, btn, mouseButton)
 end
 
 ---@param _ ObjectiveTrackerModuleMixin
@@ -135,4 +136,8 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.module, "AddRecipe", Util:FnBind(self.AddRecipe, self))
     hooksecurefunc(self.module, "BeginLayout", Util:FnBind(self.BeginLayout, self))
     hooksecurefunc(self.module, "EndLayout", Util:FnBind(self.EndLayout, self))
+
+    Parent.OnAddonLoaded(self)
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

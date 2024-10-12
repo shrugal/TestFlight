@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 
@@ -15,20 +15,16 @@ function Self:InitializeContents(frame, ...)
 end
 
 ---------------------------------------
---             Lifecycle
+--              Events
 ---------------------------------------
 
-function Self:OnEnable()
+function Self:OnEnabled()
     Util:TblHook(itemFlyout, "InitializeContents", self.InitializeContents, self)
 end
 
-function Self:OnDisable()
+function Self:OnDisabled()
     Util:TblUnhook(itemFlyout, "InitializeContents")
 end
-
----------------------------------------
---              Events
----------------------------------------
 
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
@@ -36,4 +32,9 @@ function Self:OnAddonLoaded(addonName)
 
     itemFlyout = OpenProfessionsItemFlyout()
     CloseProfessionsItemFlyout()
+
+    Addon:RegisterCallback(Addon.Event.Enabled, Self.OnEnabled, Self)
+    Addon:RegisterCallback(Addon.Event.Disabled, Self.OnDisabled, Self)
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

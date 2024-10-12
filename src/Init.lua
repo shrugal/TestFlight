@@ -1,6 +1,6 @@
 ---@diagnostic disable: missing-fields
 
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 
 ---@type Util
@@ -29,9 +29,12 @@ Addon.GUI = {
         WorldQuestTracker = {},
     },
 
+    ---@class GUI.RecipeForm
     RecipeForm = {
         ---@type GUI.RecipeForm.AmountForm
         AmountForm = {},
+        ---@type GUI.RecipeForm.OrderForm
+        OrderForm = {},
         ---@type GUI.RecipeForm.RecipeForm
         RecipeForm = {},
         ---@type GUI.RecipeForm.RecipeCraftingForm

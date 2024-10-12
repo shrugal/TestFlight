@@ -1,13 +1,14 @@
 ---@type string
 local Name = ...
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Prices, Util = Addon.GUI, Addon.Prices, Addon.Util
 
----@class TestFlight
-local Self = Addon
+---@class Addon: CallbackRegistryMixin
+---@field Event Addon.Event
+local Self = Mixin(Addon, CallbackRegistryMixin)
 
----@class TestFlightDB
+---@class AddonDB
 TestFlightDB = {
     v = 1,
     ---@type boolean
@@ -18,7 +19,7 @@ TestFlightDB = {
     priceSource = nil
 }
 
----@class TestFlightCharDB
+---@class AddonCharDB
 TestFlightCharDB = {
     v = 2,
     ---@type table<boolean, number[]>
@@ -36,7 +37,7 @@ Self.extraSkill = 0
 function Self:SetExtraSkill(value)
     self.extraSkill = max(0, value)
 
-    GUI:OnExtraSkillChange()
+    self:TriggerEvent(self.Event.ExtraSkillUpdated)
 end
 
 ---------------------------------------
@@ -64,13 +65,16 @@ function Self:Load()
         self.DB.Char.qualities = { [false] = {}, [true] = {} }
         self.DB.Char.v = 2
     end
+
+    self:TriggerEvent(self.Event.Loaded)
 end
 
 function Self:Enable()
     if self.enabled then return end
     self.enabled = true
 
-    GUI:OnEnable()
+    self:TriggerEvent(self.Event.Enabled)
+    self:TriggerEvent(self.Event.Toggled)
 end
 
 function Self:Disable()
@@ -79,7 +83,8 @@ function Self:Disable()
 
     self:SetExtraSkill(0)
 
-    GUI:OnDisable()
+    self:TriggerEvent(self.Event.Disabled)
+    self:TriggerEvent(self.Event.Toggled)
 end
 
 function Self:Toggle()
@@ -232,13 +237,22 @@ end
 --              Events
 ---------------------------------------
 
+---@class Addon.Event
+---@field AddonLoaded "AddonLoaded"
+---@field Loaded "Loaded"
+---@field Enabled "Enabled"
+---@field Disabled "Disabled"
+---@field Toggled "Toggled"
+---@field ExtraSkillUpdated "ExtraSkillUpdated"
+
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated" })
+Self:OnLoad()
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if addonName == Name then self:Load() end
 
-    Recipes:OnAddonLoaded(addonName)
-    Orders:OnAddonLoaded(addonName)
-    GUI:OnAddonLoaded(addonName)
+    self:TriggerEvent(self.Event.AddonLoaded, addonName)
 end
 
 EventRegistry:RegisterFrameEventAndCallback("ADDON_LOADED", Self.OnAddonLoaded, Self)

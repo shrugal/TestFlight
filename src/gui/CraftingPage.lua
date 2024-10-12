@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 
@@ -16,17 +16,13 @@ function Self:ValidateControls()
 end
 
 ---------------------------------------
---             Lifecycle
+--              Events
 ---------------------------------------
 
 function Self:OnRefresh()
     if not self.frame or not self.frame:IsVisible() then return end
     self:ValidateControls()
 end
-
----------------------------------------
---              Events
----------------------------------------
 
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
@@ -35,4 +31,8 @@ function Self:OnAddonLoaded(addonName)
     self.frame = ProfessionsFrame.CraftingPage
 
     hooksecurefunc(self.frame, "ValidateControls", Util:FnBind(self.ValidateControls, self))
+
+    GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

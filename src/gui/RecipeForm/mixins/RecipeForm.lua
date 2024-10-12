@@ -1,10 +1,11 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
-local GUI, Reagents, Util = Addon.GUI, Addon.Reagents, Addon.Util
+local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
 ---@field experimentBox CheckButton
+---@field GetTrackCheckbox fun(self: self): CheckButton
 local Self = GUI.RecipeForm.RecipeForm
 
 -- Experiment checkbox
@@ -37,8 +38,19 @@ end
 --               Util
 ---------------------------------------
 
+function Self:GetRecipe()
+    if not self.form.transaction then return end
+    return self.form.transaction:GetRecipeSchematic()
+end
+
 ---@return CraftingOrderInfo?
-function Self:GetOrder()
+function Self:GetOrder() end
+
+---@return number?
+function Self:GetQuality() end
+
+function Self:GetAllocation()
+    return self.form.transaction.allocationTbls
 end
 
 -- Set allocation
@@ -86,13 +98,15 @@ function Self:ClearExperimentalReagentSlots()
 
     for _,slots in pairs(self.form.reagentSlots) do
         for _, slot in pairs(slots) do
-            local slotIndex = slot:GetReagentSlotSchematic().slotIndex
+            if not slot:IsUnallocatable() then
+                local slotIndex = slot:GetReagentSlotSchematic().slotIndex
 
-            for _,allocation in self.form.transaction:EnumerateAllocations(slotIndex) do
-                local q = Reagents:GetQuantity(allocation.reagent)
-                if allocation.quantity > q then
-                    self:ResetReagentSlot(slot)
-                    break
+                for _,allocation in self.form.transaction:EnumerateAllocations(slotIndex) do
+                    local q = Reagents:GetQuantity(allocation.reagent)
+                    if allocation.quantity > q then
+                        self:ResetReagentSlot(slot)
+                        break
+                    end
                 end
             end
         end
@@ -133,13 +147,12 @@ function Self:RestoreOriginalSlotItem(slot)
 end
 
 ---------------------------------------
---             Lifecycle
+--             Events
 ---------------------------------------
 
-function Self:OnEnable()
-end
+function Self:OnEnabled() end
 
-function Self:OnDisable()
+function Self:OnDisabled()
     if not self.form then return end
     self:ClearExperimentalReagentSlots()
 end
@@ -149,5 +162,30 @@ function Self:OnRefresh()
     self.experimentBox:SetChecked(Addon.enabled)
 end
 
-function Self:OnExtraSkillChange()
+function Self:OnAllocationModified()
+    Recipes:SetTrackedByForm(self)
+end
+
+---@param recipeID number
+---@param tracked boolean
+function Self:OnTrackedRecipeUpdated(recipeID, tracked)
+    if not tracked or not self.form:IsShown() then return end
+
+    local recipe = self:GetRecipe()
+    if not recipe or recipe.recipeID ~= recipeID then return end
+
+    Recipes:SetTrackedByForm(self)
+
+    local order = self:GetOrder()
+    if not order then return end
+
+    Orders:SetTracked(order)
+end
+
+function Self:OnAddonLoaded()
+    Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
+
+    Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
+    Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)
+    GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 end

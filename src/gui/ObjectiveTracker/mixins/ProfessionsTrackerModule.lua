@@ -1,8 +1,9 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
-local GUI, Util = Addon.GUI, Addon.Util
+local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
 
 ---@class GUI.ObjectiveTracker.ProfessionsTrackerModule
+---@field module ObjectiveTrackerModuleMixin
 local Self = GUI.ObjectiveTracker.ProfessionsTrackerModule
 
 ---@type FramePool
@@ -61,4 +62,14 @@ function Self:SetReagentLineButton(line, itemName, itemID)
         self.OnFree = OnFree
         if self.OnFree then return self:OnFree(...) end
     end
+end
+
+---------------------------------------
+--              Events
+---------------------------------------
+
+function Self:OnAddonLoaded()
+    Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.module.MarkDirty, self.module)
+    Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, self.module.MarkDirty, self.module)
+    Recipes:RegisterCallback(Recipes.Event.TrackedQualityUpdated, self.module.MarkDirty, self.module)
 end

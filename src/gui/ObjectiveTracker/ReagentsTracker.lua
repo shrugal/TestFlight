@@ -1,8 +1,9 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
-local GUI, Reagents, Recipes, Util = Addon.GUI, Addon.Reagents, Addon.Recipes, Addon.Util
+local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
+local NS = GUI.ObjectiveTracker
 
-local Parent = GUI.ObjectiveTracker.ProfessionsTrackerModule
+local Parent = Util:TblCombineMixins(NS.ProfessionsTrackerModule, ObjectiveTrackerModuleMixin)
 
 local settings = {
     headerText = PROFESSIONS_COLUMN_HEADER_REAGENTS or "Reagents",
@@ -22,7 +23,7 @@ local settings = {
 
 ---@class GUI.ObjectiveTracker.ReagentsTracker: GUI.ObjectiveTracker.ProfessionsTrackerModule, ObjectiveTrackerModuleMixin, DirtiableMixin
 ---@field GetBlock fun(self: self, id: number | string): ObjectiveTrackerAnimBlock
-local Self = Mixin(GUI.ObjectiveTracker.ReagentsTracker, ObjectiveTrackerModuleMixin, Parent, settings)
+local Self = Mixin(NS.ReagentsTracker, Parent, settings)
 
 ---@class ReagentsTrackerFrame: GUI.ObjectiveTracker.ReagentsTracker, Frame
 
@@ -66,13 +67,13 @@ function Self:LayoutContents()
 	if self.continuableContainer then self.continuableContainer:Cancel() end
 	self.continuableContainer = ContinuableContainer:Create()
 
-    local reagents, orderReagents = Reagents:GetTracked()
-    if not next(reagents) and not next(orderReagents) then return end
+    local reagents, missing, owned, crafted, provided = Reagents:GetTrackedBySource()
+    if not next(reagents) and not next(provided) then return end
 
     for itemID in pairs(reagents) do
         self.continuableContainer:AddContinuable(Item:CreateFromItemID(itemID))
     end
-    for itemID in pairs(orderReagents) do
+    for itemID in pairs(provided) do
         self.continuableContainer:AddContinuable(Item:CreateFromItemID(itemID))
     end
 
@@ -80,37 +81,22 @@ function Self:LayoutContents()
     local wasLoaded = true
 	wasLoaded = self.continuableContainer:ContinueOnLoad(function ()
         if not wasLoaded then return self:MarkDirty() end
-        self:AddBlocks(reagents, orderReagents)
+        self:AddBlocks(reagents, missing, owned, crafted, provided)
     end)
 end
 
 ---@param reagents number[]
----@param orderReagents number[]
-function Self:AddBlocks(reagents, orderReagents)
-    local GetCraftingReagentCount = Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")
-    local craftingResults = Recipes:GetTrackedResultItems()
+---@param missing number[]
+---@param owned number[]
+---@param crafted number[]
+---@param provided number[]
+function Self:AddBlocks(reagents, missing, owned, crafted, provided)
+    local addedMissing = self:AddReagents("missing", ADDON_MISSING, missing)
+    if not addedMissing and next(missing) then return end
 
-    local reagentsOwned, reagentsCrafting, reagentsMissing = {}, {}, {}
-    for itemID,required in pairs(reagents) do
-        local owned = GetCraftingReagentCount(itemID)
-        if owned > 0 then
-            reagentsOwned[itemID], required = owned, max(0, required - owned)
-        end
-        local crafting = min(required, craftingResults[itemID] or 0)
-        if crafting > 0 then
-            reagentsCrafting[itemID], required = crafting, required - crafting
-        end
-        if required > 0 then
-            reagentsMissing[itemID] = required
-        end
-    end
-
-    local addedMissing = self:AddReagents("missing", ADDON_MISSING, reagentsMissing)
-    if not addedMissing and next(reagentsMissing) then return end
-
-    self:AddReagents("crafting", "Crafting", reagentsCrafting)
-    self:AddReagents("owned", "Owned", reagentsOwned, reagents)
-    self:AddReagents("provided", "Provided", orderReagents, true)
+    self:AddReagents("crafting", "Crafting", crafted)
+    self:AddReagents("owned", "Owned", owned, reagents)
+    self:AddReagents("provided", "Provided", provided, true)
 end
 
 ---@param key any
@@ -136,7 +122,7 @@ function Self:AddReagents(key, header, reagents, providedOrTotal)
 
         local count, complete = quantity, false
         if providedOrTotal then
-            local quantityTotal = providedOrTotal == true and quantity or providedOrTotal[itemID]
+            local quantityTotal = providedOrTotal == true and quantity or providedOrTotal[itemID] or quantity
             count = PROFESSIONS_TRACKER_REAGENT_COUNT_FORMAT:format(quantity, quantityTotal)
             complete = quantity >= quantityTotal
         end
@@ -233,7 +219,7 @@ function Self:UpdatePosition(dirtyUpdate)
     ProfessionsRecipeTracker:ClearAllPoints()
     ProfessionsRecipeTracker:SetPoint("TOP", self, "BOTTOM", 0, -parent.moduleSpacing)
 
-    GUI.ObjectiveTracker.WorldQuestTracker:RefreshTrackerAnchor()
+    NS.WorldQuestTracker:RefreshTrackerAnchor()
 end
 
 ---@param self ReagentsTrackerFrame
@@ -255,22 +241,12 @@ function Self:RemoveFromParent()
         ProfessionsRecipeTracker:SetPoint("TOP", 0, -parent.topModulePadding)
     end
 
-    GUI.ObjectiveTracker.WorldQuestTracker:RefreshTrackerAnchor()
+    NS.WorldQuestTracker:RefreshTrackerAnchor()
 end
 
 ---------------------------------------
 --              Events
 ---------------------------------------
-
----@param addonName string
-function Self:OnAddonLoaded(addonName)
-    if not Util:IsAddonLoadingOrLoaded("Blizzard_ObjectiveTracker", addonName) then return end
-
-    self.module = self:Create()
-    self.module:SetContainer(ObjectiveTrackerFrame)
-
-    hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate) self.module:UpdatePosition(dirtyUpdate) end)
-end
 
 ---@param self ReagentsTrackerFrame
 function Self:OnEvent(event)
@@ -284,3 +260,21 @@ function Self:OnEvent(event)
         self:MarkDirty()
     end
 end
+
+---@param addonName string
+function Self:OnAddonLoaded(addonName)
+    if not Util:IsAddonLoadingOrLoaded("Blizzard_ObjectiveTracker", addonName) then return end
+
+    self.module = self:Create()
+    self.module:SetContainer(ObjectiveTrackerFrame)
+
+    hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate) self.module:UpdatePosition(dirtyUpdate) end)
+
+    Parent.OnAddonLoaded(self)
+
+    Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, self.module.MarkDirty, self.module)
+    Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.module.MarkDirty, self.module)
+    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.module.MarkDirty, self.module)
+end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

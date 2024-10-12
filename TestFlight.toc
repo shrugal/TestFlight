@@ -33,6 +33,7 @@ src/gui/ObjectiveTracker/WorldQuestTracker.lua
 src/gui/RecipeForm/mixins/RecipeForm.lua
 src/gui/RecipeForm/mixins/RecipeCraftingForm.lua
 src/gui/RecipeForm/mixins/AmountForm.lua
+src/gui/RecipeForm/mixins/OrderForm.lua
 src/gui/RecipeForm/CraftingForm.lua
 src/gui/RecipeForm/OrdersForm.lua
 src/gui/RecipeForm/CustomerOrderForm.lua

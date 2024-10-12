@@ -1,14 +1,14 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
+local NS = GUI.RecipeForm
 
-local Parent = GUI.RecipeForm.RecipeCraftingForm
+local Parent = Util:TblCombineMixins(NS.RecipeCraftingForm, NS.AmountForm)
 
 ---@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeCraftingForm, GUI.RecipeForm.AmountForm
-local Self = Mixin(GUI.RecipeForm.CraftingForm, Parent, GUI.RecipeForm.AmountForm)
-
----@type number?, string?
-Self.recraftRecipeID, Self.recraftItemLink = nil, nil
+---@field recraftRecipeID number?
+---@field recraftItemLink string?
+local Self = Mixin(NS.CraftingForm, Parent)
 
 -- Recraft slots
 
@@ -113,8 +113,9 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     local craftingPage = ProfessionsFrame.CraftingPage
-
     self.form = craftingPage.SchematicForm
+
+    Parent.OnAddonLoaded(self)
 
     -- Elements
 
@@ -149,3 +150,5 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

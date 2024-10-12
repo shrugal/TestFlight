@@ -1,9 +1,10 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local Reagents, Util = Addon.Reagents, Addon.Util
 
----@class GUI
-local Self = Addon.GUI
+---@class GUI: CallbackRegistryMixin
+---@field Event GUI.Event
+local Self = Mixin(Addon.GUI, CallbackRegistryMixin)
 
 ---@type GUI.ObjectiveTracker.ProfessionsTrackerModule[]
 Self.objectiveTrackers = {
@@ -102,7 +103,7 @@ function Self:TooltipPostCall(tooltip)
     local form = self:GetVisibleForm()
     if not form or not form.form.transaction then return end
 
-    local recipe = form.form.transaction:GetRecipeSchematic()
+    local recipe = form:GetRecipe()
     local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
     local _, maxSkill = Reagents:GetSkillBounds(recipe)
     if not maxSkill or maxSkill == 0 then return end
@@ -128,79 +129,37 @@ function Self:GetVisibleForm()
     end
 end
 
----@param form RecipeForm?
-function Self:GetFormOrder(form)
-    for _,f in ipairs(self.forms) do
-        if form and f.form == form or not form and f.form and f.form:IsVisible() then
-            return f:GetOrder()
-        end
-    end
-end
-
----@param reagents? boolean
----@param recipes? boolean
-function Self:UpdateObjectiveTrackers(reagents, recipes)
-    local ot = self.ObjectiveTracker
-    if reagents and ot.ReagentsTracker.module then ot.ReagentsTracker.module:MarkDirty() end
-    if recipes and ot.RecipeTracker.module then ot.RecipeTracker.module:MarkDirty() end
-end
-
 ---------------------------------------
---             Lifecycle
+--              Events
 ---------------------------------------
 
-function Self:OnEnable()
+---@class GUI.Event
+---@field Refresh "Refresh"
+
+Self:GenerateCallbackEvents({ "Refresh" })
+Self:OnLoad()
+
+function Self:OnEnabled()
     Util:TblHook(ItemUtil, "GetCraftingReagentCount", Util.FnInfinite)
     Util:TblHook(Professions, "GetReagentSlotStatus", Util.FnFalse)
     Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", Util.FnInfinite)
 
-    self.ItemFlyout:OnEnable()
-
-    for _,form in pairs(self.forms) do form:OnEnable() end
-
     self:Refresh()
 end
 
-function Self:OnDisable()
+function Self:OnDisabled()
     Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
     Util:TblUnhook(Professions, "GetReagentSlotStatus")
     Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
-
-    self.ItemFlyout:OnDisable()
-
-    for _,form in pairs(self.forms) do form:OnDisable() end
 
     self:Refresh()
 end
 
 function Self:Refresh()
-    self.CraftingPage:OnRefresh()
-
-    for _,form in pairs(self.forms) do form:OnRefresh() end
-
-    -- ObjectiveTrackerFrame
     ObjectiveTrackerFrame:Update()
+
+    self:TriggerEvent(self.Event.Refresh)
 end
 
-function Self:OnExtraSkillChange()
-    for _,form in pairs(self.forms) do form:OnExtraSkillChange() end
-end
-
----------------------------------------
---              Events
----------------------------------------
-
----@param addonName string
-function Self:OnAddonLoaded(addonName)
-    self.ObjectiveTracker.ReagentsTracker:OnAddonLoaded(addonName)
-    self.ObjectiveTracker.RecipeTracker:OnAddonLoaded(addonName)
-    self.ObjectiveTracker.WorldQuestTracker:OnAddonLoaded(addonName)
-
-    self.CraftingPage:OnAddonLoaded(addonName)
-    self.OrdersView:OnAddonLoaded(addonName)
-    self.ItemFlyout:OnAddonLoaded(addonName)
-
-    self.RecipeForm.CraftingForm:OnAddonLoaded(addonName)
-    self.RecipeForm.OrdersForm:OnAddonLoaded(addonName)
-    self.RecipeForm.CustomerOrderForm:OnAddonLoaded(addonName)
-end
+Addon:RegisterCallback(Addon.Event.Enabled, Self.OnEnabled, Self)
+Addon:RegisterCallback(Addon.Event.Disabled, Self.OnDisabled, Self)

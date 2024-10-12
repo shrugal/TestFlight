@@ -1,16 +1,11 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
 
----@class GUI.RecipeForm.AmountForm
----@field form RecipeForm
----@field GetTrackCheckbox fun(self: self): CheckButton
+---@class GUI.RecipeForm.AmountForm: GUI.RecipeForm.RecipeForm
+---@field amountSpinner NumericInputSpinner
+---@field craftingRecipe? CraftingRecipeSchematic
 local Self = GUI.RecipeForm.AmountForm
-
----@type table<RecipeForm, NumericInputSpinner>
-Self.amountSpinners = {}
----@type CraftingRecipeSchematic?
-Self.craftingRecipe = nil
 
 -- Amount spinner
 
@@ -25,7 +20,7 @@ end
 ---@param value number
 function Self:AmountSpinnerOnChange(frame, value)
     if not self.form.transaction then return end
-    local recipe = self.form.transaction:GetRecipeSchematic()
+    local recipe = self:GetRecipe()
     if not recipe then return end
     Recipes:SetTrackedAmount(recipe, value)
 end
@@ -35,19 +30,17 @@ function Self:InsertAmountSpinner(...)
     local input = GUI:InsertNumericSpinner(self.form, Util:FnBind(self.AmountSpinnerOnEnter, self), Util:FnBind(self.AmountSpinnerOnChange, self), ...)
 
     input:SetMinMaxValues(0, math.huge)
-
-    Self.amountSpinners[self.form] = input
+    self.amountSpinner = input
 
     return input
 end
 
 function Self:UpdateAmountSpinner()
-    local recipe = self.form.transaction:GetRecipeSchematic()
-    local amountSpinner = Self.amountSpinners[self.form]
+    local recipe = self:GetRecipe()
     local trackBox = self:GetTrackCheckbox()
 
-    amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    amountSpinner:SetValue(recipe and Recipes:GetTrackedAmount(recipe) or 1)
+    self.amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
+    self.amountSpinner:SetValue(recipe and Recipes:GetTrackedAmount(recipe) or 1)
 end
 
 ---------------------------------------
@@ -56,20 +49,32 @@ end
 
 ---@param recipeID number
 ---@param tracked boolean
-function Self:OnTrackedRecipeUpdate(recipeID, tracked)
-    for form,amountSpinner in pairs(Self.amountSpinners) do
-        local recipe = form.transaction and form.transaction:GetRecipeSchematic()
-        if recipe and recipe.recipeID == recipeID then
-            amountSpinner:SetShown(Recipes:IsTracked(recipe) and not ProfessionsUtil.IsCraftingMinimized())
-            amountSpinner:SetValue(Recipes:GetTrackedAmount(recipe) or 1)
-        end
-    end
+function Self:OnTrackedRecipeUpdated(recipeID, tracked)
+    if not self.form:IsShown() then return end
+
+    local recipe = self:GetRecipe()
+    if not recipe or recipe.recipeID ~= recipeID then return end
+
+    self.amountSpinner:SetShown(tracked and not ProfessionsUtil.IsCraftingMinimized())
+    self.amountSpinner:SetValue(Recipes:GetTrackedAmount(recipe) or 1)
+end
+
+---@param recipeID number
+---@param isRecraft boolean
+---@param amount number?
+function Self:OnTrackedRecipeAmountUpdated(recipeID, isRecraft, amount)
+    if not self.form:IsShown() then return end
+
+    local recipe = self:GetRecipe()
+    if not recipe or recipe.recipeID ~= recipeID or recipe.isRecraft ~= isRecraft then return end
+
+    self.amountSpinner:SetValue(amount or 1)
 end
 
 function Self:OnTradeSkillCraftBegin()
-    local form = GUI:GetVisibleForm()
-    if not form or not form.form.transaction then return end
-    Self.craftingRecipe = form.form.transaction:GetRecipeSchematic()
+    if not self.form:IsShown() then return end
+
+    Self.craftingRecipe = self:GetRecipe()
 end
 
 function Self:OnUpdateTradeskillCastStopped()
@@ -82,21 +87,19 @@ function Self:OnSpellcastStoppedOrSucceeded()
 
     Self.craftingRecipe = nil
 
-    local amount = recipe and Recipes:GetTrackedAmount(recipe)
-    if not recipe or not amount then return end
+    local amount = Recipes:GetTrackedAmount(recipe)
+    if not amount then return end
 
-    amount = Recipes:SetTrackedAmount(recipe, amount - 1) or 1
-
-    for form,amountSpinner in pairs(Self.amountSpinners) do
-        local formRecipe = form.transaction and form.transaction:GetRecipeSchematic()
-        if formRecipe and formRecipe.recipeID == recipe.recipeID and formRecipe.isRecraft == recipe.isRecraft then
-            amountSpinner:SetValue(amount)
-        end
-    end
+    Recipes:SetTrackedAmount(recipe, amount - 1)
 end
 
-EventRegistry:RegisterFrameEventAndCallback("TRACKED_RECIPE_UPDATE", Self.OnTrackedRecipeUpdate, Self)
-EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", Self.OnTradeSkillCraftBegin, Self)
+function Self:OnAddonLoaded()
+    Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
+    Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, self.OnTrackedRecipeAmountUpdated, self)
+
+    EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", self.OnTradeSkillCraftBegin, self)
+end
+
 EventRegistry:RegisterFrameEventAndCallback("UPDATE_TRADESKILL_CAST_STOPPED", Self.OnUpdateTradeskillCastStopped, Self)
 EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", Self.OnSpellcastStoppedOrSucceeded, Self)
 EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", Self.OnSpellcastStoppedOrSucceeded, Self)

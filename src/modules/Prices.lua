@@ -1,6 +1,6 @@
 ---@type string
 local Name = ...
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local Reagents, Util = Addon.Reagents, Addon.Util
 

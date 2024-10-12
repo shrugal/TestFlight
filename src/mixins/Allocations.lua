@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local Util = Addon.Util
 

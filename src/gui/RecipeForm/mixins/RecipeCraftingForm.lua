@@ -1,8 +1,9 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local NS = GUI.RecipeForm
 
-local Parent = GUI.RecipeForm.RecipeForm
+local Parent = NS.RecipeForm
 
 ---@class GUI.RecipeForm.RecipeCraftingForm: GUI.RecipeForm.RecipeForm
 ---@field form RecipeCraftingForm
@@ -10,7 +11,7 @@ local Parent = GUI.RecipeForm.RecipeForm
 ---@field decreaseBtn ButtonFitToText
 ---@field optimizeBtn ButtonFitToText
 ---@field increaseBtn ButtonFitToText
-local Self = Mixin(GUI.RecipeForm.RecipeCraftingForm, Parent)
+local Self = Mixin(NS.RecipeCraftingForm, Parent)
 
 function Self:GetTrackCheckbox()
     return self.form.TrackRecipeCheckbox
@@ -146,17 +147,16 @@ end
 function Self:Init(_, recipe)
     if not recipe then return end
 
-    self:UpdateExperimentationElements()
-    self:UpdateOptimizationButtons()
+    self:Refresh()
+
+    if not Recipes:IsTracked(recipe) or Orders:GetTracked(recipe) ~= self:GetOrder() then return end
 
     -- Set or update tracked allocation
-    if Recipes:IsTracked(recipe) then
-        local allocation = Recipes:GetTrackedAllocation(recipe)
-        if allocation then
-            self:SetReagentAllocation(allocation)
-        else
-            Recipes:SetTrackedByForm(self.form)
-        end
+    local allocation = Recipes:GetTrackedAllocation(recipe)
+    if allocation then
+        self:SetReagentAllocation(allocation)
+    else
+        Recipes:SetTrackedByForm(self)
     end
 end
 
@@ -380,6 +380,11 @@ end
 --               Util
 ---------------------------------------
 
+function Self:GetQuality()
+    local op = self.form:GetRecipeOperationInfo()
+    if op.isQualityCraft then return floor(op.quality) end
+end
+
 ---@param quality? number
 ---@param exact? boolean
 function Self:SetCraftingFormQuality(quality, exact)
@@ -404,18 +409,18 @@ function Self:ChangeCraftingFormQualityBy(by)
 end
 
 ---------------------------------------
---             Lifecycle
+--              Events
 ---------------------------------------
 
-function Self:OnEnable()
-    Parent.OnEnable(self)
+function Self:OnEnabled()
+    Parent.OnEnabled(self)
 
     if not self.form then return end
     Util:TblHook(self.form, "GetRecipeOperationInfo", self.GetRecipeOperationInfo, self)
 end
 
-function Self:OnDisable()
-    Parent.OnDisable(self)
+function Self:OnDisabled()
+    Parent.OnDisabled(self)
 
     if not self.form then return end
     Util:TblUnhook(self.form, "GetRecipeOperationInfo")
@@ -428,11 +433,17 @@ function Self:OnRefresh()
     self.form:Refresh()
 end
 
-function Self:OnExtraSkillChange()
-    Parent.OnExtraSkillChange(self)
-
+function Self:OnExtraSkillUpdated()
     if not self.form or not self.form:IsVisible() then return end
 
     self.form:UpdateDetailsStats()
     self.form:UpdateRecraftSlot()
+end
+
+function Self:OnAddonLoaded()
+    Parent.OnAddonLoaded(self)
+
+    self.form:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.OnAllocationModified, self)
+
+    Addon:RegisterCallback(Addon.Event.ExtraSkillUpdated, self.OnExtraSkillUpdated, self)
 end

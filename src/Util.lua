@@ -1,5 +1,5 @@
 local Name = ...
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 
 ---@class Util
@@ -118,19 +118,6 @@ function Self:TblMerge(tbl, ...)
         self:TblPush(tbl, unpack(select(i, ...)))
     end
     return tbl
-end
-
----@generic T: table
----@param tbl T[] | Enumerator<T>
----@return T
-function Self:TblCreateMixin(tbl)
-    local t = {}
-    for k,v in self:Each(tbl) do
-        if type(v) == "function" and type(k) == "string" and k:match("^[A-Z]") then
-            t[k] = v
-        end
-    end
-    return t
 end
 
 ---@generic T, R, S: table
@@ -366,10 +353,60 @@ function Self:TblCount(tbl, fn, key, obj, ...)
     return c
 end
 
+---@generic T
+---@param tbl T[] | Enumerator<T>
+---@param ... any
+---@return number
+function Self:TblCountWhere(tbl, ...)
+    local c = 0
+    for _,v in self:Each(tbl) do
+        if self:TblMatch(v, ...) then c = c + 1 end
+    end
+    return c
+end
+
 ---@param tbl table
 ---@param sep string
 function Self:TblJoin(tbl, sep)
     return table.concat(tbl, sep)
+end
+
+-- Mixin
+
+-- Create a Mixin from all class methods
+---@generic T: table
+---@param tbl T[] | Enumerator<T>
+---@return T
+function Self:TblCreateMixin(tbl)
+    local t = {}
+    for k,v in self:Each(tbl) do
+        if type(v) == "function" and type(k) == "string" and k:match("^[A-Z]") then
+            t[k] = v
+        end
+    end
+    return t
+end
+
+-- Like Mixin, but combines "OnXYZ" event handlers, instead of overriding them
+---@generic T: table
+---@vararg T
+---@return T
+function Self:TblCombineMixins(...)
+    local n, r = select("#", ...), {}
+    for i=1,n do
+        for k,v in pairs(select(i, ...)) do
+            if type(v) == "function" and type(k) == "string" and k:match("^On[A-Z]") then
+                if not r[k] then
+                    local fns = {}
+                    for j=1,n do local t = select(j, ...) if t[k] then tinsert(fns, t[k]) end end
+                    r[k] = self:FnCombine(fns)
+                end
+            else
+                r[k] = v
+            end
+        end
+    end
+    return r
 end
 
 -- Hook
@@ -489,6 +526,19 @@ end
 ---@param obj table
 function Self:FnBind(fn, obj)
     return function (...) return fn(obj, ...) end
+end
+
+---@generic T: function
+---@vararg T[]
+---@return T
+function Self:FnCombine(fns)
+    local n = #fns
+    if n == 1 then return fns[1] end
+    return function (...)
+        for i,fn in ipairs(fns) do
+            if i < n then fn(...) else return fn(...) end
+        end
+    end
 end
 
 -- Chain

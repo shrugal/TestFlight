@@ -334,6 +334,9 @@ ProfessionsRecipeSchematicFormMixin = {
 ---            WoW Templates & Mixins              --
 -----------------------------------------------------
 
+---@class CallbackRegistryMixin
+---@field OnLoad fun(self: self)
+
 ---@class DirtiableMixin
 ---@field SetDirtyMethod fun(self: self, method: function)
 ---@field MarkDirty fun(self: self)

@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 
 -- Source: CraftSim

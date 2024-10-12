@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 
@@ -33,3 +33,5 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(self.frame, "UpdateCreateButton", Util:FnBind(self.UpdateCreateButton, self))
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

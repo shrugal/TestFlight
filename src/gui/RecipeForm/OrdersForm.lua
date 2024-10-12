@@ -1,11 +1,23 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
+local NS = GUI.RecipeForm
 
-local Parent = GUI.RecipeForm.RecipeCraftingForm
+local Parent = Util:TblCombineMixins(NS.RecipeCraftingForm, NS.OrderForm)
 
----@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeCraftingForm
-local Self = Mixin(GUI.RecipeForm.OrdersForm, Parent)
+---@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeCraftingForm, GUI.RecipeForm.OrderForm
+local Self = Mixin(NS.OrdersForm, Parent)
+
+---------------------------------------
+--              Hooks
+---------------------------------------
+
+---@param _ RecipeCraftingForm
+---@param recipe CraftingRecipeSchematic
+function Self:Init(_, recipe)
+    Parent.Init(self, _, recipe)
+    self:UpdateTrackOrderBox()
+end
 
 ---------------------------------------
 --              Util
@@ -13,6 +25,13 @@ local Self = Mixin(GUI.RecipeForm.OrdersForm, Parent)
 
 function Self:GetOrder()
     return GUI.OrdersView.frame and GUI.OrdersView.frame.order
+end
+
+function Self:GetQuality()
+    local quality = NS.RecipeCraftingForm.GetQuality(self)
+    if not quality then return end
+
+    return Parent.GetQuality(self) or quality
 end
 
 ---------------------------------------
@@ -24,8 +43,9 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     local ordersView = ProfessionsFrame.OrdersPage.OrderView
-
     self.form = ordersView.OrderDetails.SchematicForm
+
+    Parent.OnAddonLoaded(self)
 
     -- Elements
 
@@ -33,6 +53,11 @@ function Self:OnAddonLoaded(addonName)
     self:InsertExperimentBox(
         self.form,
         "LEFT", self.form.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
+    )
+
+    -- Insert track order spinner
+    self:InsertTrackOrderBox(
+        "TOPLEFT", self.form.TrackRecipeCheckbox, "BOTTOMLEFT", 0, 0
     )
 
     -- Insert skill points spinner
@@ -55,3 +80,5 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

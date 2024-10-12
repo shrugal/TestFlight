@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local Orders, Recipes, Util = Addon.Orders, Addon.Recipes, Addon.Util
 
@@ -196,78 +196,37 @@ function Self:GetSkillBounds(recipe, optionalReagents, qualityReagents, recraftI
 end
 
 ---@return number[] reagents
----@return number[] orderReagents
-function Self:GetTracked()
-    ---@type number[], number[]
-    local reagents, orderReagents = {}, {}
+---@return number[] missing
+---@return number[] owned
+---@return number[] crafted
+---@return number[] provided
+function Self:GetTrackedBySource()
+    local GetCraftingReagentCount = Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")
 
-    -- Reagents provided by ourselves
+    local reagents = Recipes:GetTrackedReagentAmounts()
+    local crafting = Recipes:GetTrackedResultAmounts()
+    local provided = Orders:GetTrackedProvidedReagentAmounts()
 
-    for i=0,1 do
-        local isRecraft = i == 1
-        local recipeIDs = C_TradeSkillUI.GetRecipesTracked(isRecraft)
+    local missing, crafted, owned = {}, {}, {}
 
-        for _,recipeID in pairs(recipeIDs) do
-            local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-            local amount = Recipes:GetTrackedAmount(recipe)
-            local allocation = Recipes:GetTrackedAllocation(recipe)
-            local order = Orders:GetTracked(recipe)
+    for itemID,required in pairs(reagents) do
+        -- Account for owned items
+        local ownedItems = GetCraftingReagentCount(itemID)
+        if ownedItems > 0 then
+            owned[itemID], required = ownedItems, max(0, required - ownedItems)
+        end
 
-            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
-                local missing = reagent.required and reagent.quantityRequired or 0
+        -- Account for crafting results
+        local craftingItems = min(required, crafting[itemID] or 0)
+        if craftingItems > 0 then
+            crafted[itemID], required = craftingItems, required - craftingItems
+        end
 
-                -- Account for allocated items
-                if allocation and allocation[slotIndex] then
-                    for _, alloc in allocation[slotIndex]:Enumerate() do
-                        missing = missing - alloc.quantity
-
-                        local itemID = alloc.reagent.itemID
-                        local reagentAmount = amount
-
-                        if itemID then
-                            if order and order.reagents and Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
-                                reagentAmount = reagentAmount - 1
-                            end
-
-                            if reagentAmount > 0 then
-                                reagents[itemID] = (reagents[itemID] or 0) + reagentAmount * alloc.quantity
-                            end
-                        end
-                    end
-                end
-
-                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
-
-                -- Account for reagents provided by crafter
-                if Orders:IsCreating(order) then
-                    missing = missing - (Orders.creatingProvidedReagents[itemID] or 0)
-                end
-
-                -- Fill up with lowest quality reagents
-                if missing > 0 then
-                    reagents[itemID] = (reagents[itemID] or 0) + amount * missing
-                end
-            end
+        -- Add to missing reagents
+        if required > 0 then
+            missing[itemID] = required
         end
     end
 
-    -- Order reagents provided by others
-
-    for _,orders in pairs(Orders.tracked) do
-        for _,order in pairs(orders) do
-            if Orders:IsCreating(order) then
-                local amount = Recipes:GetTrackedAmount(order)
-                for itemID,quantity in pairs(Orders.creatingProvidedReagents) do
-                    orderReagents[itemID] = (orderReagents[itemID] or 0) + amount * quantity
-                end
-            else
-                for _,reagent in pairs(order.reagents) do
-                    local itemID, quantity = reagent.reagent.itemID, reagent.reagent.quantity
-                    orderReagents[itemID] = (orderReagents[itemID] or 0) + quantity
-                end
-            end
-        end
-    end
-
-    return reagents, orderReagents
+    return reagents, missing, owned, crafted, provided
 end

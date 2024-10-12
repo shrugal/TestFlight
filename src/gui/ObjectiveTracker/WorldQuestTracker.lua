@@ -1,4 +1,4 @@
----@class TestFlight
+---@class Addon
 local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 
@@ -30,3 +30,5 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(WorldQuestTrackerAddon, "RefreshTrackerAnchor", Util:FnBind(self.RefreshTrackerAnchor, self))
 end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
