@@ -1,3 +1,7 @@
+Version 3.11
+
+- Fix error when clicking on reagents in the recipe tracker
+
 Version 3.10
 
 - Added checkbox to toggle order tracking next to the recipe tracking checkbox

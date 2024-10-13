@@ -1,1 +1,1 @@
-- Fix error when clicking on reagents in the recipe tracker
+- Fix changing quality with enabled concentration

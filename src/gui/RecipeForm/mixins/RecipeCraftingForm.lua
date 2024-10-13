@@ -399,13 +399,14 @@ end
 ---@param quality? number
 ---@param exact? boolean
 function Self:SetCraftingFormQuality(quality, exact)
-    if not quality then quality = math.floor(self.form:GetRecipeOperationInfo().quality) end
+    local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
 
-    local recipe, tx = self.form.recipeSchematic, self.form.transaction
-    local applyConcentration = tx:IsApplyingConcentration()
-    local order = self:GetOrder()
-    local optionalReagents, recraftGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
-    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order or recraftGUID)
+    if not quality then quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality end
+
+    local recipe = self.form.recipeSchematic
+    local optionalReagents = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl()
+    local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
+    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
     local qualityAllocation = allocations and (allocations[quality] or not exact and allocations[quality + 1])
 
     if not qualityAllocation then return end
@@ -415,8 +416,10 @@ end
 
 ---@param by number
 function Self:ChangeCraftingFormQualityBy(by)
-    local quality = math.floor(self.form:GetRecipeOperationInfo().quality)
-    self:SetCraftingFormQuality(quality + by, true)
+    local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
+    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
+
+    self:SetCraftingFormQuality(floor(quality) + by, true)
 end
 
 function Self:IsCraftingRecipe()
