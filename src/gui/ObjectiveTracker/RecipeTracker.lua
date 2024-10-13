@@ -22,7 +22,7 @@ function Self:LineOnClick(btn, mouseButton)
         return self.module:OnBlockHeaderClick(block, mouseButton)
     end
 
-    return GUI.ObjectiveTracker.LineOnClick(self, btn, mouseButton)
+    return Parent.LineOnClick(self, btn, mouseButton)
 end
 
 ---@param _ ObjectiveTrackerModuleMixin

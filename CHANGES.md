@@ -1,14 +1,1 @@
-- Added checkbox to toggle order tracking next to the recipe tracking checkbox
-- Show optimization button for crafts without qualities but with quality reagents
-- Allow tracked recipe amounts to go to 0 intead of stopping at 1
-- Track and show result quality in recipe tracker
-- Load optimal allocations for tracked recipes on login
-- Show missing instead of owned reagent count for missing reagents in reagents tracker
-- Show reagents that are outputs of tracked recipes in separate reagents tracker category
-- Handle clicks on crafted reagents in reagents tracker as clicks on the corresponding recipe
-- Set optimal allocation when accepting tracked orders
-- Fix resetting customer provided reagents when disabling experimentation mode in orders form
-- Fix setting allocations for tracked recipes on forms with different order state
-- Fix missing basic reagents when toggling experimentation mode
-- Internal: Major GUI code refactoring
-- Internal: Reworked refresh/update logic to use CallbackRegistry in most cases
+- Fix error when clicking on reagents in the recipe tracker
