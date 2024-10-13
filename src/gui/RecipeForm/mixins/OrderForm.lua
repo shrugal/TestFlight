@@ -61,9 +61,9 @@ function Self:GetAllocation()
 
     if form["GetRecipeOperationInfo"] and order and self:IsClaimableOrder(order) then ---@cast form RecipeCraftingForm
         local tx = form.transaction
-        local recipe, recipeInfo, operationInfo = tx:GetRecipeSchematic(), form.currentRecipeInfo, form:GetRecipeOperationInfo()
-        local optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
-        local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+        local recipe = tx:GetRecipeSchematic()
+        local optionalReagents = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl()
+        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order)
         local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
 
         local allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]

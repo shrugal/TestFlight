@@ -157,36 +157,31 @@ function Self:GetMaxWeight(qualityReagents)
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param optionalReagents? CraftingReagentInfo[]
 ---@param qualityReagents? CraftingReagentSlotSchematic[]
----@param recraftItemGUID? string
----@param order? CraftingOrderInfo
-function Self:GetSkillBounds(recipe, optionalReagents, qualityReagents, recraftItemGUID, order)
+---@param optionalReagents? CraftingReagentInfo[]
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+function Self:GetSkillBounds(recipe, qualityReagents, optionalReagents, orderOrRecraftGUID)
+    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
+
     if not qualityReagents then qualityReagents = self:GetQualityReagents(recipe, order) end
 
     -- Create crafting infos
-    local infos = self:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
+    local reagents = self:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
 
-    -- Get required skill with base and best materials
-    ---@type CraftingOperationInfo?, CraftingOperationInfo?
-    local opBase, opBest
-    if not order then
-        opBase = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, infos, recraftItemGUID, false)
-        for i=1,#qualityReagents do infos[i].itemID = qualityReagents[i].reagents[3].itemID end
-        opBest = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, infos, recraftItemGUID, false)
-    else
-        -- Add order materials
+    -- Add order materials
+    if order then
         for _,reagent in pairs(order.reagents) do
             local schematic = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", reagent.slotIndex)
             if schematic and (self:IsQualityReagent(schematic) or self:IsModifyingReagent(schematic)) then
-                tinsert(infos, reagent.reagent)
+                tinsert(reagents, reagent.reagent)
             end
         end
-
-        opBase = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, infos, order.orderID, false)
-        for i=1,#qualityReagents do infos[i].itemID = qualityReagents[i].reagents[3].itemID end
-        opBest = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, infos, order.orderID, false)
     end
+
+    -- Get required skill with base and best materials
+    local opBase = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
+    for i=1,#qualityReagents do reagents[i].itemID = qualityReagents[i].reagents[3].itemID end
+    local opBest = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
 
     if not opBase or not opBest then return end
 

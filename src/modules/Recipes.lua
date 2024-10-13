@@ -215,17 +215,23 @@ function Self:GetRecipeInfo(recipeOrOrder, isRecraft)
 end
 
 ---@param recipe CraftingRecipeSchematic
+---@param reagents CraftingReagentInfo[]
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+---@param applyConcentration? boolean
+function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcentration)
+    if not applyConcentration then applyConcentration = false end
+
+    if type(orderOrRecraftGUID) == "table" then
+        return C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, reagents, orderOrRecraftGUID.orderID, applyConcentration)
+    else ---@cast orderOrRecraftGUID string?
+        return C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
+    end
+end
+
+---@param recipe CraftingRecipeSchematic
 function Self:LoadAllocation(recipe)
-    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
-    if not recipeInfo then return end
-
-    local qualityReagents = Reagents:GetQualityReagents(recipe)
-    local infos = Reagents:CreateCraftingInfosFromSchematics(qualityReagents)
-    local operationInfo = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, infos, nil, false)
-    if not operationInfo then return end
-
     local quality = self:GetTrackedQuality(recipe) or 1
-    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo)
+    local allocations = Optimization:GetRecipeAllocations(recipe)
     local allocation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
     if not allocation then return end
 

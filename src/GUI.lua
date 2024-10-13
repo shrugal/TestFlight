@@ -102,8 +102,9 @@ function Self:TooltipPostCall(tooltip)
 
     local form = self:GetVisibleForm()
     if not form or not form.form.transaction then return end
-
     local recipe = form:GetRecipe()
+    if not recipe then return end
+
     local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
     local _, maxSkill = Reagents:GetSkillBounds(recipe)
     if not maxSkill or maxSkill == 0 then return end

@@ -88,7 +88,7 @@ end
 function Self:UpdateOptimizationButtons()
     if not Prices:IsSourceInstalled() then return end
 
-    local recipe, recipeInfo, op, tx = self.form.recipeSchematic, self.form.currentRecipeInfo, self.form:GetRecipeOperationInfo(), self.form.transaction
+    local recipe, op, tx = self.form.recipeSchematic, self.form:GetRecipeOperationInfo(), self.form.transaction
     local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
     local order = self:GetOrder()
 
@@ -101,13 +101,12 @@ function Self:UpdateOptimizationButtons()
 
     if not show then return end
 
+    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
     local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
         recipe,
-        recipeInfo,
-        op,
+        floor(quality),
         tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
-        tx:GetRecraftAllocation(),
-        order
+        order or tx:GetRecraftAllocation()
     )
 
     self.decreaseBtn:SetEnabled(canDecrease)
@@ -197,21 +196,24 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
 
     local recipeInfo, tx, order = frame.recipeInfo, frame.transaction, self:GetOrder()
     local recipe = tx:GetRecipeSchematic()
+    local applyConcentration = tx:IsApplyingConcentration()
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
     local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
 
     ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[], string?
-    local allocation, optionalReagents, recraftItemGUID
+    local allocation, optionalReagents, recraftGUID
     if isSalvage then
         allocation = tx:GetSalvageAllocation()
     else
         allocation = tx.allocationTbls
-        optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
+        optionalReagents, recraftGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
     end
 
+    local orderOrRecraftGUID = order or recraftGUID
+
     if isUnclaimedOrder then ---@cast order -?
-        local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
-        local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+        local quality = applyConcentration and order.minQuality - 1 or order.minQuality
+        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order)
         allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
     end
 
@@ -241,7 +243,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, not taking resourcefulness or multicraft into account.")
 
                 if supportsQualities and not isSalvage then
-                    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+                    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
 
                     if allocations then
                         GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -302,7 +304,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
                 if supportsQualities and not isSalvage then
-                    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+                    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
 
                     if allocations then
                         GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -351,7 +353,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
 
                     local noConProfit, conProfit, concentration
                     if order then
-                        local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+                        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
                         if allocations then
                             noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(recipe, operationInfo, allocations, optionalReagents, order)
                         end
@@ -399,10 +401,11 @@ end
 function Self:SetCraftingFormQuality(quality, exact)
     if not quality then quality = math.floor(self.form:GetRecipeOperationInfo().quality) end
 
-    local recipe, recipeInfo, op, tx = self.form.recipeSchematic, self.form.currentRecipeInfo, self.form:GetRecipeOperationInfo(), self.form.transaction
+    local recipe, tx = self.form.recipeSchematic, self.form.transaction
+    local applyConcentration = tx:IsApplyingConcentration()
     local order = self:GetOrder()
-    local optionalReagents, recraftItemGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
-    local allocations = Optimization:GetRecipeAllocations(recipe, recipeInfo, op, optionalReagents, recraftItemGUID, order)
+    local optionalReagents, recraftGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
+    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order or recraftGUID)
     local qualityAllocation = allocations and (allocations[quality] or not exact and allocations[quality + 1])
 
     if not qualityAllocation then return end

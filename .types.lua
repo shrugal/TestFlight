@@ -91,6 +91,7 @@ WorldQuestTrackerScreenPanel = nil
 ---@field GetRecipeSchematic fun(self: self): CraftingRecipeSchematic
 ---@field CreateCraftingReagentInfoTblIf fun(self: self, predicate: function): CraftingReagentInfo[]
 ---@field CreateCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
+---@field CreateRegularReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field CreateOptionalOrFinishingCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field GetAllocationItemGUID fun(self: self): string
 ---@field GetSalvageAllocation fun(self: self): ItemMixin?

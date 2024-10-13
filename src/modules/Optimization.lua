@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Reagents, Prices = Addon.Reagents, Addon.Prices
+local Reagents, Recipes, Prices = Addon.Reagents, Addon.Recipes, Addon.Prices
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -9,15 +9,18 @@ local Self = Addon.Optimization
 --              Crafts
 ---------------------------------------
 
+function Self:GetRecipeAllocationsd()
+
+end
+
 ---@param recipe CraftingRecipeSchematic
----@param recipeInfo TradeSkillRecipeInfo
----@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
----@param recraftItemGUID? string
----@param order CraftingOrderInfo?
-function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+function Self:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
+    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
+
     local qualityReagents = Reagents:GetQualityReagents(recipe, order)
-    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, optionalReagents, qualityReagents, recraftItemGUID, order)
+    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, orderOrRecraftGUID)
 
     if not skillBase then return end
 
@@ -29,6 +32,10 @@ function Self:GetRecipeAllocations(recipe, recipeInfo, operationInfo, optionalRe
 
     local weights, prices = self:GetRecipeWeightsAndPrices(recipe, qualityReagents, order)
     local maxWeight = Reagents:GetMaxWeight(qualityReagents)
+
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID) ---@cast recipeInfo -?
+    local reagents = Reagents:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
+    local operationInfo = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
 
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
     local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
@@ -117,19 +124,23 @@ function Self:GetRecipeWeightsAndPrices(recipe, qualityReagents, order)
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param recipeInfo TradeSkillRecipeInfo
----@param operationInfo CraftingOperationInfo
+---@param quality number
 ---@param optionalReagents? CraftingReagentInfo[]
----@param recraftItemGUID? string
----@param order? CraftingOrderInfo
-function Self:CanChangeCraftQuality(recipe, recipeInfo, operationInfo, optionalReagents, recraftItemGUID, order)
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+function Self:CanChangeCraftQuality(recipe, quality, optionalReagents, orderOrRecraftGUID)
+    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
+
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID) ---@cast recipeInfo -?
     if recipeInfo.maxQuality == 0 then return false, false end
+
+    local qualityReagents = Reagents:GetQualityReagents(recipe, order)
+    local reagents = Reagents:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
+    local operationInfo = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
 
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
     local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
-    local quality = math.floor(operationInfo.quality)
-    local qualityReagents = Reagents:GetQualityReagents(recipe, order)
-    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, optionalReagents, qualityReagents, recraftItemGUID, order)
+
+    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, orderOrRecraftGUID)
     local skillCheapest = skillBest * self:GetCheapestReagentWeight(qualityReagents) / Reagents:GetMaxWeight(qualityReagents)
 
     local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
