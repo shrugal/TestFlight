@@ -5,6 +5,8 @@ local Addon = select(2, ...)
 
 ---@type Util
 Addon.Util = {}
+---@type Async
+Addon.Async = {}
 ---@type Prices
 Addon.Prices = {}
 ---@type Recipes
@@ -45,6 +47,8 @@ Addon.GUI = {
         OrdersForm = {},
         ---@type GUI.RecipeForm.CustomerOrderForm
         CustomerOrderForm = {},
+        ---@type GUI.RecipeForm.OptimizationMethodDropdownMixin
+        OptimizationMethodDropdown = {},
     },
 
     ---@type GUI.CraftingPage
@@ -54,3 +58,5 @@ Addon.GUI = {
     ---@type GUI.ItemFlyout
     ItemFlyout = {}
 }
+
+TestFlight = Addon

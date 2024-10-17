@@ -1,0 +1,29 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+    <Script file="OptimizationMethodDropdownButton.lua" />
+
+    <DropdownButton name="TestFlightOptimizationMethodDropdownButton" mixin="TestFlightOptimizationMethodDropdownButtonMixin" virtual="true">
+        <KeyValues>
+            <KeyValue key="menuPoint" type="string" value="TOPRIGHT"/>
+            <KeyValue key="menuRelativePoint" type="string" value="BOTTOMRIGHT"/>
+        </KeyValues>
+        <Size x="19" y="19"/>
+        <Layers>
+            <Layer>
+                <Texture parentKey="Texture">
+                    <Anchors>
+                        <Anchor point="LEFT" relativePoint="LEFT" x="-2" y="-3"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnEnter method="OnEnter"/>
+            <OnLeave method="OnLeave"/>
+            <OnMouseDown method="OnMouseDown"/>
+            <OnMouseUp method="OnMouseUp"/>
+            <OnEnable method="OnEnable"/>
+            <OnDisable method="OnDisable"/>
+        </Scripts>
+    </DropdownButton>
+</Ui>

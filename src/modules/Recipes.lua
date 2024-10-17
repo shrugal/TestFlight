@@ -6,6 +6,10 @@ local Optimization, Orders, Reagents, Util = Addon.Optimization, Addon.Orders, A
 ---@field Event Recipes.Event
 local Self = Mixin(Addon.Recipes, CallbackRegistryMixin)
 
+-- Profession stat base multipliers
+Self.STAT_BASE_RESOURCEFULNESS = 0.3
+Self.STAT_BASE_MULTICRAFT = 2.5
+
 ---@type table<boolean, RecipeAllocation[]>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
 
@@ -200,6 +204,56 @@ function Self:ClearTrackedByRecipeID(recipeID)
 end
 
 ---------------------------------------
+--              Stats
+---------------------------------------
+
+---@param recipe CraftingRecipeSchematic
+---@param stat "mc" | "rf"
+function Self:GetPerkStats(recipe, stat)
+    local val = 0
+
+    local perks = Addon.PERKS.recipes[recipe.recipeID]
+    if perks then
+        local professionInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
+        local configID = C_ProfSpecs.GetConfigIDForSkillLine(professionInfo.professionID)
+
+        for _,perkID in pairs(perks) do
+            local perk = Addon.PERKS.nodes[perkID]
+            if perk[stat] and C_ProfSpecs.GetStateForPerk(perkID, configID) == Enum.ProfessionsSpecPerkState.Earned then
+                val = val + perk[stat] / 100
+            end
+        end
+    end
+
+    return val
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
+function Self:GetResourcefulnessFactor(recipe, operationInfo)
+    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
+    if not stat then return 0 end
+
+    local chance = stat.ratingPct / 100
+    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetPerkStats(recipe, "rf")
+
+    return chance * yield
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
+function Self:GetMulticraftFactor(recipe, operationInfo)
+    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
+    if not stat then return 0 end
+
+    local chance = stat.ratingPct / 100
+    local baseYield = Addon.MULTICRAFT_YIELD[recipe.quantityMax] or Addon.MULTICRAFT_YIELD[0]
+    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetPerkStats(recipe, "mc"))) / 2
+
+    return chance * yield
+end
+
+---------------------------------------
 --              Util
 ---------------------------------------
 
@@ -231,7 +285,7 @@ end
 ---@param recipe CraftingRecipeSchematic
 function Self:LoadAllocation(recipe)
     local quality = self:GetTrackedQuality(recipe) or 1
-    local allocations = Optimization:GetRecipeAllocations(recipe)
+    local allocations = Optimization:GetRecipeCostAllocations(Addon:CreateOperation(recipe))
     local allocation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
     if not allocation then return end
 
@@ -239,9 +293,7 @@ function Self:LoadAllocation(recipe)
 end
 
 ---@todo Recraft allocations
----@todo Background task queue
 function Self:LoadAllocations()
-    local n = 0
     for i=0,0 do
         local isRecraft = i == 1
         local tracked = C_TradeSkillUI.GetRecipesTracked(isRecraft)
@@ -251,8 +303,7 @@ function Self:LoadAllocations()
             local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQualityReagent, false, Reagents)
 
             if hasQualityReagents then
-                C_Timer.After(n * 0.2, function () self:LoadAllocation(recipe) end)
-                n = n + 1
+                Addon.Async:Create(Util:FnBind(self.LoadAllocation, self, recipe))
             end
         end
     end

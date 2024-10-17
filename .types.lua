@@ -19,6 +19,8 @@
 ---                   Globals                      --
 -----------------------------------------------------
 
+ipairs_reverse = ipairs
+
 ---@class DevTool
 ---@field AddData fun(self: DevTool, data: any, name?: string)
 DevTool = nil
@@ -68,6 +70,8 @@ WorldQuestTrackerScreenPanel = nil
 ---@field SetTextToFit fun(self: self, text?: string)
 ---@field FitToText fun(self: self)
 
+---@class DropdownButton: Button, DropdownButtonMixin
+
 ---@class FramePool
 ---@field Acquire fun(self: self): Frame
 ---@field Release fun(self: self, widget: Frame)
@@ -92,6 +96,7 @@ WorldQuestTrackerScreenPanel = nil
 ---@field CreateCraftingReagentInfoTblIf fun(self: self, predicate: function): CraftingReagentInfo[]
 ---@field CreateCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field CreateRegularReagentInfoTbl fun(self: self): CraftingReagentInfo[]
+---@field CreateOptionalCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field CreateOptionalOrFinishingCraftingReagentInfoTbl fun(self: self): CraftingReagentInfo[]
 ---@field GetAllocationItemGUID fun(self: self): string
 ---@field GetSalvageAllocation fun(self: self): ItemMixin?
@@ -128,6 +133,11 @@ WorldQuestTrackerScreenPanel = nil
 ---@class ProfessionTransactionAllocation
 ---@field reagent CraftingReagent
 ---@field quantity number
+---@field GetQuantity fun(self: self): number
+---@field SetQuantity fun(self: self, quantity: number)
+---@field GetReagent fun(self: self): CraftingReagent
+---@field SetReagent fun(self: self, reagent: CraftingReagent)
+---@field MatchesReagent fun(self: self, reagent: CraftingReagent): boolean
 
 ---@class ProfessionAllocations
 
@@ -339,21 +349,199 @@ ProfessionsRecipeSchematicFormMixin = {
 ---            WoW Templates & Mixins              --
 -----------------------------------------------------
 
+---@class MenuMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field GetLevel fun(self: self, ...: unknown): unknown
+---@field SetClosedCallback fun(self: self, ...: unknown): unknown
+---@field SetMenuDescription fun(self: self, ...: unknown): unknown
+---@field Open fun(self: self, ...: unknown): unknown
+---@field MeasureFrameExtents fun(self: self, ...: unknown): unknown
+---@field PerformLayout fun(self: self, ...: unknown): unknown
+---@field FlipPositionIfOffscreen fun(self: self, ...: unknown): unknown
+---@field ReinitializeAll fun(self: self, ...: unknown): unknown
+---@field DiscardChildFrames fun(self: self, ...: unknown): unknown
+---@field Close fun(self: self, ...: unknown): unknown
+---@field SendResponse fun(self: self, ...: unknown): unknown
+---@field ForceOpenSubmenu fun(self: self, ...: unknown): unknown
+
+---@class BaseMenuDescriptionMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field GetMenuMixin fun(self: self, ...: unknown): unknown
+---@field SetScrollMode fun(self: self, ...: unknown): unknown
+---@field SetGridMode fun(self: self, ...: unknown): unknown
+---@field HasGridLayout fun(self: self, ...: unknown): unknown
+---@field IsScrollable fun(self: self, ...: unknown): unknown
+---@field GetMaxScrollExtent fun(self: self, ...: unknown): unknown
+---@field GetGridDirection fun(self: self, ...: unknown): unknown
+---@field GetGridColumns fun(self: self, ...: unknown): unknown
+---@field GetGridPadding fun(self: self, ...: unknown): unknown
+---@field GetCompactionMargin fun(self: self, ...: unknown): unknown
+---@field GetPadding fun(self: self, ...: unknown): unknown
+---@field GetMinimumWidth fun(self: self, ...: unknown): unknown
+---@field SetMinimumWidth fun(self: self, ...: unknown): unknown
+---@field GetMaximumWidth fun(self: self, ...: unknown): unknown
+---@field SetMaximumWidth fun(self: self, ...: unknown): unknown
+---@field IsSubmenuDeactivated fun(self: self, ...: unknown): unknown
+---@field DeactivateSubmenu fun(self: self, ...: unknown): unknown
+---@field SetSharedMenuProperties fun(self: self, ...: unknown): unknown
+---@field GetSharedMenuProperties fun(self: self, ...: unknown): unknown
+---@field GetMenuResponseCallbacks fun(self: self, ...: unknown): unknown
+---@field GetMenuChangedCallbacks fun(self: self, ...: unknown): unknown
+---@field GetMenuAcquiredCallbacks fun(self: self, ...: unknown): unknown
+---@field GetMenuReleasedCallbacks fun(self: self, ...: unknown): unknown
+---@field IsCompositorEnabled fun(self: self, ...: unknown): unknown
+---@field DisableCompositor fun(self: self, ...: unknown): unknown
+---@field CanReacquireFrames fun(self: self, ...: unknown): unknown
+---@field DisableReacquireFrames fun(self: self, ...: unknown): unknown
+---@field HasElements fun(self: self, ...: unknown): unknown
+---@field CanOpenSubmenu fun(self: self, ...: unknown): unknown
+---@field EnumerateElementDescriptions fun(self: self, ...: unknown): unknown
+---@field Insert fun(self: self, ...: unknown): unknown
+---@field GetInitializers fun(self: self, ...: unknown): unknown
+---@field AddInitializer fun(self: self, ...: unknown): unknown
+---@field SetFinalInitializer fun(self: self, ...: unknown): unknown
+---@field GetFinalInitializer fun(self: self, ...: unknown): unknown
+---@field CreateFrame fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateTemplate fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateButton fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateTitle fun(self: self, text: string, color?: ColorMixin): MenuElementDescriptionMixin
+---@field CreateCheckbox fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateRadio fun(self: self, text: string, isSelected: function, setSelected: function, contextData?: any): MenuElementDescriptionMixin
+---@field CreateDivider fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateSpacer fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field CreateColorSwatch fun(self: self, ...: unknown): MenuElementDescriptionMixin
+---@field SetTooltip fun(self: self, ...: unknown): unknown
+---@field SetTitleAndTextTooltip fun(self: self, ...: unknown): unknown
+---@field QueueTitle fun(self: self, ...: unknown): unknown
+---@field QueueDivider fun(self: self, ...: unknown): unknown
+---@field QueueSpacer fun(self: self, ...: unknown): unknown
+
+---@class RootMenuDescriptionMixin: BaseMenuDescriptionMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field AddMenuResponseCallback fun(self: self, ...: unknown): unknown
+---@field AddMenuChangedCallback fun(self: self, ...: unknown): unknown
+---@field AddMenuAcquiredCallback fun(self: self, ...: unknown): unknown
+---@field AddMenuReleasedCallback fun(self: self, ...: unknown): unknown
+---@field GetTag fun(self: self): string?, any?
+---@field SetTag fun(self: self, tag: string, contextData?: any)
+---@field ClearQueuedDescriptions fun(self: self, ...: unknown): unknown
+---@field AddQueuedDescription fun(self: self, ...: unknown): unknown
+---@field Insert fun(self: self, ...: unknown): unknown
+---@field EnumerateElementDescriptions fun(self: self, ...: unknown): unknown
+
+---@class MenuElementDescriptionMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field CallFactory fun(self: self, ...: unknown): unknown
+---@field SetElementFactory fun(self: self, ...: unknown): unknown
+---@field SetFinalizeGridLayout fun(self: self, ...: unknown): unknown
+---@field SendResponseToMenu fun(self: self, ...: unknown): unknown
+---@field ForceOpenSubmenu fun(self: self, ...: unknown): unknown
+---@field SetRadio fun(self: self, ...: unknown): unknown
+---@field IsRadio fun(self: self, ...: unknown): unknown
+---@field SetIsSelected fun(self: self, ...: unknown): unknown
+---@field IsSelected fun(self: self, ...: unknown): unknown
+---@field SetCanSelect fun(self: self, ...: unknown): unknown
+---@field CanSelect fun(self: self, ...: unknown): unknown
+---@field SetSelectionIgnored fun(self: self, ...: unknown): unknown
+---@field IsSelectionIgnored fun(self: self, ...: unknown): unknown
+---@field SetSoundKit fun(self: self, ...: unknown): unknown
+---@field GetSoundKit fun(self: self, ...: unknown): unknown
+---@field SetShouldRespondIfSubmenu fun(self: self, ...: unknown): unknown
+---@field ShouldRespondIfSubmenu fun(self: self, ...: unknown): unknown
+---@field SetShouldPlaySoundOnSubmenuClick fun(self: self, ...: unknown): unknown
+---@field ShouldPlaySoundOnSubmenuClick fun(self: self, ...: unknown): unknown
+---@field SetOnEnter fun(self: self, ...: unknown): unknown
+---@field HookOnEnter fun(self: self, ...: unknown): unknown
+---@field GetOnEnter fun(self: self, ...: unknown): unknown
+---@field HandleOnEnter fun(self: self, ...: unknown): unknown
+---@field SetOnLeave fun(self: self, ...: unknown): unknown
+---@field HookOnLeave fun(self: self, ...: unknown): unknown
+---@field GetOnLeave fun(self: self, ...: unknown): unknown
+---@field HandleOnLeave fun(self: self, ...: unknown): unknown
+---@field SetEnabled fun(self: self, ...: unknown): unknown
+---@field IsEnabled fun(self: self, ...: unknown): unknown
+---@field ShouldPollEnabled fun(self: self, ...: unknown): unknown
+---@field SetData fun(self: self, ...: unknown): unknown
+---@field GetData fun(self: self, ...: unknown): unknown
+---@field SetResponder fun(self: self, ...: unknown): unknown
+---@field HookResponder fun(self: self, ...: unknown): unknown
+---@field SetResponse fun(self: self, ...: unknown): unknown
+---@field GetDefaultResponse fun(self: self, ...: unknown): unknown
+---@field Pick fun(self: self, ...: unknown): unknown
+---@field HasElements fun(self: self, ...: unknown): unknown
+---@field AddInitializer fun(self: self, ...: unknown): unknown
+---@field SetFinalInitializer fun(self: self, ...: unknown): unknown
+---@field SetMinimumWidth fun(self: self, ...: unknown): unknown
+---@field GetMinimumWidth fun(self: self, ...: unknown): unknown
+---@field SetMaximumWidth fun(self: self, ...: unknown): unknown
+---@field SetGridMode fun(self: self, ...: unknown): unknown
+---@field SetScrollMode fun(self: self, ...: unknown): unknown
+
+---@class DropdownButtonMixin
+---@field OpenMenu fun(self: self, ...: unknown): unknown
+---@field CloseMenu fun(self: self, ...: unknown): unknown
+---@field SetMenuOpen fun(self: self, ...: unknown): unknown
+---@field SetMenuAnchor fun(self: self, ...: unknown): unknown
+---@field HandlesGlobalMouseEvent fun(self: self, ...: unknown): unknown
+---@field RegisterMenu fun(self: self, ...: unknown): unknown
+---@field ClearMenuState fun(self: self, ...: unknown): unknown
+---@field GetMenuDescription fun(self: self, ...: unknown): unknown
+---@field HasElements fun(self: self, ...: unknown): unknown
+---@field SetupMenu fun(self: self, generator: fun(dropdown: self, rootDescription: RootMenuDescriptionMixin))
+---@field GenerateMenu fun(self: self, ...: unknown): unknown
+---@field CreateDefaultRootMenuDescription fun(self: self, ...: unknown): unknown
+---@field CreateRootDescription fun(self: self, ...: unknown): unknown
+---@field IsMenuOpen fun(self: self, ...: unknown): unknown
+---@field SignalUpdate fun(self: self, ...: unknown): unknown
+---@field OnMenuResponse fun(self: self, ...: unknown): unknown
+---@field EnableRegenerateOnResponse fun(self: self, ...: unknown): unknown
+---@field OnMenuAssigned fun(self: self, ...: unknown): unknown
+---@field OnMenuChanged fun(self: self, ...: unknown): unknown
+---@field OnMenuOpened fun(self: self, ...: unknown): unknown
+---@field OnMenuClosed fun(self: self, ...: unknown): unknown
+---@field UpdateSelections fun(self: self, ...: unknown): unknown
+---@field Update fun(self: self, ...: unknown): unknown
+---@field UpdateToMenuSelections fun(self: self, ...: unknown): unknown
+---@field Pick fun(self: self, ...: unknown): unknown
+---@field Rotate fun(self: self, ...: unknown): unknown
+---@field Increment fun(self: self, ...: unknown): unknown
+---@field Decrement fun(self: self, ...: unknown): unknown
+---@field CollectSelectionData fun(self: self, ...: unknown): unknown
+---@field GetSelectionData fun(self: self, ...: unknown): unknown
+---@field HasStickyFocus fun(self: self, ...: unknown): unknown
+
+---@class ButtonStateBehaviorMixin
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field SetDisplacedRegions fun(self: self, ...: unknown): unknown
+---@field DesaturateIfDisabled fun(self: self, ...: unknown): unknown
+---@field OnButtonStateChanged fun(self: self, ...: unknown): unknown
+---@field IsDownOver fun(self: self, ...: unknown): unknown
+---@field IsDown fun(self: self, ...: unknown): unknown
+---@field IsOver fun(self: self, ...: unknown): unknown
+---@field OnEnter fun(self: self, ...: unknown): unknown
+---@field OnLeave fun(self: self, ...: unknown): unknown
+---@field OnMouseDown fun(self: self, ...: unknown): unknown
+---@field OnMouseUp fun(self: self, ...: unknown): unknown
+---@field OnEnable fun(self: self, ...: unknown): unknown
+---@field OnDisable fun(self: self, ...: unknown): unknown
+ButtonStateBehaviorMixin = nil
+
 ---@class CallbackRegistryMixin
 ---@field OnLoad fun(self: self)
 
 ---@class DirtiableMixin
 ---@field SetDirtyMethod fun(self: self, method: function)
 ---@field MarkDirty fun(self: self)
+DirtiableMixin = nil
 
 ---@class ObjectiveTrackerContainerMixin
 ---@field modules ObjectiveTrackerModuleMixin[]
 ---@field topModulePadding number
 ---@field moduleSpacing number
----@field OnSizeChanged fun(self: self): unknown
----@field OnShow fun(self: self): unknown
+---@field OnSizeChanged fun(self: self, ...: unknown): unknown
+---@field OnShow fun(self: self, ...: unknown): unknown
 ---@field OnAdded fun(self: self, backgroundAlpha): unknown
----@field Init fun(self: self): unknown
+---@field Init fun(self: self, ...: unknown): unknown
 ---@field GetAvailableHeight fun(self: self): number
 ---@field Update fun(self: self, dirtyUpdate): unknown
 ---@field AddModule fun(self: self, module): unknown
@@ -361,12 +549,13 @@ ProfessionsRecipeSchematicFormMixin = {
 ---@field HasModule fun(self: self, module): unknown
 ---@field GetHeightToModule fun(self: self, targetModule): unknown
 ---@field SetBackgroundAlpha fun(self: self, alpha): unknown
----@field ToggleCollapsed fun(self: self): unknown
+---@field ToggleCollapsed fun(self: self, ...: unknown): unknown
 ---@field SetCollapsed fun(self: self, collapsed): unknown
----@field IsCollapsed fun(self: self): unknown
----@field UpdateHeight fun(self: self): unknown
----@field ForceExpand fun(self: self): unknown
+---@field IsCollapsed fun(self: self, ...: unknown): unknown
+---@field UpdateHeight fun(self: self, ...: unknown): unknown
+---@field ForceExpand fun(self: self, ...: unknown): unknown
 ---@field ForEachModule fun(self: self, callback): unknown
+ObjectiveTrackerContainerMixin = nil
 
 ---@class ObjectiveTrackerSlidingMixin
 ---@field IsSliding fun(self: self, ...: unknown): unknown
@@ -376,6 +565,7 @@ ProfessionsRecipeSchematicFormMixin = {
 ---@field EndSlide fun(self: self, ...: unknown): unknown
 ---@field AdjustSlideAnchor fun(self: self, ...: unknown): unknown
 ---@field OnEndSlide fun(self: self, ...: unknown): unknown
+ObjectiveTrackerSlidingMixin = nil
 
 ---@class ObjectiveTrackerModuleMixin: ObjectiveTrackerSlidingMixin
 ---@field isModule boolean
@@ -473,6 +663,7 @@ ProfessionsRecipeSchematicFormMixin = {
 ---@field RemoveBlockFromCache fun(self: self, ...: unknown): unknown
 ---@field UpdateCachedOrderList fun(self: self, ...: unknown): unknown
 ---@field CheckCachedBlocks fun(self: self, ...: unknown): unknown
+ObjectiveTrackerModuleMixin = nil
 
 ---@class ObjectiveTrackerBlock: Frame
 ---@field height number

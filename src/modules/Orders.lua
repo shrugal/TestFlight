@@ -141,18 +141,6 @@ function Self:UpdateCreatingReagents()
 end
 
 ---------------------------------------
---              Util
----------------------------------------
-
----@param order CraftingOrderInfo | number
----@return number, boolean
-function Self:GetOrderInfo(order)
-    local orderID = type(order) == "number" and order or order.orderID
-    local isRecraft = type(order) == "table" and order.isRecraft or false
-    return orderID, isRecraft
-end
-
----------------------------------------
 --              Events
 ---------------------------------------
 

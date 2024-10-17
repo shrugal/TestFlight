@@ -9,6 +9,17 @@ Addon.QUALITY_BREAKPOINTS = {
 }
 
 -- Source: CraftSim
+Addon.RESOURCEFULNESS_YIELD = 0.3
+
+-- Source: CraftSim
+Addon.MULTICRAFT_YIELD = {
+    [0] = 2.5,
+    [1] = 2.1,
+    [2] = 1.83,
+    [5] = 1.875,
+}
+
+-- Source: CraftSim
 ---@type table<number, number>
 Addon.REAGENTS = {
     [188658] = 10,

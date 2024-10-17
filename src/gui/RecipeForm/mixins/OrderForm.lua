@@ -1,8 +1,8 @@
 ---@class Addon
 local Addon = select(2, ...)
 local GUI, Optimization, Orders, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Recipes, Addon.Util
-
 local NS = GUI.RecipeForm
+
 local Parent = NS.RecipeForm
 
 ---@class GUI.RecipeForm.OrderForm: GUI.RecipeForm.RecipeForm
@@ -62,12 +62,11 @@ function Self:GetAllocation()
     if form["GetRecipeOperationInfo"] and order and self:IsClaimableOrder(order) then ---@cast form RecipeCraftingForm
         local tx = form.transaction
         local recipe = tx:GetRecipeSchematic()
-        local optionalReagents = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl()
-        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order)
+        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx)
         local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
 
-        local allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
-        if allocation then return allocation end
+        local operation = operations and operations[math.max(quality, Util:TblMinKey(operations))]
+        if operation then return operation.allocation end
     end
 
     return Parent.GetAllocation(self)

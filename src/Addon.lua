@@ -35,9 +35,11 @@ Self.extraSkill = 0
 
 ---@param value number
 function Self:SetExtraSkill(value)
+    value = max(0, value)
+
     if self.extraSkill == value then return end
 
-    self.extraSkill = max(0, value)
+    self.extraSkill = value
 
     self:TriggerEvent(self.Event.ExtraSkillUpdated)
 end
@@ -103,13 +105,13 @@ Self.DEBUG = false
 Self.DEBUG = true
 --@end-do-not-package@
 
-if Self.DEBUG then TestFlight = Self end
-
 ---@param data any
 ---@param name? string
 function Self:Debug(data, name)
     if not DevTool or not self.DEBUG then return end
-    DevTool:AddData(data or "nil", name or "---")
+    if data == false then data = "false" end
+    if data == nil then data = "nil" end
+    DevTool:AddData(data, name or "---")
 end
 
 ---@param msg string

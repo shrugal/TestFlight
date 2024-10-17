@@ -23,10 +23,12 @@ Self.forms = {
 --             Elements
 ---------------------------------------
 
----@param frameType FrameType
+---@generic T
+---@param frameType `T`
 ---@param parent? Frame
 ---@param template? string
 ---@param onEnter? function
+---@return T
 function Self:InsertElement(frameType, parent, template, onEnter, ...)
     local input = CreateFrame(frameType, nil, parent, template)
 

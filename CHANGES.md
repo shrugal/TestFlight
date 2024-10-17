@@ -1,1 +1,7 @@
-- Fix changing quality with enabled concentration
+- Added ability to optimize for profit and profit per concentration, incl. most finishing reagents
+- Added dropdown to select optimization target next to optimize buttons
+- Optimization is now asynchronous, to not drop frames
+- Optimize buttons are now disabled during optimization
+- Made addon data available via global "TestFlight" variable
+- Fix changing quality while applying concentration
+- Internal: Major optimization code refactoring

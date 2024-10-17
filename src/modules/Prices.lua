@@ -2,15 +2,11 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local Reagents, Util = Addon.Reagents, Addon.Util
+local Reagents, Recipes, Util = Addon.Reagents, Addon.Recipes, Addon.Util
 
 
 ---@class Prices
 local Self = Addon.Prices
-
--- Profession stat base multipliers
-Self.STAT_BASE_RESOURCEFULNESS = 0.3
-Self.STAT_BASE_MULTICRAFT = 2.5
 
 -- Sell location cuts
 Self.CUT_AUCTION_HOUSE = 0.05
@@ -174,7 +170,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, optionalReagen
             end
         elseif optionalReagents and not (allocation and allocation[reagent.slotIndex]) then
             -- Add optional
-            local optionalReagent = Util:TblWhere(optionalReagents, "dataSlotIndex", reagent.dataSlotIndex, "itemID", reagent.reagents[1])
+            local optionalReagent = Util:TblWhere(optionalReagents, "dataSlotIndex", reagent.dataSlotIndex)
 
             if optionalReagent then
                 local quantity = optionalReagent.quantity
@@ -276,27 +272,19 @@ function Self:GetConcentrationValue(recipe, operationInfo, allocation, optionalR
     return noConProfit, conProfit, operationInfo.concentrationCost
 end
 
----@param recipe CraftingRecipeSchematic
----@param operationInfo CraftingOperationInfo
----@param allocations RecipeAllocation[]
----@param optionalReagents? CraftingReagentInfo[]
+---@param operations Operation[]
 ---@param order CraftingOrderInfo
 ---@return number? noConProfit
 ---@return number? conProfit
 ---@return number? concentration
-function Self:GetConcentrationValueForOrder(recipe, operationInfo, allocations, optionalReagents, order)
-    local noConAllocation, conAllocation = allocations[order.minQuality], allocations[order.minQuality - 1]
+function Self:GetConcentrationValueForOrder(operations, order)
+    local noConOperation, conOperation = operations[order.minQuality], operations[order.minQuality - 1]
 
-    if not conAllocation then return end
+    if not conOperation then return end
 
-    local conInfos = Reagents:CreateCraftingInfosFromAllocation(recipe, conAllocation, optionalReagents)
-    local conOp = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, conInfos, order.orderID, false)
-
-    if not conOp then return end
-
-    local noConProfit = noConAllocation and select(3, self:GetRecipePrices(recipe, operationInfo, noConAllocation, order, optionalReagents))
-    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, conAllocation, order, optionalReagents))
-    local concentration = conOp.concentrationCost
+    local noConProfit = noConOperation and noConOperation:GetProfit()
+    local conProfit = conOperation:GetProfit()
+    local concentration = conOperation:GetOperationInfo().concentrationCost
 
     return noConProfit, conProfit, concentration
 end
@@ -307,54 +295,28 @@ end
 ---@param reagentPrice number
 ---@param order? CraftingOrderInfo
 ---@param optionalReagents? CraftingReagentInfo[]
----@return number
+---@return number value
 function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
-    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
-    if not stat then return 0 end
-
-    local chance = stat.ratingPct / 100
-    local yield = self.STAT_BASE_RESOURCEFULNESS + self:GetRecipePerkStats(recipe, "rf")
+    local factor = Recipes:GetResourcefulnessFactor(recipe, operationInfo)
+    if factor == 0 then return 0 end
 
     if order and order.reagentState ~= Enum.CraftingOrderReagentsType.None then
         reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, nil, optionalReagents)
     end
 
-    return reagentPrice * chance * yield
+    return reagentPrice * factor
 end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
 ---@param resultPrice number
 function Self:GetMulticraftValue(recipe, operationInfo, resultPrice)
-    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
-    if not stat then return 0 end
+    local factor = Recipes:GetMulticraftFactor(recipe, operationInfo)
+    if factor == 0 then return 0 end
 
     local itemPrice = resultPrice * 2 / (recipe.quantityMax + recipe.quantityMin)
-    local chance = stat.ratingPct / 100
-    local yield = (1 + self.STAT_BASE_MULTICRAFT * recipe.quantityMax * (1 + self:GetRecipePerkStats(recipe, "mc"))) / 2
 
-    return (1 - self.CUT_AUCTION_HOUSE) * itemPrice * chance * yield
-end
-
----@param recipe CraftingRecipeSchematic
----@param stat "mc" | "rf"
-function Self:GetRecipePerkStats(recipe, stat)
-    local val = 0
-
-    local perks = Addon.PERKS.recipes[recipe.recipeID]
-    if perks then
-        local professionInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
-        local configID = C_ProfSpecs.GetConfigIDForSkillLine(professionInfo.professionID)
-
-        for _,perkID in pairs(perks) do
-            local perk = Addon.PERKS.nodes[perkID]
-            if perk[stat] and C_ProfSpecs.GetStateForPerk(perkID, configID) == Enum.ProfessionsSpecPerkState.Earned then
-                val = val + perk[stat] / 100
-            end
-        end
-    end
-
-    return val
+    return (1 - self.CUT_AUCTION_HOUSE) * itemPrice * factor
 end
 
 ---------------------------------------
@@ -383,4 +345,15 @@ function Self:GetReagentPrices(reagent)
 
     local r1, r2, r3 = unpack(reagent.reagents)
     return self:GetReagentPrice(r1), self:GetReagentPrice(r2), self:GetReagentPrice(r3)
+end
+
+---@param reagents CraftingReagentInfo[]
+function Self:GetReagentsPrice(reagents)
+    local price = 0
+
+    for _,reagent in pairs(reagents) do
+        price = price + self:GetReagentPrice(reagent) * reagent.quantity
+    end
+
+    return price
 end

@@ -12,14 +12,18 @@ src/Data.lua
 src/Util.lua
 src/Addon.lua
 
+src/mixins/Promise.lua
 src/mixins/Allocations.lua
 src/mixins/Cache.lua
+src/mixins/Operation.lua
 
+src/modules/Async.lua
 src/modules/Recipes.lua
 src/modules/Reagents.lua
 src/modules/Orders.lua
 src/modules/Prices.lua
 src/modules/Optimization.lua
+src/modules/GUI.lua
 
 src/gui/ItemFlyout.lua
 src/gui/CraftingPage.lua
@@ -30,15 +34,15 @@ src/gui/ObjectiveTracker/RecipeTracker.lua
 src/gui/ObjectiveTracker/ReagentsTracker.lua
 src/gui/ObjectiveTracker/WorldQuestTracker.lua
 
+src/gui/RecipeForm/frames/OptimizationMethodDropdownButton.xml
 src/gui/RecipeForm/mixins/RecipeForm.lua
 src/gui/RecipeForm/mixins/RecipeCraftingForm.lua
 src/gui/RecipeForm/mixins/AmountForm.lua
 src/gui/RecipeForm/mixins/OrderForm.lua
+
 src/gui/RecipeForm/CraftingForm.lua
 src/gui/RecipeForm/OrdersForm.lua
 src/gui/RecipeForm/CustomerOrderForm.lua
-
-src/GUI.lua
 
 #@do-not-package@
 ## Version: 0-dev0

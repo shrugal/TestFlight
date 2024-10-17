@@ -109,6 +109,13 @@ function Self:TblPush(tbl, ...)
     return tbl
 end
 
+---@param tbl table
+---@param ... any
+---@return table
+function Self:TblFill(tbl, ...)
+    return self:TblPush(wipe(tbl), ...)
+end
+
 ---@generic T
 ---@param tbl T[]
 ---@param ... T[]
@@ -206,6 +213,16 @@ function Self:TblFilterWhere(tbl, ...)
         if self:TblMatch(v, ...) then tinsert(t, v) end
     end
     return t
+end
+
+---@generic T
+---@param tbl T[] | Enumerator<T>
+---@param ... any
+---@return any?, T?
+function Self:TblFindWhere(tbl, ...)
+    for k,v in self:IEach(tbl) do
+        if self:TblMatch(v, ...) then return k, v end
+    end
 end
 
 ---@generic T, R, S: table
@@ -490,6 +507,8 @@ function Self.FnFalse() return false end
 
 function Self.FnTrue() return true end
 
+function Self.FnId(...) return ... end
+
 function Self.FnNoop() end
 
 ---@generic T, R, S: table
@@ -523,20 +542,60 @@ function Self:FnCompareBy(by)
 end
 
 ---@param fn function
----@param obj table
-function Self:FnBind(fn, obj)
-    return function (...) return fn(obj, ...) end
+---@param ... any
+---@return function
+function Self:FnBind(fn, ...)
+    return GenerateClosure(fn, ...)
 end
 
 ---@generic T: function
----@vararg T[]
+---@param fns T[] | T
+---@vararg T
 ---@return T
-function Self:FnCombine(fns)
+function Self:FnCombine(fns, ...)
+    if type(fns) == "function" then fns = { fns, ... } end
+
     local n = #fns
     if n == 1 then return fns[1] end
+
     return function (...)
         for i,fn in ipairs(fns) do
             if i < n then fn(...) else return fn(...) end
+        end
+    end
+end
+
+---@param fns function[] | function
+---@vararg function
+---@return function
+function Self:FnCompose(fns, ...)
+    if type(fns) == "function" then fns = { fns, ... } end
+
+    local n = #fns
+    if n == 1 then return fns[1] end
+
+    return function (...)
+        local args = {...}
+        for _,fn in ipairs(fns) do
+            self:TblFill(args, fn(unpack(args)))
+        end
+        return unpack(args)
+    end
+end
+
+---@param fn function
+---@param onSuccess? function
+---@param onFailure? function
+function Self:FnSafe(fn, onSuccess, onFailure)
+    if not onSuccess then onSuccess = Self.FnId end
+    local result = {}
+    return function(...)
+        self:TblFill(result, pcall(fn, ...))
+        if result[1] then
+            return onSuccess(unpack(result, 2))
+        elseif onFailure then
+            Addon:Debug({unpack(result, 2)}, "onFailure")
+            return onFailure(unpack(result, 2))
         end
     end
 end

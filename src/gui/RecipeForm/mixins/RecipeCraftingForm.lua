@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local Async, GUI, Optimization, Orders, Prices, Recipes, Util = Addon.Async, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = NS.RecipeForm
@@ -11,7 +11,11 @@ local Parent = NS.RecipeForm
 ---@field decreaseBtn ButtonFitToText
 ---@field optimizeBtn ButtonFitToText
 ---@field increaseBtn ButtonFitToText
+---@field optimizationMethodBtn GUI.RecipeForm.OptimizationMethodDropdown
+---@field optimizationMethod Optimization.Method
 local Self = Mixin(NS.RecipeCraftingForm, Parent)
+
+Self.optimizationMethod = Optimization.Method.Cost
 
 function Self:GetTrackCheckbox()
     return self.form.TrackRecipeCheckbox
@@ -76,17 +80,21 @@ end
 function Self:InsertOptimizationButtons(parent, ...)
     if not Prices:IsSourceInstalled() then return end
 
-    self.decreaseBtn = GUI:InsertButton("<",   	 parent, nil, Util:FnBind(self.DecreaseQualityButtonOnClick, self), ...)
-    self.optimizeBtn = GUI:InsertButton("Optimize", parent, nil, Util:FnBind(self.OptimizeQualityButtonOnClick, self), "LEFT", self.decreaseBtn, "RIGHT", 30)
-    self.increaseBtn = GUI:InsertButton(">",        parent, nil, Util:FnBind(self.IncreaseQualityButtonOnClick, self), "LEFT", self.optimizeBtn, "RIGHT", 30)
+    self.decreaseBtn = GUI:InsertButton("<",   	    parent, nil, Util:FnBind(self.DecreaseQualityButtonOnClick, self), ...)
+    self.optimizeBtn = GUI:InsertButton("Optimize", parent, nil, Util:FnBind(self.OptimizeQualityButtonOnClick, self), "LEFT", self.decreaseBtn, "RIGHT")
+    self.increaseBtn = GUI:InsertButton(">",        parent, nil, Util:FnBind(self.IncreaseQualityButtonOnClick, self), "LEFT", self.optimizeBtn, "RIGHT")
 
     self.decreaseBtn.tooltipText = "Decrease quality"
     self.optimizeBtn.tooltipText = "Optimize for current quality"
     self.increaseBtn.tooltipText = "Increase quality"
+
+    self.optimizationMethodBtn = GUI:InsertElement("DropdownButton", parent, "TestFlightOptimizationMethodDropdownButton", nil, "LEFT", self.increaseBtn, "RIGHT", 5, 0) --[[@as GUI.RecipeForm.OptimizationMethodDropdown]]
+    self.optimizationMethodBtn.form = self
 end
 
 function Self:UpdateOptimizationButtons()
     if not Prices:IsSourceInstalled() then return end
+    if self.isOptimizing then return end
 
     local recipe, op, tx = self.form.recipeSchematic, self.form:GetRecipeOperationInfo(), self.form.transaction
     local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
@@ -98,6 +106,7 @@ function Self:UpdateOptimizationButtons()
     self.decreaseBtn:SetShown(show)
     self.optimizeBtn:SetShown(show)
     self.increaseBtn:SetShown(show)
+    self.optimizationMethodBtn:SetShown(show)
 
     if not show then return end
 
@@ -111,6 +120,11 @@ function Self:UpdateOptimizationButtons()
 
     self.decreaseBtn:SetEnabled(canDecrease)
     self.increaseBtn:SetEnabled(canIncrease)
+end
+
+---@param method Optimization.Method
+function Self:SetOptimizationMethod(method)
+    self.optimizationMethod = method
 end
 
 ---------------------------------------
@@ -213,8 +227,9 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
 
     if isUnclaimedOrder then ---@cast order -?
         local quality = applyConcentration and order.minQuality - 1 or order.minQuality
-        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, order)
-        allocation = allocations and allocations[math.max(quality, Util:TblMinKey(allocations))]
+        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, order)
+        local operation = operations and operations[math.max(quality, Util:TblMinKey(operations))]
+        allocation = operation and operation.allocation
     end
 
     ---@type string?, number?, number?, number?, number?, number?, number?, number?
@@ -243,17 +258,17 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, not taking resourcefulness or multicraft into account.")
 
                 if supportsQualities and not isSalvage then
-                    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
+                    local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
 
-                    if allocations then
+                    if operations then
                         GameTooltip_AddBlankLineToTooltip(GameTooltip)
                         GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
 
                         for i=1,5 do
-                            local qualityAllocation = allocations[i]
-                            if qualityAllocation then
+                            local qualityOperation = operations[i]
+                            if qualityOperation then
                                 local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                                local qualityPrice = Prices:GetRecipeAllocationPrice(recipe, qualityAllocation, order, optionalReagents)
+                                local qualityPrice = qualityOperation:GetReagentPrice()
                                 local qualityPriceStr = Util:NumCurrencyString(qualityPrice)
 
                                 GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
@@ -304,17 +319,17 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
                 if supportsQualities and not isSalvage then
-                    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
+                    local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
 
-                    if allocations then
+                    if operations then
                         GameTooltip_AddBlankLineToTooltip(GameTooltip)
                         GameTooltip_AddNormalLine(GameTooltip, "Optimal profits:")
 
                         for i=1,5 do
-                            local qualityAllocation = allocations[i]
-                            if qualityAllocation then
+                            local qualityOperation = operations[i]
+                            if qualityOperation then
                                 local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                                local _, _, qualityProfit = Prices:GetRecipePrices(recipe, operationInfo, qualityAllocation, order, optionalReagents, i)
+                                local qualityProfit = qualityOperation:GetProfit()
                                 local qualityProfitStr = Util:NumCurrencyString(qualityProfit)
 
                                 GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityProfitStr)
@@ -353,9 +368,9 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
 
                     local noConProfit, conProfit, concentration
                     if order then
-                        local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
-                        if allocations then
-                            noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(recipe, operationInfo, allocations, optionalReagents, order)
+                        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
+                        if operations then
+                            noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(operations, order)
                         end
                     elseif allocation then
                         noConProfit, conProfit, concentration = Prices:GetConcentrationValue(recipe, operationInfo, allocation, optionalReagents, tx:IsApplyingConcentration())
@@ -399,19 +414,34 @@ end
 ---@param quality? number
 ---@param exact? boolean
 function Self:SetCraftingFormQuality(quality, exact)
+    if self.isOptimizing then return end
+
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
 
-    if not quality then quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality end
+    if not quality then quality = floor(tx:IsApplyingConcentration() and op.quality - 1 or op.quality) end
 
     local recipe = self.form.recipeSchematic
-    local optionalReagents = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl()
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
-    local allocations = Optimization:GetRecipeAllocations(recipe, optionalReagents, orderOrRecraftGUID)
-    local qualityAllocation = allocations and (allocations[quality] or not exact and allocations[quality + 1])
 
-    if not qualityAllocation then return end
+    Async:Create(function ()
+        return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID)
+    end):Done(function (operations)
+        local operation = operations and (operations[quality] or not exact and operations[quality + 1])
+        if not operation then return end
 
-    self:AllocateReagents(qualityAllocation)
+        self:AllocateReagents(operation.allocation)
+    end):Wait(function ()
+        self.isOptimizing = true
+        self.increaseBtn:SetEnabled(false)
+        self.optimizeBtn:SetEnabled(false)
+        self.decreaseBtn:SetEnabled(false)
+
+        return function ()
+            self.isOptimizing = nil
+            self.optimizeBtn:SetEnabled(true)
+            self:UpdateOptimizationButtons()
+        end
+    end)
 end
 
 ---@param by number
