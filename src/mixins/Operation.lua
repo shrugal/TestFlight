@@ -37,7 +37,7 @@ function Self:WithReagents(reagentType, reagents)
             if reagents then
                 for _,reagent in pairs(reagents) do
                     if reagent.dataSlotIndex == slot.dataSlotIndex then
-                        allocation[slot.slotIndex]:Allocate(Professions.CreateCraftingReagentByItemID(reagent.itemID), reagent.quantity)
+                        Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
                     end
                 end
             end
@@ -205,32 +205,66 @@ function Self:GetWeightThresholds(absolute)
     return ceil(lower / bestSkill), min(self:GetMaxWeight(), floor(upper / bestSkill))
 end
 
-function Self:GetConcentrationThresholds()
-    if not self.lowerConcentrationThreshold or not self.upperConcentrationThreshold then
-        local lowerWeight, upperWeight = self:GetWeightThresholds()
+function Self:GetConcentrationFactors()
+    if not self.concentrationFactors then
+        self.concentrationFactors = {}
 
-        local lowerReagents = Reagents:GetForWeight(self.recipe, lowerWeight, true)
-        local upperReagents = Reagents:GetForWeight(self.recipe, upperWeight)
+        local maxWeight = self:GetMaxWeight()
+        local baseSkill, bestSkill = self:GetSkillBounds()
+        local lowerSkill, upperSkill = self:GetSkillThresholds(true)
+        local prevWeight, prevCon
 
-        local lowerOp = self:WithQualityReagents(lowerReagents):GetOperationInfo()
-        local upperOp = self:WithQualityReagents(upperReagents):GetOperationInfo()
+        for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
+            local skill = lowerSkill + v * (upperSkill - lowerSkill)
+            local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
 
-        self.lowerConcentrationThreshold = lowerOp.concentrationCost
-        self.upperConcentrationThreshold = upperOp.concentrationCost
+            local reagents = Reagents:GetForWeight(self.recipe, weight, i == 1)
+            local op = self:WithQualityReagents(reagents)
+            local info = op:GetOperationInfo()
+            local opWeight = op:GetWeight()
+            local opCon = info.concentrationCost
+
+            if i > 1 and opWeight <= weight then
+                self.concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
+            end
+
+            prevWeight, prevCon = opWeight, opCon
+        end
     end
-    return self.lowerConcentrationThreshold, self.upperConcentrationThreshold
+    return self.concentrationFactors
 end
 
-function Self:GetConcentrationPerSkill()
-    local conLower, conUpper = self:GetConcentrationThresholds()
-    local skillLower, skillUpper = self:GetSkillThresholds()
-    return (conUpper - conLower) / (skillUpper - skillLower)
-end
+function Self:GetConcentrationCost(weight)
+    local concentration = self:GetOperationInfo().concentrationCost
 
-function Self:GetConcentrationPerWeight()
-    local conLower, conUpper = self:GetConcentrationThresholds()
-    local weightLower, weightUpper = self:GetWeightThresholds()
-    return (conUpper - conLower) / (weightUpper - weightLower)
+    if not weight or weight == self:GetWeight() then
+        return concentration
+    end
+
+    local conFactors = self:GetConcentrationFactors()
+    local baseSkill, bestSkill = self:GetSkillBounds()
+    local lowerSkill, upperSkill = self:GetSkillThresholds(true)
+    local maxWeight = self:GetMaxWeight()
+    local currCon = concentration
+    local currWeight = self:GetWeight()
+
+    local n = #Addon.CONCENTRATION_BREAKPOINTS
+    local d = currWeight <= weight and 1 or -1
+    local bound = d == 1 and min or max
+
+    for i=1,n-1 do
+       local v = Addon.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
+       local f = conFactors[d == 1 and i or n-i]
+       local targetSkill = lowerSkill + v * (upperSkill - lowerSkill)
+       local targetWeight = bound(weight, maxWeight * (targetSkill - baseSkill) / bestSkill)
+
+       if targetWeight * d > currWeight * d and targetWeight * d <= weight * d then
+          currCon = currCon + (targetWeight - currWeight) * f
+          currWeight = targetWeight
+       end
+    end
+
+    return currCon
 end
 
 -- Stats

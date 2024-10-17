@@ -62,6 +62,7 @@ end
 
 ---@param slot ReagentSlot
 ---@param allocations ProfessionTransationAllocations
+---@param silent? boolean
 function Self:AllocateReagent(slot, allocations, silent)
     if slot:IsUnallocatable() then return end
 
@@ -74,7 +75,16 @@ function Self:AllocateReagent(slot, allocations, silent)
     self.form.transaction:OverwriteAllocations(slot:GetSlotIndex(), allocations)
     self.form.transaction:SetManuallyAllocated(true)
 
-    slot:Update()
+    if Reagents:IsFinishingReagent(slot:GetReagentSlotSchematic()) then
+        local alloc = allocations:SelectFirst()
+        if alloc and alloc.quantity > 0 then
+            slot:SetItem(Item:CreateFromItemID(alloc.reagent.itemID))
+        else
+            slot:ClearItem()
+        end
+    else
+        slot:Update()
+    end
 
     if silent then return end
 

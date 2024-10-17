@@ -124,11 +124,27 @@ end
 function Self:CreateAllocations(reagent, q1, q2, q3)
     local reagentAllocations = Addon:CreateAllocations()
 
-    reagentAllocations:Allocate(Professions.CreateCraftingReagentByItemID(reagent.reagents[1].itemID), q1)
-    reagentAllocations:Allocate(Professions.CreateCraftingReagentByItemID(reagent.reagents[2].itemID), q2)
-    reagentAllocations:Allocate(Professions.CreateCraftingReagentByItemID(reagent.reagents[3].itemID), q3)
+    self:Allocate(reagentAllocations, reagent.reagents[1], q1)
+    self:Allocate(reagentAllocations, reagent.reagents[2], q2)
+    self:Allocate(reagentAllocations, reagent.reagents[3], q3)
 
     return reagentAllocations
+end
+
+---@param allocations ProfessionTransationAllocations
+---@param reagent CraftingReagent | CraftingReagentInfo |  number
+---@param quantity number
+function Self:Allocate(allocations, reagent, quantity)
+    if type(reagent) == "number" then
+        reagent = Professions.CreateCraftingReagentByItemID(reagent)
+    elseif reagent.dataSlotIndex then
+        reagent = Professions.CreateCraftingReagentByItemID(reagent.itemID)
+    end ---@cast reagent CraftingReagent
+
+    local origOnChanged = allocations.OnChanged
+    allocations.OnChanged = Util.FnNoop
+    allocations:Allocate(reagent, quantity)
+    allocations.OnChanged = origOnChanged
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -144,6 +160,11 @@ end
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsModifyingReagent(reagent)
     return reagent.dataSlotType == Enum.TradeskillSlotDataType.ModifiedReagent
+end
+
+---@param reagent CraftingReagentSlotSchematic
+function Self:IsFinishingReagent(reagent)
+    return reagent.reagentType == Enum.CraftingReagentType.Finishing
 end
 
 ---@param recipe CraftingRecipeSchematic

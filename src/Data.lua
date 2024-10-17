@@ -19,6 +19,8 @@ Addon.MULTICRAFT_YIELD = {
     [5] = 1.875,
 }
 
+Addon.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
+
 -- Source: CraftSim
 ---@type table<number, number>
 Addon.REAGENTS = {

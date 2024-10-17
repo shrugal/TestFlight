@@ -56,7 +56,7 @@ end
 --              Ticker
 ---------------------------------------
 
-C_Timer.NewTicker(0, function ()
+CreateFrame("Frame"):SetScript("OnUpdate", function ()
     Self.start = debugprofilestop()
     -- Execute at least one promise per frame
     local res = Self:Execute(nil, true)

@@ -35,13 +35,13 @@ Self.Event = {
 }
 
 ---@todo DEBUG
-local PROMISES = {}
-local function GetNumber(p) return Util:TblIndexOf(PROMISES, p) end
+-- local PROMISES = {}
+-- local function GetNumber(p) return Util:TblIndexOf(PROMISES, p) end
 
 ---@param runner? fun(resolve: function, reject: function, cancel: function): any
 ---@param parent? Promise
 function Self:Init(runner, parent)
-    tinsert(PROMISES, self)
+    -- tinsert(PROMISES, self)
 
     ---@type Promise.Status
     self.status = Self.Status.Created
@@ -202,7 +202,6 @@ end
 ---@param status "canceled" | "done" | "error"
 ---@vararg any
 function Self:Finalize(status, ...)
-    Addon:Debug({ status, ... }, "Finalize " .. GetNumber(self))
     local first = select(1, ...)
     if type(first) == "table" and first.__promise__ then ---@cast first Promise
         return first:Then(self.resolve, self.reject)

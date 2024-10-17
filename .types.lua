@@ -227,6 +227,7 @@ ProfessionsFrame = nil
 ---@field GetOriginalItem fun(self: self): ItemMixin?
 ---@field IsOriginalItemSet fun(self: self): boolean
 ---@field RestoreOriginalItem fun(self: self)
+---@field SetItem fun(self: self, item?: ItemMixin)
 ---@field ClearItem fun(self: self)
 ---@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
 

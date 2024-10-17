@@ -313,16 +313,9 @@ function Self:GetReagentsForMethod(operation, method)
             local profit = profit + (qualityReagentsPrice - weightPrice) * (1 - resFactor)
 
             if method == self.Method.ProfitPerConcentration then
-                local opCon = operation:GetOperationInfo().concentrationCost
-                local opWeight = operation:GetWeight()
-                local conPerWeight = operation:GetConcentrationPerWeight()
-                local concentration = opCon + (weight - opWeight) * conPerWeight
-
-                profit = profit / concentration
+                profit = profit / operation:GetConcentrationCost(weight)
             end
 
-            -- local operation = operation:WithQualityReagents(self:GetReagentsForWeight(operation, weight))
-            -- local profit = operation:GetProfitPerConcentration()
 
             if profit > maxProfit then
                 maxProfit, maxProfitWeight = profit, weight
@@ -348,7 +341,7 @@ Self.Cache = {
         function (_, operation) 
             return Self:GetRecipeCacheKey(operation)
         end,
-        1
+        5
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string>
     CostAllocations = Addon:CreateCache(
