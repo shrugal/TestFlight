@@ -24,7 +24,17 @@ Self.Method = {
 function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGUID)
     local optimizeConcentration = method == self.Method.ProfitPerConcentration
     local applyConcentration = optimizeConcentration or transaction:IsApplyingConcentration()
-    local operation = Addon:CreateOperation(recipe, transaction.allocationTbls, orderOrRecraftGUID, applyConcentration)
+    local allocation = Util:TblCopy(transaction.allocationTbls, true)
+
+    -- Make sure all reagents provided by orders are allocated
+    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID
+    if order and order.reagents then
+        for _,reagent in pairs(order.reagents) do
+            Reagents:Allocate(allocation[reagent.slotIndex], reagent.reagent)
+        end
+    end
+
+    local operation = Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration)
 
     if Util:OneOf(method, self.Method.Profit, self.Method.ProfitPerConcentration) then
         return self:GetRecipeProfitAllocations(operation:WithFinishingReagents(), optimizeConcentration)

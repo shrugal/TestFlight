@@ -32,18 +32,19 @@ function Self:WithReagents(reagentType, reagents)
 
     for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
         if Reagents:IsModifyingReagent(slot) then
-            if slot.reagentType == reagentType then
+            local allocations = self.allocation[slot.slotIndex]
+            local hasReagents = reagents and Util:TblWhere(reagents, "dataSlotIndex", slot.dataSlotIndex) ~= nil
+
+            if slot.reagentType == reagentType and hasReagents then ---@cast reagents -?
                 allocation[slot.slotIndex] = Addon:CreateAllocations()
 
-                if reagents then
-                    for _,reagent in pairs(reagents) do
-                        if reagent.dataSlotIndex == slot.dataSlotIndex then
-                            Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
-                        end
+                for _,reagent in pairs(reagents) do
+                    if reagent.dataSlotIndex == slot.dataSlotIndex then
+                        Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
                     end
                 end
-            elseif self.allocation[slot.slotIndex] then
-                allocation[slot.slotIndex] = Util:TblCopy(self.allocation[slot.slotIndex], true)
+            elseif allocations then
+                allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
             end
         end
     end
@@ -105,7 +106,7 @@ end
 
 function Self:GetQualityReagentSlots()
     if not self.qualityReagentSlots then
-        self.qualityReagentSlots = Reagents:GetQualitySlots(self.recipe)
+        self.qualityReagentSlots = Reagents:GetQualitySlots(self.recipe, self:GetOrder())
     end
     return self.qualityReagentSlots
 end
@@ -222,7 +223,7 @@ function Self:GetConcentrationFactors()
             local skill = lowerSkill + v * (upperSkill - lowerSkill)
             local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
 
-            local reagents = Reagents:GetForWeight(self.recipe, weight, i == 1)
+            local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
             local op = self:WithQualityReagents(reagents)
             local info = op:GetOperationInfo()
             local opWeight = op:GetWeight()
