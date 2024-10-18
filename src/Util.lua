@@ -82,7 +82,7 @@ function Self:TblValues(tbl)
 end
 
 ---@generic T: table
----@param tbl T[] | Enumerator<T>
+---@param tbl T | Enumerator<T>
 ---@param recursive? boolean
 ---@return T
 function Self:TblCopy(tbl, recursive)

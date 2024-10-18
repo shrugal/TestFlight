@@ -120,8 +120,8 @@ WorldQuestTrackerScreenPanel = nil
 ---@field Clear fun(self: self)
 ---@field SelectFirst fun(self: self): ProfessionTransactionAllocation
 ---@field FindAllocationByPredicate fun(self: self, predicate: fun(v: ProfessionTransactionAllocation): boolean): ProfessionTransactionAllocation
----@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent): ProfessionTransactionAllocation
----@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent): number
+---@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): ProfessionTransactionAllocation
+---@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): number
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
 ---@field HasAllAllocations fun(quantityRequired: number): boolean

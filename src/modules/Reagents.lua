@@ -166,7 +166,7 @@ function Self:CreateCraftingInfosFromAllocation(recipe, allocation, predicate)
     -- Add allocation reagents
     for slotIndex,allocations in pairs(allocation) do
         local reagent = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", slotIndex)
-        if reagent and reagent.dataSlotType == Enum.TradeskillSlotDataType.ModifiedReagent and (not predicate or predicate(reagent)) then
+        if reagent and self:IsModifyingReagent(reagent) and (not predicate or predicate(reagent)) then
             for _,alloc in pairs(allocations.allocs) do
                 tinsert(infos, Professions.CreateCraftingReagentInfo(alloc.reagent.itemID, reagent.dataSlotIndex, alloc.quantity))
             end
@@ -251,6 +251,14 @@ function Self:Allocate(allocations, reagent, quantity)
     allocations.OnChanged = origOnChanged
 end
 
+---@param allocations ProfessionTransationAllocations
+function Self:ClearAllocations(allocations)
+    local origOnChanged = allocations.OnChanged
+    allocations.OnChanged = Util.FnNoop
+    allocations:Clear()
+    allocations.OnChanged = origOnChanged
+end
+
 ---@param qualityReagents CraftingReagentSlotSchematic[]
 ---@param allocation RecipeAllocation
 function Self:GetAllocationWeight(qualityReagents, allocation)
@@ -300,13 +308,19 @@ function Self:IsOptionalReagent(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Modifying or reagent.reagentType == Enum.CraftingReagentType.Finishing
 end
 
+---@param reagent CraftingReagentSlotSchematic
+---@param order? CraftingOrderInfo
+function Self:IsProvidedByOrder(reagent, order)
+    return order and Util:TblWhere(order.reagents, "slotIndex", reagent.slotIndex) ~= nil
+end
+
 ---@param recipe CraftingRecipeSchematic
 ---@param order CraftingOrderInfo?
 ---@return CraftingReagentSlotSchematic[]
 function Self:GetQualitySlots(recipe, order)
-    return Util:TblFilter(recipe.reagentSlotSchematics, function (reagent, slotIndex)
-        return self:IsQualityReagent(reagent) and not (order and Util:TblWhere(order.reagents, "slotIndex", slotIndex))
-    end, true)
+    return Util:TblFilter(recipe.reagentSlotSchematics, function (reagent)
+        return self:IsQualityReagent(reagent) and not self:IsProvidedByOrder(reagent, order)
+    end)
 end
 
 -- Get the non-skill finishing reagent slot

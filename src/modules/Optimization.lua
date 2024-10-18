@@ -26,14 +26,6 @@ function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGU
     local applyConcentration = optimizeConcentration or transaction:IsApplyingConcentration()
     local allocation = Util:TblCopy(transaction.allocationTbls, true)
 
-    -- Make sure all reagents provided by orders are allocated
-    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID
-    if order and order.reagents then
-        for _,reagent in pairs(order.reagents) do
-            Reagents:Allocate(allocation[reagent.slotIndex], reagent.reagent)
-        end
-    end
-
     local operation = Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration)
 
     if Util:OneOf(method, self.Method.Profit, self.Method.ProfitPerConcentration) then
@@ -75,6 +67,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
 
             local bonusSkill = operation:GetOperationInfo().bonusSkill
             local maxProfit, maxProfitOperation = profit, operation
+            local finishingReagents = {}
 
             for i,reagent in pairs(operation:GetFinishingReagentSlots()) do
                 for j,item in ipairs_reverse(reagent.reagents) do
@@ -83,7 +76,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
                     local price = Prices:GetItemPrice(itemID)
 
                     if quality and price > 0 and (quality > prevQuality or price < prevPrice) then
-                        local finishingReagents = { Reagents:CreateCraftingInfoFromSchematic(reagent, j) }
+                        finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(reagent, j)
 
                         ---@type Operation, number
                         local operation, profit = operation:WithFinishingReagents(finishingReagents), nil
@@ -378,7 +371,7 @@ Self.Cache = {
 function Self:GetRecipeCacheKey(operation, optionalReagents, optimizeConcentration)
     local order = operation:GetOrder()
 
-    local key = ("%d|%d|%d|%d|%d|%d"):format(
+    local key = ("%d;%d;%d;%d;%d;%d"):format(
         operation.recipe.recipeID,
         operation.recipe.isRecraft and 1 or 0,
         operation:GetOperationInfo().baseSkill or 0,
@@ -389,7 +382,7 @@ function Self:GetRecipeCacheKey(operation, optionalReagents, optimizeConcentrati
 
     if optionalReagents then
         for _,reagent in pairs(operation:GetOptionalReagents()) do
-            key = key .. ("||%d|%d"):format(reagent.itemID, reagent.quantity)
+            key = key .. (";;%d;%d"):format(reagent.itemID, reagent.quantity)
         end
     end
 

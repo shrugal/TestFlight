@@ -28,27 +28,28 @@ end
 ---@param reagentType Enum.CraftingReagentType
 ---@param reagents? CraftingReagentInfo[]
 function Self:WithReagents(reagentType, reagents)
+    local order = self:GetOrder()
+
     local allocation = {}
 
     for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
-        if Reagents:IsModifyingReagent(slot) then
-            local allocations = self.allocation[slot.slotIndex]
-            local hasReagents = reagents and Util:TblWhere(reagents, "dataSlotIndex", slot.dataSlotIndex) ~= nil
+        local allocations = self.allocation[slot.slotIndex]
 
-            if slot.reagentType == reagentType and hasReagents then ---@cast reagents -?
-                allocation[slot.slotIndex] = Addon:CreateAllocations()
+        if slot.reagentType ~= reagentType or Reagents:IsProvidedByOrder(slot, order) then
+            allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
+        else
+            allocation[slot.slotIndex] = Addon:CreateAllocations()
 
+            if reagents then
                 for _,reagent in pairs(reagents) do
                     if reagent.dataSlotIndex == slot.dataSlotIndex then
                         Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
                     end
                 end
-            elseif allocations then
-                allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
             end
         end
     end
-
+    
     return self:WithAllocation(allocation)
 end
 
@@ -78,6 +79,24 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
     self.allocation = allocation or {}
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
+
+    -- Remove non-modifying and allocate provided order reagents
+    local order = self:GetOrder()
+    for slotIndex,allocations in pairs(self.allocation) do
+        local reagent = self.recipe.reagentSlotSchematics[slotIndex]
+
+        if not Reagents:IsModifyingReagent(reagent) then
+            self.allocation[slotIndex] = nil
+        elseif Reagents:IsProvidedByOrder(reagent, order) then
+            Reagents:ClearAllocations(allocations)
+
+            for _,reagent in pairs(order.reagents) do
+                if reagent.slotIndex == slotIndex and allocations:GetQuantityAllocated(reagent.reagent) < reagent.reagent.quantity then
+                    Reagents:Allocate(allocations, reagent.reagent)
+                end
+            end
+        end
+    end
 end
 
 function Self:GetRecipeInfo()
