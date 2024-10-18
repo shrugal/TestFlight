@@ -214,7 +214,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
     local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
 
-    ---@type ProfessionAllocations | ItemMixin?, CraftingReagentInfo[], string?
+    ---@type (ProfessionAllocations | ItemMixin)?, CraftingReagentInfo[]?, string?
     local allocation, optionalReagents, recraftGUID
     if isSalvage then
         allocation = tx:GetSalvageAllocation()
@@ -230,6 +230,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
         local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, order)
         local operation = operations and operations[math.max(quality, Util:TblMinKey(operations))]
         allocation = operation and operation.allocation
+        optionalReagents = operation and operation:GetOptionalReagents()
     end
 
     ---@type string?, number?, number?, number?, number?, number?, number?, number?

@@ -119,69 +119,54 @@ end
 ---@return number? rewards
 ---@return number? traderCut
 function Self:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents, qualityID)
-    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order, optionalReagents)
+    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order)
     local resultPrice = self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID or order and order.minQuality)
 
     if resultPrice == 0 and not order then
         return reagentPrice, resultPrice
     end
 
-    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
+    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order)
 end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param allocation? RecipeAllocation | ItemMixin
 ---@param order? CraftingOrderInfo
----@param optionalReagents? CraftingReagentInfo[]
 ---@return number
-function Self:GetRecipeAllocationPrice(recipe, allocation, order, optionalReagents)
+function Self:GetRecipeAllocationPrice(recipe, allocation, order)
     if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then ---@cast allocation ItemMixin
         return recipe.quantityMin * self:GetReagentPrice(allocation:GetItemID())
     end  ---@cast allocation RecipeAllocation
 
     local price = 0
 
-    -- Add allocation reagents
-    if allocation then
-        for slotIndex,reagent in pairs(allocation) do
-            for _,item in reagent:Enumerate() do
+    for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+        local missing = reagent.required and reagent.quantityRequired or 0
+
+        local allocations = allocation and allocation[reagent.slotIndex]
+        if allocations then
+            missing = max(0, missing - allocations:Accumulate())
+
+            for _,item in allocations:Enumerate() do
                 local quantity = item.quantity
 
                 local orderReagent = order and Util:TblWhere(order.reagents, "slotIndex", slotIndex, "reagent.itemID", item.reagent.itemID)
                 if orderReagent then
-                    quantity = quantity - orderReagent.reagent.quantity
+                    quantity = max(0, quantity - orderReagent.reagent.quantity)
                 end
 
                 price = price + quantity * self:GetReagentPrice(item)
             end
-        end
-    end
-
-    for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
-        if reagent.required then
-            -- Add missing required
-            local missing = reagent.quantityRequired
-
-            local reagentAllocation = allocation and allocation[reagent.slotIndex]
-            if reagentAllocation then missing = missing - reagentAllocation:Accumulate() end
-
-            if missing > 0 then
-                price = price + missing * math.min(self:GetReagentPrices(reagent))
-            end
-        elseif optionalReagents and not (allocation and allocation[reagent.slotIndex]) then
-            -- Add optional
-            local optionalReagent = Util:TblWhere(optionalReagents, "dataSlotIndex", reagent.dataSlotIndex)
-
-            if optionalReagent then
-                local quantity = optionalReagent.quantity
-
-                local orderReagent = order and Util:TblWhere(order.reagents, "slotIndex", slotIndex, "reagent.itemID", optionalReagent.itemID)
-                if orderReagent then
-                    quantity = quantity - orderReagent.reagent.quantity
+        elseif order and missing > 0 then
+            for _,reagent in pairs(order.reagents) do
+                if reagent.slotIndex == slotIndex then
+                    missing = max(0, missing - reagent.reagent.quantity)
                 end
-
-                price = price + quantity * self:GetReagentPrice(optionalReagent)
             end
+        end
+
+        if missing > 0 then
+            price = price + missing * math.min(self:GetReagentPrices(reagent))
         end
     end
 
@@ -301,7 +286,7 @@ function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagent
     if factor == 0 then return 0 end
 
     if order and order.reagentState ~= Enum.CraftingOrderReagentsType.None then
-        reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, nil, optionalReagents)
+        reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation)
     end
 
     return reagentPrice * factor

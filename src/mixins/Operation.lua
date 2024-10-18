@@ -28,18 +28,22 @@ end
 ---@param reagentType Enum.CraftingReagentType
 ---@param reagents? CraftingReagentInfo[]
 function Self:WithReagents(reagentType, reagents)
-    local allocation = Util:TblCopy(self.allocation, true)
+    local allocation = {}
 
     for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
-        if Reagents:IsModifyingReagent(slot) and slot.reagentType == reagentType then
-            allocation[slot.slotIndex] = Addon:CreateAllocations()
+        if Reagents:IsModifyingReagent(slot) then
+            if slot.reagentType == reagentType then
+                allocation[slot.slotIndex] = Addon:CreateAllocations()
 
-            if reagents then
-                for _,reagent in pairs(reagents) do
-                    if reagent.dataSlotIndex == slot.dataSlotIndex then
-                        Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
+                if reagents then
+                    for _,reagent in pairs(reagents) do
+                        if reagent.dataSlotIndex == slot.dataSlotIndex then
+                            Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
+                        end
                     end
                 end
+            elseif self.allocation[slot.slotIndex] then
+                allocation[slot.slotIndex] = Util:TblCopy(self.allocation[slot.slotIndex], true)
             end
         end
     end
@@ -123,7 +127,7 @@ end
 
 function Self:GetOptionalReagents()
     if not self.optionalReagents then
-        local predicate = function (reagent) return not reagent.required end
+        local predicate = Util:FnBind(Reagents.IsOptionalReagent, Reagents)
         self.optionalReagents = Reagents:CreateCraftingInfosFromAllocation(self.recipe, self.allocation, predicate)
     end
     return self.optionalReagents

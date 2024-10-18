@@ -157,6 +157,7 @@ function Self:IsQualityReagent(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents > 1
 end
 
+-- Reagent modifies the result quality
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsModifyingReagent(reagent)
     return reagent.dataSlotType == Enum.TradeskillSlotDataType.ModifiedReagent
@@ -165,6 +166,12 @@ end
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsFinishingReagent(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Finishing
+end
+
+-- Reagent modifies the result quality, but is not a quality reagent
+---@param reagent CraftingReagentSlotSchematic
+function Self:IsOptionalReagent(reagent)
+    return reagent.reagentType == Enum.CraftingReagentType.Modifying or reagent.reagentType == Enum.CraftingReagentType.Finishing
 end
 
 ---@param recipe CraftingRecipeSchematic
