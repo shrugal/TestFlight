@@ -16,14 +16,15 @@ function Addon:CreatePromise(runner, level, parent)
     return promise
 end
 
+Self.DEBUG_STACK = true
 Self.DEBUG_LOCALS = false
 
 ---@enum Promise.Status
 Self.Status = {
     Created = "created",
     Started = "started",
-    Suspended = "suspended",
     Running = "running",
+    Suspended = "suspended",
     Canceled = "canceled",
     Done = "done",
     Error = "error",
@@ -59,7 +60,7 @@ function Self:Init(runner, level, parent)
         self.runner = Util:FnBind(runner, self.resolve, self.reject, self.cancel)
     end
 
-    self.debugInfo = ("In promise from:\n%s---"):format(self:GetDebugInfo((level or 1) + 1))
+    self.startDebugInfo = ("In promise from:\n%s---"):format(self:GetDebugInfo((level or 1) + 1))
 end
 
 ---------------------------------------
@@ -146,15 +147,17 @@ function Self:Reject(...)
     local handled, errorMsg = self:Finalize(Self.Status.Error, ...)
     if handled then return end ---@cast errorMsg string
 
-    if handled == false then ---@cast errorMsg string
-        self:HandleError(("%s\nCaused by: %s"):format(errorMsg, (... or "?")))
-    else
+    if handled == nil then
         self:HandleError(("Unhandled promise error: %s"):format(... or "?"))
+    elseif self.runDebugInfo then ---@cast errorMsg string
+        self:HandleError(("%s\nCaused by: %s"):format(errorMsg, ... or "?"))
+    else ---@cast errorMsg string
+        self:HandleError(errorMsg)
     end
 end
 
 function Self:IsPending()
-    return Util:OneOf(self.status, Self.Status.Created, Self.Status.Running, Self.Status.Suspended)
+    return Util:OneOf(self.status, Self.Status.Created, Self.Status.Started, Self.Status.Running, Self.Status.Suspended)
 end
 
 function Self:IsFinalized()
@@ -181,7 +184,7 @@ function Self:Chain(onDone, onError, ...)
     local n = select("#", ...)
 
     local handleError = function (e)
-        promise.debugInfo = promise:GetDebugInfo(2) .. promise.debugInfo
+        promise.runDebugInfo = promise:GetDebugInfo(2)
         return e
     end
 
@@ -229,7 +232,7 @@ function Self:Handle(success, ...)
     if self.status == Self.Status.Running then
         local state = coroutine.status(self.coroutine)
         if not success then
-            self.debugInfo = self:GetDebugInfo(self.coroutine) .. self.debugInfo
+            self.runDebugInfo = self:GetDebugInfo(self.coroutine)
             self:Reject(...)
         elseif state == "dead" and select("#", ...) > 0 then
             self:Resolve(...)
@@ -309,7 +312,22 @@ end
 function Self:GetDebugInfo(levelOrCoroutine)
     if type(levelOrCoroutine) == "number" then levelOrCoroutine = levelOrCoroutine + 1 end
 
-    local info = debugstack(levelOrCoroutine)
+    local info = ""
+
+    -- Stacktrace without internal stacks
+    if Self.DEBUG_STACK then
+        local skip = false
+        for line in debugstack(levelOrCoroutine):gmatch("[^\n]+\n") do
+            if line:match("Promise%.lua") then
+                if not skip then info = info .. "[string \"Promise\"]: hidden\n" end
+                skip = true
+            elseif not skip or not (line:match("in function `x?pcall") or line:match("=%(tail call%)")) then
+                skip, info = false, info .. line
+            end
+        end
+    else
+        info = "\n"
+    end
 
     if Self.DEBUG_LOCALS and not InCombatLockdown() then
         local locals = type(levelOrCoroutine) ~= "thread" and debuglocals(levelOrCoroutine or 1) or nil
@@ -320,11 +338,8 @@ function Self:GetDebugInfo(levelOrCoroutine)
 end
 
 ---@param e string
----@param levelOrCoroutine? number | thread
-function Self:HandleError(e, levelOrCoroutine)
-    if type(levelOrCoroutine) == "number" then levelOrCoroutine = levelOrCoroutine + 1 end
-
-    if levelOrCoroutine then e = e .. self:GetDebugInfo(levelOrCoroutine) end
-
-    error(e .. "\n" .. self.debugInfo, 0)
+function Self:HandleError(e)
+    e = e .. "\n"
+    if self.runDebugInfo then e = e .. self.runDebugInfo end
+    error(e .. self.startDebugInfo, 0)
 end
