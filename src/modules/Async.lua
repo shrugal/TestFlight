@@ -12,7 +12,7 @@ Self.queue = {}
 
 ---@param fn function
 function Self:Create(fn)
-    return Addon:CreatePromise(function (res) res(fn()) end)
+    return Addon:CreatePromise(function (res) res(fn()) end, 2)
 end
 
 ---@param obj any

@@ -8,16 +8,20 @@ local Async, Util = Addon.Async, Addon.Util
 local Self = { __promise__ = true }
 
 ---@param runner? fun(resolve: function, reject: function, cancel: function): any
+---@param level? number
 ---@param parent? Promise
-function Addon:CreatePromise(runner, parent)
-    local promise = CreateAndInitFromMixin(Self, runner, parent)
-    Async:Execute(promise)
+function Addon:CreatePromise(runner, level, parent)
+    local promise = CreateAndInitFromMixin(Self, runner, (level or 1) + 2, parent)
+    Async:Enqueue(promise)
     return promise
 end
+
+Self.DEBUG_LOCALS = false
 
 ---@enum Promise.Status
 Self.Status = {
     Created = "created",
+    Started = "started",
     Suspended = "suspended",
     Running = "running",
     Canceled = "canceled",
@@ -34,14 +38,11 @@ Self.Event = {
     OnFinally = "finally"
 }
 
----@todo DEBUG
--- local PROMISES = {}
--- local function GetNumber(p) return Util:TblIndexOf(PROMISES, p) end
-
 ---@param runner? fun(resolve: function, reject: function, cancel: function): any
+---@param level? number
 ---@param parent? Promise
-function Self:Init(runner, parent)
-    -- tinsert(PROMISES, self)
+function Self:Init(runner, level, parent)
+    self.parent = parent
 
     ---@type Promise.Status
     self.status = Self.Status.Created
@@ -57,9 +58,8 @@ function Self:Init(runner, parent)
     if runner then
         self.runner = Util:FnBind(runner, self.resolve, self.reject, self.cancel)
     end
-    if parent then
-        self.parent = parent
-    end
+
+    self.debugInfo = ("In promise from:\n%s---"):format(self:GetDebugInfo((level or 1) + 1))
 end
 
 ---------------------------------------
@@ -70,6 +70,7 @@ end
 ---@vararg any
 function Self:Wait(onWait, ...)
     if self.status == Self.Status.Created then
+        if self.parent then self.parent:Wait() end
         self:Resume()
     end
     if onWait and self:IsPending() then
@@ -106,49 +107,50 @@ end
 ---@param onError? function
 ---@vararg any
 function Self:Then(onDone, onError, ...)
-    if self:IsCanceled() then return self end
-    if not onDone and not onError then return self end
-
-    if select("#", ...) > 0 then
-        if onDone then onDone = Util:FnBind(onDone, ...) end
-        if onError then onError = Util:FnBind(onError, ...) end
-    end
-
-    return Addon:CreatePromise(function (resolve, reject, cancel)
-        if onDone then resolve = Util:FnSafe(onDone, resolve, reject) end
-        if onError then reject = Util:FnSafe(onError, resolve, reject) end
-
-        if self.status == Self.Status.Canceled then
-            cancel()
-        elseif self.status == Self.Status.Done then
-            resolve(unpack(self.statusResult))
-        elseif self.status == Self.Status.Error then
-            reject(unpack(self.statusResult))
-        else
-            self:RegisterCallback(Self.Event.OnDone, resolve)
-            self:RegisterCallback(Self.Event.OnError, reject)
-            self:RegisterCallback(Self.Event.OnCancel, cancel)
-            self:Wait()
-        end
-    end, self)
+    return self:Chain(onDone, onError, nil, ...)
 end
 
 ---@param onDone function
 ---@vararg any
 function Self:Done(onDone, ...)
-    return self:Then(onDone, nil, ...)
+    return self:Chain(onDone, nil, ...)
 end
 
 ---@param onError function
 ---@vararg any
 function Self:Error(onError, ...)
-    return self:Then(nil, onError, ...)
+    return self:Chain(nil, onError, ...)
 end
 
 function Self:Cancel()
     if self:IsFinalized() then return end
 
     self:Finalize(Self.Status.Canceled)
+end
+
+---@vararg any
+function Self:Resolve(...)
+    if self:IsFinalized() then return end
+
+    local handled, errorMsg = self:Finalize(Self.Status.Done, ...)
+
+    if handled == false then ---@cast errorMsg string
+        self:HandleError(errorMsg)
+    end
+end
+
+---@vararg any
+function Self:Reject(...)
+    if self:IsFinalized() then return end
+
+    local handled, errorMsg = self:Finalize(Self.Status.Error, ...)
+    if handled then return end ---@cast errorMsg string
+
+    if handled == false then ---@cast errorMsg string
+        self:HandleError(("%s\nCaused by: %s"):format(errorMsg, (... or "?")))
+    else
+        self:HandleError(("Unhandled promise error: %s"):format(... or "?"))
+    end
 end
 
 function Self:IsPending()
@@ -167,14 +169,56 @@ end
 --              Execution
 ---------------------------------------
 
-function Self:Resume()
-    if not self.runner then return self end
-    if not self.coroutine then
-        self.coroutine = coroutine.create(self.runner)
+---@param onDone? function
+---@param onError? function
+---@vararg any
+function Self:Chain(onDone, onError, ...)
+    if self:IsCanceled() then return self end
+    if not onDone and not onError then return self end
+
+    local promise = Addon:CreatePromise(nil, 3, self)
+    local resolve, reject, cancel = promise.resolve, promise.reject, promise.cancel
+    local n = select("#", ...)
+
+    local handleError = function (e)
+        promise.debugInfo = promise:GetDebugInfo(2) .. promise.debugInfo
+        return e
     end
-    if coroutine.status(self.coroutine) == "suspended" then
-        self.status = Self.Status.Running
-        self:Handle(coroutine.resume(self.coroutine))
+
+    if onDone then
+        if n > 0 then onDone = Util:FnBind(onDone, ...) end
+        resolve = Util:FnCapture(onDone, resolve, reject, handleError)
+    end
+    if onError then
+        if n > 0 then onError = Util:FnBind(onError, ...) end
+        reject = Util:FnCapture(onError, resolve, reject, handleError)
+    end
+
+    if self.status == Self.Status.Done then
+        resolve(unpack(self.statusResult))
+    elseif self.status == Self.Status.Error then
+        reject(unpack(self.statusResult))
+    else
+        self:RegisterCallback(Self.Event.OnDone, resolve)
+        self:RegisterCallback(Self.Event.OnError, reject)
+        self:RegisterCallback(Self.Event.OnCancel, cancel)
+    end
+
+    return promise
+end
+
+function Self:Resume()
+    if self.status == Self.Status.Created then
+        self.status = Self.Status.Started
+    end
+    if self.runner then
+        if not self.coroutine then
+            self.coroutine = coroutine.create(self.runner)
+        end
+        if coroutine.status(self.coroutine) == "suspended" then
+            self.status = Self.Status.Running
+            self:Handle(coroutine.resume(self.coroutine))
+        end
     end
     return self
 end
@@ -185,6 +229,7 @@ function Self:Handle(success, ...)
     if self.status == Self.Status.Running then
         local state = coroutine.status(self.coroutine)
         if not success then
+            self.debugInfo = self:GetDebugInfo(self.coroutine) .. self.debugInfo
             self:Reject(...)
         elseif state == "dead" and select("#", ...) > 0 then
             self:Resolve(...)
@@ -195,7 +240,7 @@ function Self:Handle(success, ...)
             self:TriggerCallbacks(Self.Event.OnProgress, ...)
         end
     elseif not success then
-        error(..., 0)
+        self:HandleError(... or "?")
     end
 end
 
@@ -211,29 +256,11 @@ function Self:Finalize(status, ...)
     Util:TblFill(self.statusResult, ...)
 
     local handled, errorMsg = self:TriggerCallbacks(status, ...)
+
     self:TriggerCallbacks(Self.Event.OnFinally)
     wipe(self.callbacks)
 
-    if handled ~= false then return handled end
-
-    error(errorMsg, 0)
-end
-
----@vararg any
-function Self:Resolve(...)
-    if self:IsFinalized() then return end
-
-    self:Finalize(Self.Status.Done, ...)
-end
-
----@vararg any
-function Self:Reject(...)
-    if self:IsFinalized() then return end
-
-    local handled = self:Finalize(Self.Status.Error, ...)
-    if handled then return end
-
-    error(("Unhandled promise error: %s"):format(... or "?"), 0)
+    return handled, errorMsg
 end
 
 ---------------------------------------
@@ -257,10 +284,12 @@ function Self:TriggerCallbacks(type, ...)
     local callbacks = self.callbacks[type]
     if not callbacks or not next(callbacks) then return end
 
+    ---@type boolean, string
     local handled, errorMsg = true, nil
+
     for _,handler in ipairs(callbacks) do
         local ok, result = pcall(handler, ...)
-        if not ok and handled then handled, errorMsg = ok, result end
+        if not ok and handled then handled, errorMsg = false, result end
     end
 
     if handled then return handled end
@@ -269,5 +298,33 @@ function Self:TriggerCallbacks(type, ...)
         return handled, errorMsg
     end
 
-    error(errorMsg, 0)
+    self:HandleError(errorMsg)
+end
+
+---------------------------------------
+--             Errors
+---------------------------------------
+
+---@param levelOrCoroutine? number | thread
+function Self:GetDebugInfo(levelOrCoroutine)
+    if type(levelOrCoroutine) == "number" then levelOrCoroutine = levelOrCoroutine + 1 end
+
+    local info = debugstack(levelOrCoroutine)
+
+    if Self.DEBUG_LOCALS and not InCombatLockdown() then
+        local locals = type(levelOrCoroutine) ~= "thread" and debuglocals(levelOrCoroutine or 1) or nil
+        if not Util:StrIsEmpty(locals) then info = info .. "\nLocals:" .. locals end
+    end
+
+    return info
+end
+
+---@param e string
+---@param levelOrCoroutine? number | thread
+function Self:HandleError(e, levelOrCoroutine)
+    if type(levelOrCoroutine) == "number" then levelOrCoroutine = levelOrCoroutine + 1 end
+
+    if levelOrCoroutine then e = e .. self:GetDebugInfo(levelOrCoroutine) end
+
+    error(e .. "\n" .. self.debugInfo, 0)
 end

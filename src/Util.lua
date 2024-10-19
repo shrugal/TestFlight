@@ -481,6 +481,10 @@ end
 
 -- Str
 
+function Self:StrIsEmpty(str)
+    return not str or str == "" or str:gsub("%s+", "") == ""
+end
+
 ---@param str string
 function Self:StrUcFirst(str)
     return str:sub(1, 1):upper() .. str:sub(2)
@@ -586,15 +590,15 @@ end
 ---@param fn function
 ---@param onSuccess? function
 ---@param onFailure? function
-function Self:FnSafe(fn, onSuccess, onFailure)
+---@param errorHandler? function
+function Self:FnCapture(fn, onSuccess, onFailure, errorHandler)
     if not onSuccess then onSuccess = Self.FnId end
     local result = {}
     return function(...)
-        self:TblFill(result, pcall(fn, ...))
+        self:TblFill(result, xpcall(fn, errorHandler or self.FnId, ...))
         if result[1] then
             return onSuccess(unpack(result, 2))
         elseif onFailure then
-            Addon:Debug({unpack(result, 2)}, "onFailure")
             return onFailure(unpack(result, 2))
         end
     end
