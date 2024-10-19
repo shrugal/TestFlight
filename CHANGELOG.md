@@ -1,3 +1,8 @@
+Version 4.01
+
+- Fix profit per concentration optimization for recipes without concentration cost
+- Internal: Add error stacktraces for promises
+
 Version 4.0
 
 - Added ability to optimize for profit and profit per concentration, incl. most finishing reagents

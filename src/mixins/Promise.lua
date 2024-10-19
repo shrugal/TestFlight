@@ -198,9 +198,9 @@ function Self:Chain(onDone, onError, ...)
     end
 
     if self.status == Self.Status.Done then
-        resolve(unpack(self.statusResult))
+        promise.runner = function () resolve(unpack(self.statusResult)) end
     elseif self.status == Self.Status.Error then
-        reject(unpack(self.statusResult))
+        promise.runner = function () reject(unpack(self.statusResult)) end
     else
         self:RegisterCallback(Self.Event.OnDone, resolve)
         self:RegisterCallback(Self.Event.OnError, reject)
