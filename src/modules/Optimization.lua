@@ -55,6 +55,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
         local prevQuality, prevPrice = math.huge, math.huge
 
         for qualityID,operation in pairs(operations) do
+            local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
+
             ---@type number
             local profit
             if not optimizeConcentration then
@@ -306,7 +308,7 @@ function Self:GetReagentsForMethod(operation, method)
     local resFactor = operation:GetResourcefulnessFactor()
 
     ---@type number, number
-    local maxProfit, maxProfitWeight = -math.huge, nil
+    local maxProfit, maxProfitWeight = -math.huge, lowerWeight
     local prevPrice = math.huge
 
     for weight=upperWeight, lowerWeight, -1 do

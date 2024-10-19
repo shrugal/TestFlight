@@ -1,1 +1,2 @@
+- Fix profit per concentration optimization for recipes without concentration cost
 - Internal: Add error stacktraces for promises
