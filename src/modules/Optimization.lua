@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Async, Reagents, Recipes, Prices, Util = Addon.Async, Addon.Reagents, Addon.Recipes, Addon.Prices, Addon.Util
+local Prices, Promise, Reagents, Recipes, Util = Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -48,6 +48,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
 
     if cache:Has(key) then return cache:Get(key) end
 
+    Promise:Yield()
+
     ---@type Operation[]
     local operations = Util:TblCopy(self:GetRecipeCostAllocations(operation) --[=[@as Operation[]]=])
 
@@ -65,6 +67,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
                 local reagents = self:GetReagentsForMethod(operation, self.Method.ProfitPerConcentration)
                 operation = operation:WithQualityReagents(reagents)
                 profit = operation:GetProfitPerConcentration() --[[@as number]]
+
+                Promise:Yield()
             end
 
             local bonusSkill = operation:GetOperationInfo().bonusSkill
@@ -91,6 +95,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
                                 local reagents = self:GetReagentsForMethod(operation, self.Method.ProfitPerConcentration)
                                 operation = operation:WithQualityReagents(reagents)
                                 profit = operation:GetProfitPerConcentration() --[[@as number]]
+
+                                Promise:Yield()
                             end
 
                             if profit > maxProfit then
@@ -104,6 +110,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
             end
 
             operations[qualityID] = maxProfitOperation
+
+            Promise:Yield()
         end
     end
 
@@ -123,6 +131,8 @@ function Self:GetRecipeCostAllocations(operation)
     local key = cache:Key(operation)
 
     if cache:Has(key) then return cache:Get(key) end
+
+    Promise:Yield()
 
     local breakpoints = operation:GetQualityBreakpoints()
     local difficulty = operation:GetDifficulty()
@@ -149,7 +159,7 @@ function Self:GetRecipeCostAllocations(operation)
 
         if breakpointSkill == 0 then break end
 
-        Async:Yield()
+        Promise:Yield()
     end
 
     cache:Set(key, operations)
@@ -166,6 +176,8 @@ function Self:GetRecipeWeightsAndPrices(operation)
     local key = cache:Key(operation)
 
     if cache:Has(key) then return unpack(cache:Get(key)) end
+
+    Promise:Yield()
 
     local qualitySlots = operation:GetQualityReagentSlots()
 
@@ -197,6 +209,8 @@ function Self:GetRecipeWeightsAndPrices(operation)
                 end
             end
         end
+
+        Promise:Yield()
     end
 
     cache:Set(key, { weights, prices[1] })
@@ -329,8 +343,6 @@ function Self:GetReagentsForMethod(operation, method)
 
         prevPrice = weightPrice
     end
-
-    Async:Yield()
 
     return self:GetReagentsForWeight(operation, maxProfitWeight)
 end

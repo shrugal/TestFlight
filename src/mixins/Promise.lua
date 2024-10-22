@@ -1,26 +1,24 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Async, Util = Addon.Async, Addon.Util
+local Util = Addon.Util
 
----@class Promise
----@field statusResult table
----@field callbacks table<Promise.Status, function[]>
-local Self = { __promise__ = true }
+-- STATIC
 
----@param runner? fun(resolve: function, reject: function, cancel: function): any
----@param level? number
----@param parent? Promise
-function Addon:CreatePromise(runner, level, parent)
-    local promise = CreateAndInitFromMixin(Self, runner, (level or 1) + 2, parent)
-    Async:Enqueue(promise)
-    return promise
-end
+---@class Promise.Static
+local Static = Addon.Promise
 
-Self.DEBUG_STACK = true
-Self.DEBUG_LOCALS = false
+---@type Promise
+Static.Mixin = {}
+
+-- Add stacktrace to error messages
+Static.DEBUG_STACK = true
+-- Add locals to error messages
+Static.DEBUG_LOCALS = false
+-- Percentage of frame time to use for background promise execution
+Static.MAX_FRAME_TIME_PERCENT = 0.5
 
 ---@enum Promise.Status
-Self.Status = {
+Static.Status = {
     Created = "created",
     Started = "started",
     Running = "running",
@@ -31,23 +29,184 @@ Self.Status = {
 }
 
 ---@enum Promise.Event
-Self.Event = {
+Static.Event = {
     OnProgress = "progress",
-    OnCancel = Self.Status.Canceled,
-    OnDone = Self.Status.Done,
-    OnError = Self.Status.Error,
+    OnCancel = Static.Status.Canceled,
+    OnDone = Static.Status.Done,
+    OnError = Static.Status.Error,
     OnFinally = "finally"
 }
 
----@param runner? fun(resolve: function, reject: function, cancel: function): any
----@param level? number
+-- Start time of current frame
+Static.start = debugprofilestop()
+-- Queue of pending promises
+---@type Promise[]
+Static.queue = {}
+
+---------------------------------------
+--                API
+---------------------------------------
+
+-- Check if parameter is a promise object
+function Static:IsPromise(obj)
+    return type(obj) == "table" and obj.__promise__ == true
+end
+
+-- Yield if currently in a coroutine, do nothing if not
+---@vararg any
+function Static:Yield(...)
+    if not coroutine.running() then return end
+    return coroutine.yield(...)
+end
+
+-- Resolves when n promises resolve, rejects if #promises - n reject or cancel
+---@param promises Promise[]
+---@param n number Number of promises to resolve
+---@param level? number Debug info stack level (default: 1)
+---@return Promise promise resolves with a table of promise results
+function Static:Some(promises, n, level)
+    return self:Create(function (resolve, reject)
+        local done, failed, results = 0, #promises, {}
+        local function onDone(i, result)
+            results[i] = result
+            done = done + 1
+            if done == n then resolve(results) return true end
+        end
+        local function onFail()
+            failed = failed - 1
+            if failed < n then reject() return true end
+        end
+
+        for i,promise in pairs(promises) do
+            if promise.status == Static.Status.Done then
+                if onDone(i, promise.statusResult) then break end
+            elseif promise:IsFinalized() then
+                if onFail() then break end
+            else
+                promise:RegisterCallback(Static.Event.OnDone, function (...) onDone(i, {...}) end)
+                promise:RegisterCallback(Static.Event.OnError, onFail)
+                promise:RegisterCallback(Static.Event.OnCancel, onFail)
+            end
+        end
+    end, (level or 1) + 1)
+end
+
+-- Resolves when all promises resolve, rejects if any reject or cancel
+---@param promises Promise[]
+---@return Promise promise resolves with a table of promise results
+function Static:All(promises)
+    return self:Some(promises, #promises, 2)
+end
+
+-- Resolves when any promise resolves, rejects if all reject or cancel
+---@param promises Promise[]
+---@return Promise promise resolves with first promise results
+function Static:Any(promises)
+    return self:Some(promises, 1, 2):Done(function (results)
+        return unpack(select(2, next(results)))
+    end)
+end
+
+-- Resolves when any promise resolves or rejects, rejects if all cancel
+---@param promises Promise[]
+---@return Promise promise resolves with first promise success status and results
+function Static:Race(promises)
+    return self:Create(function (resolve, reject)
+        local n = #promises
+        local function onDone(...) resolve(true, ...) end
+        local function onError(...) resolve(false, ...) end
+        local function onCancel()
+            n = n - 1
+            if n == 0 then reject() return true end
+        end
+
+        for _,promise in pairs(promises) do
+            if promise.status == Static.Status.Canceled then
+                if onCancel() then break end
+            elseif promise:IsFinalized() then
+                resolve(promise.status == Static.Status.Done, unpack(promise.statusResult)) break
+            else
+                promise:RegisterCallback(Static.Event.OnDone, onDone)
+                promise:RegisterCallback(Static.Event.OnError, onError)
+                promise:RegisterCallback(Static.Event.OnCancel, onCancel)
+            end
+        end
+    end, 2)
+end
+
+---------------------------------------
+--             Execution
+---------------------------------------
+
+-- Queue promise for execution on the next frame
+---@param promise Promise
+function Static:Enqueue(promise)
+    tinsert(self.queue, promise)
+end
+
+-- Execute promise if there is still time in the current frame
+---@param promise? Promise
+---@param force? boolean Ignore time, always execute
+---@return true? promiseExecuted
+function Static:Execute(promise, force)
+    local msPerFrame = 1000 / GetFramerate()
+    local msTimeLeft = msPerFrame - (debugprofilestop() - self.start)
+
+    if force or msTimeLeft >= msPerFrame * self.MAX_FRAME_TIME_PERCENT then
+        if not promise then promise = tremove(self.queue, 1) end
+        if not promise then return end
+
+        promise:Resume()
+        if promise:IsPending() then
+            self:Enqueue(promise)
+        end
+
+        return true
+    elseif promise then
+        self:Enqueue(promise)
+    end
+end
+
+CreateFrame("Frame"):SetScript("OnUpdate", function ()
+    Static.start = debugprofilestop()
+    -- Execute at least one promise per frame
+    local res = Static:Execute(nil, true)
+    -- Execute as many as possible
+    while res do res = Static:Execute() end
+end)
+
+-- INSTANCE
+
+---@class Promise
+local Self = Static.Mixin
+
+Self.__promise__ = true
+
+-- Create promise, queue for execution on the next frame
+---@param runner? fun(resolve: function, reject: function, cancel: fun()): any
+---@param level? number Debug info stack level (default: 1)
+---@param parent? Promise
+function Static:Create(runner, level, parent)
+    local promise = CreateAndInitFromMixin(Self, runner, (level or 1) + 2, parent)
+    Static:Enqueue(promise)
+    return promise
+end
+
+-- Create promise that resolves when the function ends
+---@param fn function
+function Static:Async(fn)
+    return Static:Create(function (res) res(fn()) end, 2)
+end
+
+---@param runner? fun(resolve: function, reject: function, cancel: fun()): any
+---@param level? number Debug info stack level (default: 1)
 ---@param parent? Promise
 function Self:Init(runner, level, parent)
     self.parent = parent
 
     ---@type Promise.Status
-    self.status = Self.Status.Created
-    ---@type any[]
+    self.status = Static.Status.Created
+    ---@type table
     self.statusResult = {}
     ---@type table<Promise.Event, function[]>
     self.callbacks = {}
@@ -67,11 +226,34 @@ end
 --                API
 ---------------------------------------
 
----@param onWait? function
+-- Handle resolved or rejected promise
+---@param onDone? function
+---@param onError? function
 ---@vararg any
-function Self:Wait(onWait, ...)
-    if self.status == Self.Status.Created then
-        if self.parent then self.parent:Wait() end
+function Self:Then(onDone, onError, ...)
+    return self:Chain(onDone, onError, nil, ...)
+end
+
+-- Handle resolved promise 
+---@param onDone function
+---@vararg any
+function Self:Done(onDone, ...)
+    return self:Chain(onDone, nil, ...)
+end
+
+-- Handle rejected promise
+---@param onError function
+---@vararg any
+function Self:Error(onError, ...)
+    return self:Chain(nil, onError, ...)
+end
+
+-- Start promise immediately
+---@param onWait? function Runs once if the promise is still pending, can return another callback to run when the promise is finalized
+---@vararg any
+function Self:Start(onWait, ...)
+    if self.status == Static.Status.Created then
+        if self.parent then self.parent:Start() end
         self:Resume()
     end
     if onWait and self:IsPending() then
@@ -81,70 +263,69 @@ function Self:Wait(onWait, ...)
     return self
 end
 
----@param onProgress function
+-- Run callback for suspended promise
+---@param onProgress function Runs once if the promise is suspended, and every time the promise suspends
 ---@vararg any
 function Self:Progress(onProgress, ...)
     if self:IsPending() then
-        self:RegisterCallback(Self.Event.OnProgress, onProgress, ...)
+        self:RegisterCallback(Static.Event.OnProgress, onProgress, ...)
     end
-    if self.status == Self.Status.Suspended then
+    if self.status == Static.Status.Suspended then
         onProgress(unpack(self.statusResult))
     end
     return self
 end
 
+-- Run callback for finalized promise
 ---@param onFinally function
 ---@vararg any
 function Self:Finally(onFinally, ...)
     if self:IsFinalized() then
         onFinally(...)
     else
-        self:RegisterCallback(Self.Event.OnFinally, onFinally, ...)
+        self:RegisterCallback(Static.Event.OnFinally, onFinally, ...)
     end
     return self
 end
 
----@param onDone? function
----@param onError? function
----@vararg any
-function Self:Then(onDone, onError, ...)
-    return self:Chain(onDone, onError, nil, ...)
+-- Yield current coroutine until the promise is finalized
+---@return boolean resolved
+---@return any ... result
+function Self:Await()
+    while self:IsPending() do coroutine.yield() end
+    return self.status == Static.Status.Done, unpack(self.statusResult)
 end
 
----@param onDone function
----@vararg any
-function Self:Done(onDone, ...)
-    return self:Chain(onDone, nil, ...)
+function Self:Timeout(s)
+    C_Timer.After(s, Util:FnBind(self.Reject, self, ("%ds timeout reached"):format(s)))
+    return self
 end
 
----@param onError function
----@vararg any
-function Self:Error(onError, ...)
-    return self:Chain(nil, onError, ...)
-end
-
+-- Cancel the promise
 function Self:Cancel()
     if self:IsFinalized() then return end
 
-    self:Finalize(Self.Status.Canceled)
+    self:Finalize(Static.Status.Canceled)
 end
 
+-- Resolve the promise
 ---@vararg any
 function Self:Resolve(...)
     if self:IsFinalized() then return end
 
-    local handled, errorMsg = self:Finalize(Self.Status.Done, ...)
+    local handled, errorMsg = self:Finalize(Static.Status.Done, ...)
 
     if handled == false then ---@cast errorMsg string
         self:HandleError(errorMsg)
     end
 end
 
+-- Reject the promise
 ---@vararg any
 function Self:Reject(...)
     if self:IsFinalized() then return end
 
-    local handled, errorMsg = self:Finalize(Self.Status.Error, ...)
+    local handled, errorMsg = self:Finalize(Static.Status.Error, ...)
     if handled then return end ---@cast errorMsg string
 
     if handled == nil then
@@ -156,16 +337,24 @@ function Self:Reject(...)
     end
 end
 
+-- Check if promise has yet to be finalized
 function Self:IsPending()
-    return Util:OneOf(self.status, Self.Status.Created, Self.Status.Started, Self.Status.Running, Self.Status.Suspended)
+    return Util:OneOf(self.status, Static.Status.Created, Static.Status.Started, Static.Status.Running, Static.Status.Suspended)
 end
 
+-- Check if promise has been finalized
 function Self:IsFinalized()
-    return Util:OneOf(self.status, Self.Status.Canceled, Self.Status.Done, Self.Status.Error)
+    return Util:OneOf(self.status, Static.Status.Canceled, Static.Status.Done, Static.Status.Error)
 end
 
+-- Check if promise has been resolved or rejected
+function Self:IsSettled()
+    return Util:OneOf(self.status, Static.Status.Done, Static.Status.Error)
+end
+
+-- Check if promise has been canceled
 function Self:IsCanceled()
-    return self.status == Self.Status.Canceled
+    return self.status == Static.Status.Canceled
 end
 
 ---------------------------------------
@@ -179,7 +368,7 @@ function Self:Chain(onDone, onError, ...)
     if self:IsCanceled() then return self end
     if not onDone and not onError then return self end
 
-    local promise = Addon:CreatePromise(nil, 3, self)
+    local promise = Static:Create(nil, 3, self)
     local resolve, reject, cancel = promise.resolve, promise.reject, promise.cancel
     local n = select("#", ...)
 
@@ -197,29 +386,30 @@ function Self:Chain(onDone, onError, ...)
         reject = Util:FnCapture(onError, resolve, reject, handleError)
     end
 
-    if self.status == Self.Status.Done then
+    if self.status == Static.Status.Done then
         promise.runner = function () resolve(unpack(self.statusResult)) end
-    elseif self.status == Self.Status.Error then
+    elseif self.status == Static.Status.Error then
         promise.runner = function () reject(unpack(self.statusResult)) end
     else
-        self:RegisterCallback(Self.Event.OnDone, resolve)
-        self:RegisterCallback(Self.Event.OnError, reject)
-        self:RegisterCallback(Self.Event.OnCancel, cancel)
+        self:RegisterCallback(Static.Event.OnDone, resolve)
+        self:RegisterCallback(Static.Event.OnError, reject)
+        self:RegisterCallback(Static.Event.OnCancel, cancel)
     end
 
     return promise
 end
 
 function Self:Resume()
-    if self.status == Self.Status.Created then
-        self.status = Self.Status.Started
+    if self:IsCanceled() then return self end
+    if self.status == Static.Status.Created then
+        self.status = Static.Status.Started
     end
     if self.runner then
         if not self.coroutine then
             self.coroutine = coroutine.create(self.runner)
         end
         if coroutine.status(self.coroutine) == "suspended" then
-            self.status = Self.Status.Running
+            self.status = Static.Status.Running
             self:Handle(coroutine.resume(self.coroutine))
         end
     end
@@ -229,7 +419,7 @@ end
 ---@param success boolean
 ---@vararg any
 function Self:Handle(success, ...)
-    if self.status == Self.Status.Running then
+    if self.status == Static.Status.Running then
         local state = coroutine.status(self.coroutine)
         if not success then
             self.runDebugInfo = self:GetDebugInfo(self.coroutine)
@@ -237,10 +427,10 @@ function Self:Handle(success, ...)
         elseif state == "dead" and select("#", ...) > 0 then
             self:Resolve(...)
         else
-            self.status = Self.Status.Suspended
+            self.status = Static.Status.Suspended
             Util:TblFill(self.statusResult, ...)
 
-            self:TriggerCallbacks(Self.Event.OnProgress, ...)
+            self:TriggerCallbacks(Static.Event.OnProgress, ...)
         end
     elseif not success then
         self:HandleError(... or "?")
@@ -260,7 +450,7 @@ function Self:Finalize(status, ...)
 
     local handled, errorMsg = self:TriggerCallbacks(status, ...)
 
-    self:TriggerCallbacks(Self.Event.OnFinally)
+    self:TriggerCallbacks(Static.Event.OnFinally)
     wipe(self.callbacks)
 
     return handled, errorMsg
@@ -297,7 +487,7 @@ function Self:TriggerCallbacks(type, ...)
 
     if handled then return handled end
 
-    if Util:OneOf(type, Self.Event.OnCancel, Self.Event.OnDone, Self.Event.OnError) then
+    if Util:OneOf(type, Static.Event.OnCancel, Static.Event.OnDone, Static.Event.OnError) then
         return handled, errorMsg
     end
 
@@ -315,7 +505,7 @@ function Self:GetDebugInfo(levelOrCoroutine)
     local info = ""
 
     -- Stacktrace without internal stacks
-    if Self.DEBUG_STACK then
+    if Static.DEBUG_STACK then
         local skip = false
         for line in debugstack(levelOrCoroutine):gmatch("[^\n]+\n") do
             if line:match("Promise%.lua") then
@@ -329,7 +519,7 @@ function Self:GetDebugInfo(levelOrCoroutine)
         info = "\n"
     end
 
-    if Self.DEBUG_LOCALS and not InCombatLockdown() then
+    if Static.DEBUG_LOCALS and not InCombatLockdown() then
         local locals = type(levelOrCoroutine) ~= "thread" and debuglocals(levelOrCoroutine or 1) or nil
         if not Util:StrIsEmpty(locals) then info = info .. "\nLocals:" .. locals end
     end

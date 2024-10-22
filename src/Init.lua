@@ -5,8 +5,9 @@ local Addon = select(2, ...)
 
 ---@type Util
 Addon.Util = {}
----@type Async
-Addon.Async = {}
+---@type Promise.Static
+Addon.Promise = {}
+
 ---@type Prices
 Addon.Prices = {}
 ---@type Recipes

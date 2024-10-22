@@ -17,7 +17,6 @@ src/mixins/Allocations.lua
 src/mixins/Cache.lua
 src/mixins/Operation.lua
 
-src/modules/Async.lua
 src/modules/Recipes.lua
 src/modules/Reagents.lua
 src/modules/Orders.lua

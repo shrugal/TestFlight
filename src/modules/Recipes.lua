@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Optimization, Orders, Reagents, Util = Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Util
+local Optimization, Orders, Promise, Reagents, Util = Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event
@@ -60,48 +60,51 @@ function Self:GetTrackedReagentAmounts()
         local isRecraft = i == 1
         local recipeIDs = self:GetTrackedIDs(isRecraft)
 
-        for _,recipeID in pairs(recipeIDs) do
+        for _,recipeID in pairs(recipeIDs) do repeat
             local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+
             local amount = self:GetTrackedAmount(recipe)
+            if amount <= 0 then break end
+
             local allocation = self:GetTrackedAllocation(recipe)
             local order = Orders:GetTracked(recipe)
 
-            if amount > 0 then
-                for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
-                    local missing = reagent.required and reagent.quantityRequired or 0
+            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
+                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
 
+                -- Account for reagents provided by crafter
+                local isProvidedByCrafter = Orders:IsCreating(order) and Orders.creatingProvidedReagents[itemID]
+                if isProvidedByCrafter then break end
+
+                local required = reagent.required and reagent.quantityRequired or 0
+                local missing = amount * required
+
+                local isProvidedByCustomer = order and order.reagents and Util:TblWhere(order.reagents, "slotIndex", slotIndex)
+
+                if allocation and allocation[slotIndex] then
                     -- Account for allocated items
-                    if allocation and allocation[slotIndex] then
-                        for _, alloc in allocation[slotIndex]:Enumerate() do
-                            missing = missing - alloc.quantity
+                    for _, alloc in allocation[slotIndex]:Enumerate() do repeat
+                        missing = missing - amount * alloc.quantity
 
-                            local amount, itemID = amount, alloc.reagent.itemID ---@cast itemID -?
+                        local amount, itemID = amount, alloc.reagent.itemID ---@cast itemID -?
 
-                            -- Account for reagents provided by customer
-                            if order and order.reagents and Util:TblWhere(order.reagents, "reagent.itemID", itemID) then
-                                amount = amount - 1
-                            end
+                        -- Account for allocated reagents provided by customer
+                        if isProvidedByCustomer then amount = amount - 1 end
+                        if amount <= 0 then break end
 
-                            if amount > 0 then
-                                reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
-                            end
-                        end
-                    end
-
-                    local itemID = reagent.reagents[1].itemID ---@cast itemID -?
-
-                    -- Account for reagents provided by crafter
-                    if Orders:IsCreating(order) then
-                        missing = missing - (Orders.creatingProvidedReagents[itemID] or 0)
-                    end
-
-                    -- Fill up with lowest quality reagents
-                    if missing > 0 then
-                        reagents[itemID] = (reagents[itemID] or 0) + amount * missing
-                    end
+                        reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
+                    until true end
+                elseif isProvidedByCustomer then
+                    -- Account for unallocated reagents provided by customer
+                    missing = missing - required
                 end
-            end
-        end
+
+                if missing <= 0 then break end
+
+                -- Fill up with lowest quality reagents
+                reagents[itemID] = (reagents[itemID] or 0) + missing
+            until true end
+        until true end
     end
     return reagents
 end
@@ -109,16 +112,21 @@ end
 function Self:GetTrackedResultAmounts()
     ---@type number[]
     local items = {}
-    for _,recipeID in pairs(self:GetTrackedIDs(false)) do
+    for _,recipeID in pairs(self:GetTrackedIDs(false)) do repeat
         local quality = self:GetTrackedQuality(recipeID)
-        local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false, quality)
-        local output = C_TradeSkillUI.GetRecipeOutputItemData(recipeID, nil, nil, quality)
 
-        if recipe and output and output.itemID then
-            local amount = self:GetTrackedAmount(recipeID)
-            items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
-        end
-    end
+        local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false, quality)
+        if not recipe then break end
+
+        local order = Orders:GetTracked(recipeID)
+        if order then break end
+
+        local output = C_TradeSkillUI.GetRecipeOutputItemData(recipeID, nil, nil, quality)
+        if not output or not output.itemID then break end
+
+        local amount = self:GetTrackedAmount(recipeID)
+        items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
+    until true end
     return items
 end
 
@@ -303,7 +311,7 @@ function Self:LoadAllocations()
             local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQualityReagent, false, Reagents)
 
             if hasQualityReagents then
-                Addon.Async:Create(Util:FnBind(self.LoadAllocation, self, recipe))
+                Promise:Async(function() self:LoadAllocation(recipe) end)
             end
         end
     end

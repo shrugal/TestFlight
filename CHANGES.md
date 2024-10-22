@@ -1,1 +1,3 @@
 - Fix optimize buttons not disabling during optimization process
+- Fix considering patron order results as usable reagents
+- Fix listing provided basic order reagents as missing

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Async, GUI, Optimization, Orders, Prices, Recipes, Util = Addon.Async, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Optimization, Orders, Prices, Promise, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Promise, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = NS.RecipeForm
@@ -424,14 +424,14 @@ function Self:SetCraftingFormQuality(quality, exact)
     local recipe = self.form.recipeSchematic
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
 
-    Async:Create(function ()
+    Promise:Create(function ()
         return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID)
     end):Done(function (operations)
         local operation = operations and (operations[quality] or not exact and operations[quality + 1])
         if not operation then return end
 
         self:AllocateReagents(operation.allocation)
-    end):Wait(function ()
+    end):Start(function ()
         self.isOptimizing = true
         self.increaseBtn:SetEnabled(false)
         self.optimizeBtn:SetEnabled(false)
