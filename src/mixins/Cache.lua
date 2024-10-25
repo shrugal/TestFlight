@@ -4,21 +4,31 @@ local Util = Addon.Util
 
 ---@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
 
+---@class Cache.Static
+local Static = Addon.Cache
+
+Static.NIL = {}
+
+---@type Cache
+Static.Mixin = {}
+
 ---@class Cache
-local Self = {}
+local Self = Static.Mixin
 
 ---@generic T, K: function
 ---@param getKey `K`
 ---@param limit? number
 ---@return Cache<T, K>
-function Addon:CreateCache(getKey, limit)
-    return CreateAndInitFromMixin(Self, getKey, limit)
+function Static:Create(getKey, limit)
+    return CreateAndInitFromMixin(Static.Mixin, getKey, limit)
 end
+
+local function GetKey(_, ...) local s = "" for i=1,select("#", ...) do s = s .. (i > 1 and "|" or "") .. tostring(s) end return s end
 
 ---@param getKey function
 ---@param limit? number
 function Self:Init(getKey, limit)
-    self.Key = getKey
+    self.Key = getKey or GetKey
     self.limit = limit
     self.keys = limit and {}
     self.values = {}

@@ -78,7 +78,7 @@ function Self:Enable()
     self.enabled = true
 
     self:TriggerEvent(self.Event.Enabled)
-    self:TriggerEvent(self.Event.Toggled)
+    self:TriggerEvent(self.Event.Toggled, true)
 end
 
 function Self:Disable()
@@ -88,7 +88,7 @@ function Self:Disable()
     self:SetExtraSkill(0)
 
     self:TriggerEvent(self.Event.Disabled)
-    self:TriggerEvent(self.Event.Toggled)
+    self:TriggerEvent(self.Event.Toggled, false)
 end
 
 function Self:Toggle()

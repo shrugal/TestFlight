@@ -16,23 +16,86 @@ Self.Method = {
 --              Crafts
 ---------------------------------------
 
--- Get optimized allocations for given optimization method
----@param recipe CraftingRecipeSchematic
+---@param operation Operation
 ---@param method Optimization.Method
----@param transaction ProfessionTransaction
----@param orderOrRecraftGUID? CraftingOrderInfo | string
-function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGUID)
-    local optimizeConcentration = method == self.Method.ProfitPerConcentration
-    local applyConcentration = optimizeConcentration or transaction:IsApplyingConcentration()
-    local allocation = Util:TblCopy(transaction.allocationTbls, true)
-
-    local operation = Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration)
-
+function Self:GetOperationAllocations(operation, method)
     if Util:OneOf(method, self.Method.Profit, self.Method.ProfitPerConcentration) then
-        return self:GetRecipeProfitAllocations(operation:WithFinishingReagents(), optimizeConcentration)
+        return self:GetRecipeProfitAllocations(operation:WithFinishingReagents(), method == self.Method.ProfitPerConcentration)
     else
         return self:GetRecipeCostAllocations(operation)
     end
+end
+
+---@param operation Operation
+---@param method Optimization.Method
+function Self:GetOperationValue(operation, method)
+    if method == Self.Method.Cost then
+        return operation:GetReagentPrice()
+    elseif method == Self.Method.Profit then
+        return (operation:GetProfit())
+    elseif method == Self.Method.ProfitPerConcentration then
+        return operation:GetProfitPerConcentration()
+    end
+end
+
+-- Get best recipe allocation for given optimization method
+---@param recipe CraftingRecipeSchematic
+---@param method Optimization.Method
+function Self:GetRecipeAllocation(recipe, method)
+    -- Only items and enchants
+    if recipe.isRecraft or not recipe.hasCraftingOperationInfo then return end
+    if not Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) then return end
+
+    local operation = Addon:CreateOperation(recipe, nil, nil, method == Self.Method.ProfitPerConcentration)
+
+    -- Only tradable crafts
+    if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) and not operation:HasProfit() then return end
+
+    local operations = self:GetOperationAllocations(operation, method)
+    if not operations then return end
+
+    local d = method == Self.Method.Cost and -1 or 1
+    local bestOperation, bestValue, lastPrice
+
+    for i=5, 1, -1 do repeat
+        local operation = operations[i]
+        if not operation then break end
+
+        -- Ignore lower qualities with higher prices
+        if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) then
+            local price = operation:GetResultPrice()
+            if lastPrice and price >= lastPrice then break end
+            lastPrice = price
+        end
+
+        local value = self:GetOperationValue(operation, method)
+
+        if not value or abs(value) == math.huge then break end
+        if bestValue and value * d <= bestValue * d then break end
+
+        bestOperation, bestValue = operation, value
+    until true end
+
+    return bestOperation
+end
+
+-- Get optimized allocations for given optimization method
+---@param recipe CraftingRecipeSchematic
+---@param method Optimization.Method
+---@param transaction? ProfessionTransaction
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGUID)
+    local applyConcentration = method == self.Method.ProfitPerConcentration
+    local allocation
+
+    if transaction then
+        applyConcentration = applyConcentration or transaction:IsApplyingConcentration()
+        allocation = Util:TblCopy(transaction.allocationTbls, true)
+    end
+
+    local operation = Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration)
+
+    return self:GetOperationAllocations(operation, method)
 end
 
 -- Recipe alloctions that maximize profit
@@ -353,7 +416,7 @@ end
 
 Self.Cache = {
     ---@type Cache<table, fun(self: Cache, operation: Operation): string>
-    WeightsAndPrices = Addon:CreateCache(
+    WeightsAndPrices = Addon.Cache:Create(
         ---@param operation Operation
         function (_, operation) 
             return Self:GetRecipeCacheKey(operation)
@@ -361,7 +424,7 @@ Self.Cache = {
         5
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string>
-    CostAllocations = Addon:CreateCache(
+    CostAllocations = Addon.Cache:Create(
         ---@param operation Operation
         function(_, operation)
             return Self:GetRecipeCacheKey(operation, true)
@@ -369,14 +432,14 @@ Self.Cache = {
         10
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation, optimizeConcentration?: boolean): string>
-    ProfitAllocations = Addon:CreateCache(
+    ProfitAllocations = Addon.Cache:Create(
         ---@param operation Operation
         ---@param optimizeConcentration? boolean
         function(_, operation, optimizeConcentration)
             return Self:GetRecipeCacheKey(operation, true, optimizeConcentration)
         end,
         10
-    ),
+    )
 }
 
 ---@param operation Operation

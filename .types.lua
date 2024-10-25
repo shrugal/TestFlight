@@ -65,12 +65,18 @@ WorldQuestTrackerScreenPanel = nil
 ---                 WoW frames                    --
 -----------------------------------------------------
 
+---@class ScrollFrame
+---@field view Frame
+---@field SetDataProvider fun(self: self, dataProvider: TreeDataProviderMixin, retainScrollPosition?: boolean)
+---@field GetDataProvider fun(self: self): TreeDataProviderMixin
+
 ---@class ButtonFitToText: Button
 ---@field tooltipText? string
 ---@field SetTextToFit fun(self: self, text?: string)
 ---@field FitToText fun(self: self)
 
 ---@class DropdownButton: Button, DropdownButtonMixin
+---@field SetDefaultCallback fun(self: self, onDefault: function)
 
 ---@class FramePool
 ---@field Acquire fun(self: self): Frame
@@ -147,13 +153,21 @@ WorldQuestTrackerScreenPanel = nil
 ProfessionsFrame = nil
 
 ---@class CraftingPage: Frame
+---@field professionInfo ProfessionInfo
 ---@field SchematicForm CraftingForm
----@field RecipeList Frame
+---@field RecipeList RecipeList
 ---@field CreateButton Button
 ---@field CreateAllButton Button
 ---@field CreateMultipleInputBox NumericInputSpinner
+---@field Init fun(self: self, professionInfo: ProfessionInfo)
 ---@field ValidateControls fun(self: self)
 ---@field SetCreateButtonTooltipText fun(self: self, text: string)
+
+---@class RecipeList: Frame
+---@field selectionBehavior SelectionBehaviorMixin
+---@field FilterDropdown DropdownButton
+---@field ScrollBox ScrollFrame
+---@field SearchBox Frame
 
 ---@class OrdersPage: Frame
 ---@field RecipeList Frame
@@ -282,6 +296,7 @@ function CreateFramePool(frameType, parent, template, resetFunc, forbidden, fram
 
 ---@class C_TradeSkillUI
 ---@field GetRecipeItemLink fun(recipeID: number): string
+---@field GetFilteredRecipeIDs fun(): number[]
 C_TradeSkillUI = {}
 
 ---@class GameTooltip
@@ -317,6 +332,8 @@ C_TradeSkillUI = {}
 ---@field InspectRecipe fun(recipeID: number)
 ---@field AllocateBasicReagents fun(transaction: ProfessionTransaction, slotIndex: number, useBestQuality?: boolean)
 ---@field AllocateAllBasicReagents fun(transaction: ProfessionTransaction, useBestQuality?: boolean)
+---@field InitFilterMenu fun(dropdown: DropdownButton, onUpdate?: function, onDefault?: function, ignoreSkillLine?: boolean)
+---@field SetDefaultFilters fun(ignoreSkillLine?: boolean)
 Professions = {}
 
 ---@class ProfessionsUtil
@@ -430,7 +447,7 @@ ProfessionsRecipeSchematicFormMixin = {
 ---@field Insert fun(self: self, ...: unknown): unknown
 ---@field EnumerateElementDescriptions fun(self: self, ...: unknown): unknown
 
----@class MenuElementDescriptionMixin
+---@class MenuElementDescriptionMixin: BaseMenuDescriptionMixin
 ---@field Init fun(self: self, ...: unknown): unknown
 ---@field CallFactory fun(self: self, ...: unknown): unknown
 ---@field SetElementFactory fun(self: self, ...: unknown): unknown
@@ -479,6 +496,7 @@ ProfessionsRecipeSchematicFormMixin = {
 ---@field SetScrollMode fun(self: self, ...: unknown): unknown
 
 ---@class DropdownButtonMixin
+---@field menuGenerator fun(dropdown: self, rootDescription: RootMenuDescriptionMixin)
 ---@field OpenMenu fun(self: self, ...: unknown): unknown
 ---@field CloseMenu fun(self: self, ...: unknown): unknown
 ---@field SetMenuOpen fun(self: self, ...: unknown): unknown
@@ -720,3 +738,169 @@ ObjectiveTrackerModuleMixin = nil
 ---@field r number
 ---@field g number
 ---@field b number
+
+---@class DataProviderMixin
+---@field Event { OnSizeChanged: "OnSizeChanged", OnInsert: "OnInsert", OnRemove: "OnRemove", OnSort: "OnSort", OnMove: "OnMove" }
+---@field Init fun(self: self, ...: unknown): unknown
+---@field Enumerate fun(self: self, ...: unknown): unknown
+---@field EnumerateEntireRange fun(self: self, ...: unknown): unknown
+---@field ReverseEnumerate fun(self: self, ...: unknown): unknown
+---@field ReverseEnumerateEntireRange fun(self: self, ...: unknown): unknown
+---@field GetCollection fun(self: self, ...: unknown): unknown
+---@field GetSize fun(self: self, ...: unknown): unknown
+---@field IsEmpty fun(self: self, ...: unknown): unknown
+---@field InsertInternal fun(self: self, ...: unknown): unknown
+---@field InsertAtIndex fun(self: self, ...: unknown): unknown
+---@field Insert fun(self: self, ...: unknown): unknown
+---@field InsertTable fun(self: self, ...: unknown): unknown
+---@field InsertTableRange fun(self: self, ...: unknown): unknown
+---@field MoveElementDataToIndex fun(self: self, ...: unknown): unknown
+---@field Remove fun(self: self, ...: unknown): unknown
+---@field RemoveByPredicate fun(self: self, ...: unknown): unknown
+---@field RemoveIndex fun(self: self, ...: unknown): unknown
+---@field RemoveIndexRange fun(self: self, ...: unknown): unknown
+---@field SetSortComparator fun(self: self, ...: unknown): unknown
+---@field ClearSortComparator fun(self: self, ...: unknown): unknown
+---@field HasSortComparator fun(self: self, ...: unknown): unknown
+---@field Sort fun(self: self, ...: unknown): unknown
+---@field Find fun(self: self, ...: unknown): unknown
+---@field FindIndex fun(self: self, ...: unknown): unknown
+---@field FindByPredicate fun(self: self, ...: unknown): unknown
+---@field FindElementDataByPredicate fun(self: self, ...: unknown): unknown
+---@field FindIndexByPredicate fun(self: self, ...: unknown): unknown
+---@field ContainsByPredicate fun(self: self, ...: unknown): unknown
+---@field ForEach fun(self: self, ...: unknown): unknown
+---@field ReverseForEach fun(self: self, ...: unknown): unknown
+---@field Flush fun(self: self, ...: unknown): unknown
+DataProviderMixin = nil
+
+---@class TreeNodeMixin
+---@field data unknown
+---@field sortComparator fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean
+---@field Init fun(self: self, ...: unknown): unknown
+---@field GetNodes fun(self: self, ...: unknown): unknown
+---@field GetDepth fun(self: self, ...: unknown): unknown
+---@field GetData fun(self: self, ...: unknown): unknown
+---@field GetSize fun(self: self, ...: unknown): unknown
+---@field GetFirstNode fun(self: self, ...: unknown): unknown
+---@field MoveNode fun(self: self, ...: unknown): unknown
+---@field MoveNodeRelativeTo fun(self: self, ...: unknown): unknown
+---@field GetParent fun(self: self, ...: unknown): unknown
+---@field Flush fun(self: self, ...: unknown): unknown
+---@field Insert fun(self: self, ...: unknown): unknown
+---@field InsertNode fun(self: self, ...: unknown): unknown
+---@field Remove fun(self: self, ...: unknown): unknown
+---@field SetSortComparator fun(self: self, comp: (fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean), affectChildren?: boolean, skipSort?: boolean)
+---@field HasSortComparator fun(self: self): boolean
+---@field Sort fun(self: self)
+---@field Invalidate fun(self: self, ...: unknown): unknown
+---@field SetChildrenCollapsed fun(self: self, ...: unknown): unknown
+---@field SetCollapsed fun(self: self, ...: unknown): unknown
+---@field ToggleCollapsed fun(self: self, ...: unknown): unknown
+---@field IsCollapsed fun(self: self, ...: unknown): unknown
+TreeNodeMixin = nil
+
+---@class TreeDataProviderMixin: CallbackRegistryMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field GetChildrenNodes fun(self: self): TreeNodeMixin[]
+---@field GetFirstChildNode fun(self: self): TreeNodeMixin?
+---@field GetRootNode fun(self: self): TreeNodeMixin
+---@field Invalidate fun(self: self)
+---@field IsEmpty fun(self: self): boolean
+---@field Insert fun(self: self, data: any)
+---@field Remove fun(self: self, node: TreeNodeMixin)
+---@field SetSortComparator fun(self: self, comp: (fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean), affectChildren?: boolean, skipSort?: boolean)
+---@field HasSortComparator fun(self: self): boolean
+---@field Sort fun(self: self)
+---@field GetSize fun(self: self): number
+---@field SetCollapsedByPredicate fun(self: self, ...: unknown): unknown
+---@field InsertInParentByPredicate fun(self: self, ...: unknown): unknown
+---@field EnumerateEntireRange fun(self: self, ...: unknown): unknown
+---@field Enumerate fun(self: self, ...: unknown): unknown
+---@field ForEach fun(self: self, ...: unknown): unknown
+---@field Find fun(self: self, ...: unknown): unknown
+---@field FindIndex fun(self: self, ...: unknown): unknown
+---@field FindElementDataByPredicate fun(self: self, ...: unknown): unknown
+---@field FindByPredicate fun(self: self, ...: unknown): unknown
+---@field FindIndexByPredicate fun(self: self, ...: unknown): unknown
+---@field ContainsByPredicate fun(self: self, ...: unknown): unknown
+---@field Flush fun(self: self, ...: unknown): unknown
+---@field SetAllCollapsed fun(self: self, ...: unknown): unknown
+---@field CollapseAll fun(self: self, ...: unknown): unknown
+---@field UncollapseAll fun(self: self, ...: unknown): unknown
+TreeDataProviderMixin = nil
+
+---@class LinearizedTreeDataProviderMixin: TreeDataProviderMixin
+---@field GetSize fun(self: self, ...: unknown): unknown
+---@field Enumerate fun(self: self, ...: unknown): unknown
+---@field Flush fun(self: self, ...: unknown): unknown
+---@field Invalidate fun(self: self, ...: unknown): unknown
+---@field GetLinearized fun(self: self, ...: unknown): unknown
+LinearizedTreeDataProviderMixin = nil
+
+---@return LinearizedTreeDataProviderMixin
+function CreateTreeDataProvider() end
+
+ScrollBoxConstants = {
+	UpdateQueued = false,
+	UpdateImmediately = true,
+	NoScrollInterpolation = true,
+	RetainScrollPosition = true,
+	DiscardScrollPosition = false,
+	AlignBegin = 0,
+	AlignCenter = .5,
+	AlignEnd = 1,
+	AlignNearest = -1,
+	ScrollBegin = MathUtil.Epsilon,
+	ScrollEnd = (1 - MathUtil.Epsilon),
+	StopIteration = true,
+	ContinueIteration = false,
+}
+
+---@class ProfessionsRecipeListRecipeMixin
+---@field learned boolean
+---@field SkillUps Button
+---@field LockedIcon Button
+---@field Label FontString
+---@field Count FontString
+---@field SelectedOverlay Texture
+---@field HighlightOverlay Texture
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field GetLabelColor fun(self: self, ...: unknown): unknown
+---@field Init fun(self: self, ...: unknown): unknown
+---@field SetLabelFontColors fun(self: self, ...: unknown): unknown
+---@field OnEnter fun(self: self, ...: unknown): unknown
+---@field OnLeave fun(self: self, ...: unknown): unknown
+---@field SetSelected fun(self: self, ...: unknown): unknown
+ProfessionsRecipeListRecipeMixin = nil
+
+---@class SelectionBehaviorMixin: CallbackRegistryMixin
+---@field Event { OnSelectionChanged: "OnSelectionChanged" }
+---@field IsIntrusiveSelected fun(self: self, ...: unknown): unknown
+---@field IsElementDataIntrusiveSelected fun(self: self, ...: unknown): unknown
+---@field IsSelected fun(self: self, ...: unknown): unknown
+---@field IsElementDataSelected fun(self: self, ...: unknown): unknown
+---@field Init fun(self: self, ...: unknown): unknown
+---@field SetSelectionFlags fun(self: self, ...: unknown): unknown
+---@field HasSelection fun(self: self, ...: unknown): unknown
+---@field GetFirstSelectedElementData fun(self: self, ...: unknown): unknown
+---@field GetSelectedElementData fun(self: self, ...: unknown): unknown
+---@field IsFlagSet fun(self: self, ...: unknown): unknown
+---@field DeselectByPredicate fun(self: self, ...: unknown): unknown
+---@field DeselectSelectedElements fun(self: self, ...: unknown): unknown
+---@field ClearSelections fun(self: self, ...: unknown): unknown
+---@field ToggleSelectElementData fun(self: self, ...: unknown): unknown
+---@field SelectFirstElementData fun(self: self, ...: unknown): unknown
+---@field SelectNextElementData fun(self: self, ...: unknown): unknown
+---@field SelectPreviousElementData fun(self: self, ...: unknown): unknown
+---@field SelectOffsetElementData fun(self: self, ...: unknown): unknown
+---@field SelectElementData fun(self: self, ...: unknown): unknown
+---@field SelectElementDataByPredicate fun(self: self, ...: unknown): unknown
+---@field SetElementDataSelected_Internal fun(self: self, ...: unknown): unknown
+---@field Select fun(self: self, ...: unknown): unknown
+---@field ToggleSelect fun(self: self, ...: unknown): unknown
+SelectionBehaviorMixin = nil
+
+---@class StatusBar
+---@field Text FontString
+---@field Icon Texture

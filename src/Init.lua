@@ -7,6 +7,8 @@ local Addon = select(2, ...)
 Addon.Util = {}
 ---@type Promise.Static
 Addon.Promise = {}
+---@type Cache.Static
+Addon.Cache = {}
 
 ---@type Prices
 Addon.Prices = {}

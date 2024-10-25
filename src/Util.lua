@@ -26,8 +26,9 @@ end
 -- Tbl
 
 ---@param tbl table
----@param path string
+---@param path string | any
 function Self:TblGet(tbl, path)
+    if type(path) ~= "string" then return tbl[path] end ---@cast path string
     while true do
         if not tbl then return end
         local i = path:find(".", nil, true)
@@ -223,6 +224,22 @@ function Self:TblFindWhere(tbl, ...)
     for k,v in self:IEach(tbl) do
         if self:TblMatch(v, ...) then return k, v end
     end
+end
+
+---@param tbl table
+---@param ... table
+function Self:TblContains(tbl, ...)
+    for i=1,select("#", ...) do
+        local t = select(i, ...)
+        for k,v in pairs(t) do if tbl[k] ~= v then return false end end
+    end
+    return true
+end
+
+---@param tbl1 table
+---@param tbl2 table
+function Self:TblEquals(tbl1, tbl2)
+    return tbl1 == tbl2 or self:TblContains(tbl1, tbl2) and self:TblContains(tbl2, tbl1)
 end
 
 ---@generic T, R, S: table
@@ -492,9 +509,20 @@ end
 
 -- Num
 
-function Self:NumCurrencyString(amount)
-    local str = C_CurrencyInfo.GetCoinTextureString(math.abs(amount))
-    if amount < 0 then str = "|c00ff0000-" .. str .. "|r" end
+---@param amount number
+---@param color? boolean | string | ColorMixin
+---@param fontHeight? number
+function Self:NumCurrencyString(amount, color, fontHeight)
+    local str = C_CurrencyInfo.GetCoinTextureString(math.abs(amount), fontHeight)
+
+    if amount < 0 then
+        str = "-" .. str
+        if color == true or color == nil then color = "00ff0000" end
+    end
+
+    if type(color) == "table" then color = color:GenerateHexColor() end
+    if type(color) == "string" then str = ("|c%s%s|r"):format(color, str) end
+
     return str
 end
 
@@ -502,6 +530,10 @@ function Self:NumRound(n, p)
     local f = math.pow(10, p or 0)
     return math.floor(0.5 + n * f) / f
 end
+
+-- Bool
+
+function Self:BoolXor(a, b) return not a ~= not b end
 
 -- Fn
 
@@ -601,6 +633,77 @@ function Self:FnCapture(fn, onSuccess, onFailure, errorHandler)
         elseif onFailure then
             return onFailure(unpack(result, 2))
         end
+    end
+end
+
+-- General purpose function slow-down
+---@param fn function
+---@param n? number
+---@param debounce? boolean
+---@param leading? boolean
+---@param trailing? boolean
+---@param update? boolean
+function Self:FnSlowDown(fn, n, debounce, leading, trailing, update)
+    local args = {}
+    ---@type FunctionContainer?, boolean?, function, function
+    local handle, called, scheduler, handler
+
+    scheduler = function (...)
+        if not handle or update then
+            self:TblFill(args, ...)
+        end
+
+        if handle then
+            called = true
+            if debounce then handle:Cancel() end
+        elseif leading then
+            fn(...)
+        end
+
+        if not handle or debounce then
+            handle = C_Timer.NewTimer(n or 0, handler)
+        end
+    end
+
+    handler = function ()
+        handle = nil
+        if not leading then
+            fn(unpack(args))
+        elseif called and trailing ~= false then
+            called = nil
+            scheduler(unpack(args))
+        end
+    end
+
+    return scheduler
+end
+
+-- Throttle a function, so it is executed at most every n seconds
+---@param fn function
+---@param n? number
+---@param leading? boolean
+---@param trailing? boolean
+---@param update? boolean
+function Self:FnThrottle(fn, n, leading, trailing, update)
+    return self:FnSlowDown(fn, n, false, leading, trailing, update)
+end
+
+-- Debounce a function, so it is executed only n seconds after the last call
+---@param fn function
+---@param n? number
+---@param leading? boolean
+---@param trailing? boolean
+---@param update? boolean
+function Self:FnDebounce(fn, n, leading, trailing, update)
+    return self:FnSlowDown(fn, n, true, leading, trailing, update)
+end
+
+function Self:DebugStack(level)
+    Addon:Debug("---", "Debugstack")
+    local i = 0
+    for line in debugstack((level or 1) + 1):gmatch("[^\n]+") do
+        i = i + 1
+        Addon:Debug(line, i)
     end
 end
 

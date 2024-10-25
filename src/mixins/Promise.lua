@@ -42,6 +42,9 @@ Static.start = debugprofilestop()
 -- Queue of pending promises
 ---@type Promise[]
 Static.queue = {}
+-- Currently runnning promises
+---@type Promise[]
+Static.stack = {}
 
 ---------------------------------------
 --                API
@@ -52,11 +55,23 @@ function Static:IsPromise(obj)
     return type(obj) == "table" and obj.__promise__ == true
 end
 
+function Static:GetCurrent()
+    return Static.stack[#Static.stack]
+end
+
 -- Yield if currently in a coroutine, do nothing if not
 ---@vararg any
 function Static:Yield(...)
     if not coroutine.running() then return end
     return coroutine.yield(...)
+end
+
+-- Yield if currently in a promise that has suspended before, do nothing if not
+---@vararg any
+function Static:YieldAgain(...)
+    local current = self:GetCurrent()
+    if not current or not current.hasSuspended then return end
+    self:Yield(...)
 end
 
 -- Resolves when n promises resolve, rejects if #promises - n reject or cancel
@@ -289,10 +304,11 @@ function Self:Finally(onFinally, ...)
 end
 
 -- Yield current coroutine until the promise is finalized
+---@vararg any
 ---@return boolean resolved
 ---@return any ... result
-function Self:Await()
-    while self:IsPending() do coroutine.yield() end
+function Self:Await(...)
+    while self:IsPending() do coroutine.yield(...) end
     return self.status == Static.Status.Done, unpack(self.statusResult)
 end
 
@@ -305,7 +321,11 @@ end
 function Self:Cancel()
     if self:IsFinalized() then return end
 
-    self:Finalize(Static.Status.Canceled)
+    if self.parent and self.parent:IsPending() then
+        self.parent:Cancel()
+    else
+        self:Finalize(Static.Status.Canceled)
+    end
 end
 
 -- Resolve the promise
@@ -409,6 +429,8 @@ function Self:Resume()
             self.coroutine = coroutine.create(self.runner)
         end
         if coroutine.status(self.coroutine) == "suspended" then
+            tinsert(Static.stack, self)
+
             self.status = Static.Status.Running
             self:Handle(coroutine.resume(self.coroutine))
         end
@@ -419,6 +441,8 @@ end
 ---@param success boolean
 ---@vararg any
 function Self:Handle(success, ...)
+    tremove(Static.stack)
+
     if self.status == Static.Status.Running then
         local state = coroutine.status(self.coroutine)
         if not success then
@@ -427,6 +451,8 @@ function Self:Handle(success, ...)
         elseif state == "dead" and select("#", ...) > 0 then
             self:Resolve(...)
         else
+            self.hasSuspended = true
+
             self.status = Static.Status.Suspended
             Util:TblFill(self.statusResult, ...)
 

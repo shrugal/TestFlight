@@ -220,18 +220,33 @@ end
 ---------------------------------------
 
 ---@param reagent CraftingReagentSlotSchematic
----@param q1 number
----@param q2 number
----@param q3 number
+---@vararg number
 ---@return ProfessionTransationAllocations
-function Self:CreateAllocations(reagent, q1, q2, q3)
+function Self:CreateAllocations(reagent, ...)
     local reagentAllocations = Addon:CreateAllocations()
+    local q = reagent.quantityRequired
 
-    self:Allocate(reagentAllocations, reagent.reagents[1], q1)
-    self:Allocate(reagentAllocations, reagent.reagents[2], q2)
-    self:Allocate(reagentAllocations, reagent.reagents[3], q3)
+    for i=max(1, select("#", ...)), 1, -1 do
+        local qi = select(i, ...)
+        if not qi and i == 1 then qi = q end
+        if qi and qi > 0 then
+            self:Allocate(reagentAllocations, reagent.reagents[i], qi)
+            q = q - qi
+        end
+    end
 
     return reagentAllocations
+end
+
+---@param reagents CraftingReagentSlotSchematic[]
+function Self:CreateAllocationFromSchematics(reagents)
+    local allocation = {}
+    for _,reagent in pairs(reagents) do
+        if reagent.required then
+            allocation[reagent.slotIndex] = self:CreateAllocations(reagent)
+        end
+    end
+    return allocation
 end
 
 ---@param allocations ProfessionTransationAllocations

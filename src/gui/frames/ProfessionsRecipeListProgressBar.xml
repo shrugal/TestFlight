@@ -1,0 +1,55 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<Script file="ProfessionsRecipeListProgressBar.lua"/>
+
+	<Frame name="TestFlightProfessionsRecipeListProgressBarTemplate" mixin="TestFlightProfessionsRecipeListProgressBarMixin" enableMouse="true" virtual="true">
+		<Size x="300" y="22"/>
+		<Layers>
+			<Layer level="BACKGROUND">
+				<Texture parentKey="Fill" file="Interface\AuctionFrame\UI-AuctionPost-Background">							
+					<Anchors>
+						<Anchor point="TOPLEFT" relativeKey="$parent" relativePoint="TOPLEFT" x="0" y="0"/>
+						<Anchor point="BOTTOMRIGHT" relativeKey="$parent" relativePoint="BOTTOMRIGHT" x="12" y="0"/>
+					</Anchors>
+					<TexCoords left="0" right="1" top="0.25" bottom="0.75" />
+					<Color r="0.55" g="0.55" b="0.55" />
+				</Texture>
+			</Layer>
+		</Layers>
+		<Frames>
+			<StatusBar parentKey="ProgressBar" inherits="CastingBarFrameBaseTemplate">
+				<Size x="195" y="11"/>
+				<Anchors>
+					<Anchor point="CENTER" relativeKey="$parent" x="0" y="0"/>
+				</Anchors>
+				<Scripts>
+					<OnLoad>
+						self.Spark:Hide()
+						self.Flash:Hide()
+						self.Icon:Hide()
+					</OnLoad>
+
+					<OnEvent></OnEvent>
+					<OnShow></OnShow>
+					<OnUpdate></OnUpdate>
+				</Scripts>
+			</StatusBar>
+			<Button parentKey="CancelButton">
+				<Size x="32" y="32"/>
+				<Anchors>
+					<Anchor point="RIGHT" relativeKey="$parent" relativePoint="RIGHT" x="12" y="-2"/>
+				</Anchors>
+				<HitRectInsets left="9" right="7" top="-7" bottom="10"/>
+				<NormalTexture file="Interface\Buttons\CancelButton-Up"/>
+				<PushedTexture file="Interface\Buttons\CancelButton-Down"/>
+				<HighlightTexture file="Interface\Buttons\CancelButton-Highlight" alphaMode="ADD"/>
+			</Button>
+		</Frames>
+		<Scripts>
+			<OnLoad>
+				self.ProgressBar.TextBorder:Hide()
+				self.ProgressBar.Text:ClearAllPoints()
+				self.ProgressBar.Text:SetPoint("CENTER")
+			</OnLoad>
+		</Scripts>
+	</Frame>
+</Ui>

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Prices, Reagents, Recipes, Util = Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Optimization, Prices, Reagents, Recipes, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 -- A crafting operation
 ---@class Operation
@@ -35,9 +35,7 @@ function Self:WithReagents(reagentType, reagents)
     for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
         local allocations = self.allocation[slot.slotIndex]
 
-        if slot.reagentType ~= reagentType or Reagents:IsProvidedByOrder(slot, order) then
-            allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
-        else
+        if slot.reagentType == reagentType and not Reagents:IsProvidedByOrder(slot, order) then
             allocation[slot.slotIndex] = Addon:CreateAllocations()
 
             if reagents then
@@ -47,9 +45,11 @@ function Self:WithReagents(reagentType, reagents)
                     end
                 end
             end
+        elseif allocations then
+            allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
         end
     end
-    
+
     return self:WithAllocation(allocation)
 end
 
@@ -76,7 +76,7 @@ end
 ---@param applyConcentration? boolean
 function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
     self.recipe = recipe
-    self.allocation = allocation or {}
+    self.allocation = allocation or Reagents:CreateAllocationFromSchematics(recipe.reagentSlotSchematics)
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
 
@@ -117,6 +117,10 @@ end
 function Self:GetOperationInfo()
     if not self.operationInfo then
         self.operationInfo = Recipes:GetOperationInfo(self.recipe, self:GetReagents(), self.orderOrRecraftGUID)
+
+        if not self.operationInfo then
+            Addon:Debug(self, "operation")
+        end
     end
     return self.operationInfo
 end
@@ -346,4 +350,3 @@ end
 function Self:HasProfit()
     return self:GetOrder() ~= nil or not self.orderOrRecraftGUID and self:GetResultPrice() > 0
 end
-
