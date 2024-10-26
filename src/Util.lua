@@ -23,6 +23,16 @@ function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)
     return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
 end
 
+---@param name CVar
+function Self:GetCVarNum(name)
+    return tonumber(GetCVar(name))
+end
+
+---@param name CVar
+function Self:GetCVarBool(name)
+    return GetCVar(name) == "1"
+end
+
 -- Tbl
 
 ---@param tbl table
@@ -698,6 +708,8 @@ function Self:FnDebounce(fn, n, leading, trailing, update)
     return self:FnSlowDown(fn, n, true, leading, trailing, update)
 end
 
+-- DEBUG
+
 function Self:DebugStack(level)
     Addon:Debug("---", "Debugstack")
     local i = 0
@@ -705,6 +717,14 @@ function Self:DebugStack(level)
         i = i + 1
         Addon:Debug(line, i)
     end
+end
+
+local prevTime
+
+function Self:DebugTime(label)
+    local time = debugprofilestop()
+    if label and prevTime then Addon:Debug(time - prevTime, label) end
+    prevTime = time
 end
 
 -- Chain

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Optimization, Prices, Reagents, Recipes, Util = Addon.Optimization, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Prices, Reagents, Recipes, Util = Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 -- A crafting operation
 ---@class Operation
@@ -106,6 +106,13 @@ function Self:GetRecipeInfo()
     return self.recipeInfo
 end
 
+function Self:GetProfessionInfo()
+    if not self.professionInfo then
+        self.professionInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(self.recipe.recipeID)
+    end
+    return self.professionInfo
+end
+
 function Self:GetOrder()
     if type(self.orderOrRecraftGUID) == "table" then return self.orderOrRecraftGUID --[[@as CraftingOrderInfo]] end
 end
@@ -117,10 +124,6 @@ end
 function Self:GetOperationInfo()
     if not self.operationInfo then
         self.operationInfo = Recipes:GetOperationInfo(self.recipe, self:GetReagents(), self.orderOrRecraftGUID)
-
-        if not self.operationInfo then
-            Addon:Debug(self, "operation")
-        end
     end
     return self.operationInfo
 end
@@ -230,7 +233,7 @@ function Self:GetWeightThresholds(absolute)
     if absolute then return lower / difficulty, upper / difficulty end
 
     local _, bestSkill = self:GetSkillBounds()
-    return ceil(lower / bestSkill), min(self:GetMaxWeight(), floor(upper / bestSkill))
+    return ceil(lower / bestSkill), min(maxWeight, floor(upper / bestSkill))
 end
 
 function Self:GetConcentrationFactors()

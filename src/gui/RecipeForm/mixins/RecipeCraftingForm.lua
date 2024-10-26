@@ -285,7 +285,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
         end
 
         -- Profit
-        if profit then
+        if profit then --[[@cast revenue -?]] --[[@cast rewards -?]] --[[@cast resourcefulness -?]] --[[@cast multicraft -?]]
             local label = "Profit" -- TODO
             local profitStr = Util:NumCurrencyString(profit)
 
@@ -330,7 +330,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                             local qualityOperation = operations[i]
                             if qualityOperation then
                                 local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                                local qualityProfit = qualityOperation:GetProfit()
+                                local qualityProfit = qualityOperation:GetProfit() ---@cast qualityProfit -?
                                 local qualityProfitStr = Util:NumCurrencyString(qualityProfit)
 
                                 GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityProfitStr)
@@ -414,7 +414,8 @@ end
 
 ---@param quality? number
 ---@param exact? boolean
-function Self:SetCraftingFormQuality(quality, exact)
+---@param method? Optimization.Method
+function Self:SetCraftingFormQuality(quality, exact, method)
     if self.isOptimizing then return end
 
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
@@ -425,7 +426,7 @@ function Self:SetCraftingFormQuality(quality, exact)
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
 
     Promise:Create(function ()
-        return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID)
+        return Optimization:GetRecipeAllocations(recipe, method or self.optimizationMethod, tx, orderOrRecraftGUID)
     end):Done(function (operations)
         local operation = operations and (operations[quality] or not exact and operations[quality + 1])
         if not operation then return end

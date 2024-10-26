@@ -2,7 +2,7 @@
 local Addon = select(2, ...)
 local Util = Addon.Util
 
----@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
+---@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Unset: fun(self: Cache, key: any), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
 
 ---@class Cache.Static
 local Static = Addon.Cache
@@ -18,33 +18,57 @@ local Self = Static.Mixin
 ---@generic T, K: function
 ---@param getKey `K`
 ---@param limit? number
+---@param priority? boolean
 ---@return Cache<T, K>
-function Static:Create(getKey, limit)
-    return CreateAndInitFromMixin(Static.Mixin, getKey, limit)
+function Static:Create(getKey, limit, priority)
+    return CreateAndInitFromMixin(Static.Mixin, getKey, limit, priority)
 end
 
-local function GetKey(_, ...) local s = "" for i=1,select("#", ...) do s = s .. (i > 1 and "|" or "") .. tostring(s) end return s end
+local function GetKey(_, ...)
+    local s = ""
+    for i=1,select("#", ...) do
+        s = s .. (i > 1 and "|" or "") .. tostring(s)
+    end
+    return s
+end
 
 ---@param getKey function
 ---@param limit? number
-function Self:Init(getKey, limit)
+---@param priority? boolean
+function Self:Init(getKey, limit, priority)
+    assert(not priority or limit, "Priority cache needs a limit")
+
     self.Key = getKey or GetKey
-    self.limit = limit
-    self.keys = limit and {}
     self.values = {}
+    self.size = 0
+    self.limit = limit
+    self.keys = limit and {} or nil
+    self.priority = priority or false
 end
 
 function Self:Set(key, value)
-    if self.limit and self:Has(key) then
-        tremove(self.keys, Util:TblIndexOf(self.keys, key))
+    if not self:Has(key) then
+        self.size = self.size + 1
+
+        if self.limit then
+            tinsert(self.keys, key)
+            if self.size > self.limit then self:Unset(self.keys[1]) end
+        end
     end
 
-    self.values[key] = value
+    self.values[key] = value == nil and Static.NIL or value
+end
 
-    if self.limit and value ~= nil then
-        tinsert(self.keys, key)
-        if #self.keys > self.limit then self:Set(self.keys[1]) end
+function Self:Unset(key)
+    if self:Has(key) then
+        self.size = self.size - 1
+
+        if self.limit then
+            tremove(self.keys, Util:TblIndexOf(self.keys, key))
+        end
     end
+
+    self.values[key] = nil
 end
 
 function Self:Has(key)
@@ -52,7 +76,16 @@ function Self:Has(key)
 end
 
 function Self:Get(key)
-    return self.values[key]
+    if self.priority and self:Has(key) then
+        local i = Util:TblIndexOf(self.keys, key)
+        if i ~= self.size then
+            tinsert(self.keys, tremove(self.keys, i))
+        end
+    end
+
+    local value = self.values[key]
+    if value == Static.NIL then return nil end
+    return value
 end
 
 function Self:Clear()

@@ -283,11 +283,16 @@ end
 function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcentration)
     if not applyConcentration then applyConcentration = false end
 
+    local res
     if type(orderOrRecraftGUID) == "table" then
-        return C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, reagents, orderOrRecraftGUID.orderID, applyConcentration)
+        res = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, reagents, orderOrRecraftGUID.orderID, applyConcentration)
     else ---@cast orderOrRecraftGUID string?
-        return C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
+        res = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
     end
+
+    Promise:YieldTime("GetOperationInfo")
+
+    return res
 end
 
 ---@param recipe CraftingRecipeSchematic

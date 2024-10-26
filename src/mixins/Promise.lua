@@ -14,8 +14,12 @@ Static.Mixin = {}
 Static.DEBUG_STACK = true
 -- Add locals to error messages
 Static.DEBUG_LOCALS = false
--- Percentage of frame time to use for background promise execution
-Static.MAX_FRAME_TIME_PERCENT = 0.5
+-- Max. percentage of frametime used
+Static.MAX_FRAMETIME_PERCENT = 0.5
+-- Max. absolute frametime used
+Static.MAX_FRAMETIME_MS = 100
+-- Max. runtime per promise resume (scaled by promise priority)
+Static.MAX_RUNTIME_MS = 1
 
 ---@enum Promise.Status
 Static.Status = {
@@ -66,7 +70,20 @@ function Static:Yield(...)
     return coroutine.yield(...)
 end
 
--- Yield if currently in a promise that has suspended before, do nothing if not
+-- Yield if currently in a promise and some time has passed since resuming it
+---@param label? string
+function Static:YieldTime(label)
+    local current = self:GetCurrent()
+    if not current then return end
+
+    local time = (debugprofilestop() - current.start) / current.priority
+    if time < Static.MAX_RUNTIME_MS then return end
+    if time > 5 then Addon:Debug(time * current.priority, label or "YieldTime") end
+
+    self:Yield()
+end
+
+-- Yield if currently in a promise that has suspended before
 ---@vararg any
 function Static:YieldAgain(...)
     local current = self:GetCurrent()
@@ -159,15 +176,19 @@ function Static:Enqueue(promise)
     tinsert(self.queue, promise)
 end
 
+local function GetTargetFramerate()
+    return Util:GetCVarBool("useTargetFPS") and Util:GetCVarNum("targetFPS") or Util:GetCVarBool("useMaxFPS") and Util:GetCVarNum("maxFPS") or max(GetFramerate(), 60)
+end
+
 -- Execute promise if there is still time in the current frame
 ---@param promise? Promise
 ---@param force? boolean Ignore time, always execute
 ---@return true? promiseExecuted
 function Static:Execute(promise, force)
-    local msPerFrame = 1000 / GetFramerate()
-    local msTimeLeft = msPerFrame - (debugprofilestop() - self.start)
+    local timePerFrame = min(Static.MAX_FRAMETIME_PERCENT * 1000 / GetTargetFramerate(), Static.MAX_FRAMETIME_MS)
+    local timeLeft = timePerFrame - (debugprofilestop() - self.start)
 
-    if force or msTimeLeft >= msPerFrame * self.MAX_FRAME_TIME_PERCENT then
+    if force or timeLeft > 0 then
         if not promise then promise = tremove(self.queue, 1) end
         if not promise then return end
 
@@ -218,6 +239,7 @@ end
 ---@param parent? Promise
 function Self:Init(runner, level, parent)
     self.parent = parent
+    self.priority = 1
 
     ---@type Promise.Status
     self.status = Static.Status.Created
@@ -377,6 +399,12 @@ function Self:IsCanceled()
     return self.status == Static.Status.Canceled
 end
 
+-- Set execution priority
+---@param priority number Higher priority means the promise will run longer until suspending
+function Self:SetPriority(priority)
+    self.priority = priority
+end
+
 ---------------------------------------
 --              Execution
 ---------------------------------------
@@ -431,7 +459,9 @@ function Self:Resume()
         if coroutine.status(self.coroutine) == "suspended" then
             tinsert(Static.stack, self)
 
+            self.start = debugprofilestop()
             self.status = Static.Status.Running
+
             self:Handle(coroutine.resume(self.coroutine))
         end
     end

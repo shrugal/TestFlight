@@ -1,3 +1,3 @@
-- Fix optimize buttons not disabling during optimization process
-- Fix considering patron order results as usable reagents
-- Fix listing provided basic order reagents as missing
+- Add scanning and sorting recipe list by optimization targets
+- Add showing optimization target prices in sorted recipe list
+- Fix ignoring provided reagents when tracking unclaimed orders

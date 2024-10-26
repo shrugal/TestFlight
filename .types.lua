@@ -168,6 +168,7 @@ ProfessionsFrame = nil
 ---@field FilterDropdown DropdownButton
 ---@field ScrollBox ScrollFrame
 ---@field SearchBox Frame
+---@field NoResultsText FontString
 
 ---@class OrdersPage: Frame
 ---@field RecipeList Frame

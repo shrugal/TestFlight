@@ -102,9 +102,6 @@ end
 ---@param operation Operation
 ---@param optimizeConcentration? boolean
 function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
-    local skillBase = operation:GetSkillBounds()
-    if not skillBase then return end
-
     -- Check allocations cache
     local cache = self.Cache.ProfitAllocations
     local key = cache:Key(operation, optimizeConcentration)
@@ -112,6 +109,11 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
     if cache:Has(key) then return cache:Get(key) end
 
     Promise:Yield()
+
+    local skillBase = operation:GetSkillBounds()
+    if not skillBase then return end
+
+    Promise:YieldTime("GetRecipeProfitAllocations: Skill")
 
     ---@type Operation[]
     local operations = Util:TblCopy(self:GetRecipeCostAllocations(operation) --[=[@as Operation[]]=])
@@ -122,6 +124,8 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
         for qualityID,operation in pairs(operations) do
             local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
 
+            Promise:YieldTime("GetRecipeProfitAllocations: Concentration cost")
+
             ---@type number
             local profit
             if not optimizeConcentration then
@@ -131,7 +135,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
                 operation = operation:WithQualityReagents(reagents)
                 profit = operation:GetProfitPerConcentration() --[[@as number]]
 
-                Promise:Yield()
+                Promise:YieldTime("GetRecipeProfitAllocations: Profit per concentration 1")
             end
 
             local bonusSkill = operation:GetOperationInfo().bonusSkill
@@ -159,7 +163,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
                                 operation = operation:WithQualityReagents(reagents)
                                 profit = operation:GetProfitPerConcentration() --[[@as number]]
 
-                                Promise:Yield()
+                                Promise:YieldTime("GetRecipeProfitAllocations: Profit per concentration 2")
                             end
 
                             if profit > maxProfit then
@@ -174,7 +178,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
 
             operations[qualityID] = maxProfitOperation
 
-            Promise:Yield()
+            Promise:YieldTime("GetRecipeProfitAllocations: End")
         end
     end
 
@@ -186,9 +190,6 @@ end
 -- Recipe allocations that minimize cost
 ---@param operation Operation
 function Self:GetRecipeCostAllocations(operation)
-    local skillBase, skillBest = operation:GetSkillBounds()
-    if not skillBase then return end
-
     -- Check allocations cache
     local cache = self.Cache.CostAllocations
     local key = cache:Key(operation)
@@ -196,6 +197,11 @@ function Self:GetRecipeCostAllocations(operation)
     if cache:Has(key) then return cache:Get(key) end
 
     Promise:Yield()
+
+    local skillBase, skillBest = operation:GetSkillBounds()
+    if not skillBase then return end
+
+    Promise:YieldTime("GetRecipeCostAllocations: Skill")
 
     local breakpoints = operation:GetQualityBreakpoints()
     local difficulty = operation:GetDifficulty()
@@ -222,7 +228,7 @@ function Self:GetRecipeCostAllocations(operation)
 
         if breakpointSkill == 0 then break end
 
-        Promise:Yield()
+        Promise:YieldTime("GetRecipeCostAllocations: End")
     end
 
     cache:Set(key, operations)
@@ -271,9 +277,11 @@ function Self:GetRecipeWeightsAndPrices(operation)
                     prices[1][w], weights[i][w] = newPrice, weight
                 end
             end
+
+            Promise:YieldTime("GetRecipeWeightsAndPrices: Inner")
         end
 
-        Promise:Yield()
+        Promise:YieldTime("GetRecipeWeightsAndPrices: End")
     end
 
     cache:Set(key, { weights, prices[1] })
@@ -396,8 +404,9 @@ function Self:GetReagentsForMethod(operation, method)
 
             if method == self.Method.ProfitPerConcentration then
                 profit = profit / operation:GetConcentrationCost(weight)
-            end
 
+                Promise:YieldTime("GetReagentsForMethod: Profit per concentration")
+            end
 
             if profit > maxProfit then
                 maxProfit, maxProfitWeight = profit, weight
@@ -405,6 +414,8 @@ function Self:GetReagentsForMethod(operation, method)
         end
 
         prevPrice = weightPrice
+
+        Promise:YieldTime("GetReagentsForMethod: End")
     end
 
     return self:GetReagentsForWeight(operation, maxProfitWeight)
@@ -447,11 +458,12 @@ Self.Cache = {
 ---@param optimizeConcentration? boolean
 function Self:GetRecipeCacheKey(operation, optionalReagents, optimizeConcentration)
     local order = operation:GetOrder()
+    local profInfo = operation:GetProfessionInfo()
 
     local key = ("%d;%d;%d;%d;%d;%d"):format(
         operation.recipe.recipeID,
         operation.recipe.isRecraft and 1 or 0,
-        operation:GetOperationInfo().baseSkill or 0,
+        profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
         order and order.orderID or 0,
         operation.applyConcentration and 1 or 0,
         optimizeConcentration and 1 or 0

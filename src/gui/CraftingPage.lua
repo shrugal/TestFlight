@@ -119,7 +119,10 @@ end
 function Self:SetSortSelected(method)
     self.sortMethod = method
 
+
     if method then
+        GUI.RecipeForm.CraftingForm:SetOptimizationMethod(method)
+
         self:UpdateSort(true)
     else
         if self.sortJob then self.sortJob:Cancel() end
@@ -163,28 +166,34 @@ function Self:UpdateSort(refresh)
         ---@todo No recipes
 
         self.sortJob = Promise:Async(function ()
+            Promise:GetCurrent():SetPriority(10)
+
             for i,recipeID in ipairs(recipeIDs) do repeat
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
 
                 local key = cache:Key(recipe)
                 if not cache:Has(key) then
-                    cache:Set(key, Optimization:GetRecipeAllocation(recipe, method) or Cache.NIL)
+                    cache:Set(key, Optimization:GetRecipeAllocation(recipe, method))
                 end
 
                 local operation = cache:Get(key)
-                if operation == Cache.NIL then break end
+                if not operation then break end
 
                 local value = Optimization:GetOperationValue(operation, method)
                 if not value or abs(value) == math.huge then break end
 
                 self.dataProvider:Insert({
                     recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
-                    operation = operation,
+                    allocation = operation.allocation,
                     value = value,
+                    method = method,
+                    quality = operation:GetQuality()
                 })
 
                 Promise:YieldAgain(i, n)
             until true end
+
+            self.frame.RecipeList.NoResultsText:SetShown(self.dataProvider:IsEmpty())
 
             -- Fix last recipe not getting sorted correctly
             self.dataProvider:Invalidate()
@@ -237,12 +246,13 @@ end
 function Self:OnSelectionChanged(node, selected)
     if not selected then return end
 
-    local data = node:GetData()
+    local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
 
-    if data.operation then
-        GUI.RecipeForm.CraftingForm:AllocateReagents(data.operation.allocation)
+    if data.allocation then
+        form:AllocateReagents(data.allocation)
     elseif data.method and data.quality then
-        ---@todo
+        form:SetOptimizationMethod(data.method)
+        form:SetCraftingFormQuality(data.quality)
     end
 end
 
