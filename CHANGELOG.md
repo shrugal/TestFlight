@@ -1,3 +1,10 @@
+Version 4.03
+
+- Update for patch 11.0.5
+- Add scanning and sorting recipe list by optimization targets
+- Add showing optimization target prices in sorted recipe list
+- Fix ignoring provided reagents when tracking unclaimed orders
+
 Version 4.02
 
 - Fix optimize buttons not disabling during optimization process

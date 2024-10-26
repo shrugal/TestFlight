@@ -1,6 +1,5 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Util = Addon.Util
 
 ---@class GUI.ProfessionsRecipeListProgressBarMixin
 ---@field ProgressBar StatusBar

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Promise, Reagents, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
+local Cache, GUI, Optimization, Prices, Promise, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Util
 
 ---@class GUI.CraftingPage
 ---@field frame CraftingPage
@@ -296,12 +296,19 @@ function Self:OnAddonLoaded(addonName)
 
     self.frame = ProfessionsFrame.CraftingPage
 
+    hooksecurefunc(self.frame, "Init", Util:FnBind(self.Init, self))
+    hooksecurefunc(self.frame, "ValidateControls", Util:FnBind(self.ValidateControls, self))
+
+    self.frame.RecipeList.selectionBehavior:RegisterCallback(SelectionBehaviorMixin.Event.OnSelectionChanged, self.OnSelectionChanged, self)
+
+    GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
+
+    if not Prices:IsSourceInstalled() then return end
+
     self:CreateRecipeListProgressBar()
     self:CreateRecipeListFilter()
     self:HookElementFactory()
 
-    hooksecurefunc(self.frame, "Init", Util:FnBind(self.Init, self))
-    hooksecurefunc(self.frame, "ValidateControls", Util:FnBind(self.ValidateControls, self))
     hooksecurefunc(self.frame, "RegisterUnitEvent", Util:FnBind(self.OnRegisterUnitEvent, self))
     hooksecurefunc(self.frame, "UnregisterEvent", Util:FnBind(self.OnUnregisterEvent, self))
 
@@ -309,11 +316,8 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(Professions, "SetDefaultFilters", Util:FnBind(self.OnSetDefaultFilters, self))
     hooksecurefunc(Professions, "OnRecipeListSearchTextChanged", Util:FnBind(self.OnRecipeListSearchTextChanged, self))
 
-    self.frame.RecipeList.selectionBehavior:RegisterCallback(SelectionBehaviorMixin.Event.OnSelectionChanged, self.OnSelectionChanged, self)
-
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
 
-    GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
