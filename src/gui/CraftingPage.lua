@@ -252,7 +252,7 @@ function Self:OnSelectionChanged(node, selected)
         form:AllocateReagents(data.allocation)
     elseif data.method and data.quality then
         form:SetOptimizationMethod(data.method)
-        form:SetCraftingFormQuality(data.quality)
+        form:SetQuality(data.quality)
     end
 end
 

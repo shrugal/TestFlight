@@ -64,15 +64,15 @@ end
 -- Optimization buttons
 
 function Self:DecreaseQualityButtonOnClick()
-    self:ChangeCraftingFormQualityBy(-1)
+    self:ChangeQualityBy(-1)
 end
 
 function Self:OptimizeQualityButtonOnClick()
-    self:SetCraftingFormQuality()
+    self:SetQuality()
 end
 
 function Self:IncreaseQualityButtonOnClick()
-    self:ChangeCraftingFormQualityBy(1)
+    self:ChangeQualityBy(1)
 
 end
 
@@ -415,7 +415,7 @@ end
 ---@param quality? number
 ---@param exact? boolean
 ---@param method? Optimization.Method
-function Self:SetCraftingFormQuality(quality, exact, method)
+function Self:SetQuality(quality, exact, method)
     if self.isOptimizing then return end
 
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
@@ -447,11 +447,11 @@ function Self:SetCraftingFormQuality(quality, exact, method)
 end
 
 ---@param by number
-function Self:ChangeCraftingFormQualityBy(by)
+function Self:ChangeQualityBy(by)
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
     local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
 
-    self:SetCraftingFormQuality(floor(quality) + by, true)
+    self:SetQuality(floor(quality) + by, true)
 end
 
 function Self:IsCraftingRecipe()
