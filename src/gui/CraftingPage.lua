@@ -163,7 +163,7 @@ function Self:UpdateSort(refresh)
         end)
         local n = #recipeIDs
 
-        ---@todo No recipes
+        self.frame.RecipeList.NoResultsText:SetShown(false)
 
         self.sortJob = Promise:Async(function ()
             Promise:GetCurrent():SetPriority(10)
