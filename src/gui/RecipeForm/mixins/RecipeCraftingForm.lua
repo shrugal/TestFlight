@@ -100,7 +100,7 @@ function Self:UpdateOptimizationButtons()
     local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
     local order = self:GetOrder()
 
-    local show = op and not isSalvage and not isMinimized
+    local show = op and op.quality and not isSalvage and not isMinimized
         and not (order and order.orderState ~= Enum.CraftingOrderState.Claimed)
 
     self.decreaseBtn:SetShown(show)

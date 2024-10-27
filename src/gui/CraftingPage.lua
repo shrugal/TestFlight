@@ -166,7 +166,7 @@ function Self:UpdateSort(refresh)
         self.frame.RecipeList.NoResultsText:SetShown(false)
 
         self.sortJob = Promise:Async(function ()
-            Promise:GetCurrent():SetPriority(10)
+            Promise:GetCurrent():SetPriority(5)
 
             for i,recipeID in ipairs(recipeIDs) do repeat
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)

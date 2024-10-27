@@ -1,3 +1,8 @@
+Version 4.04
+
+- Fix showing recipe sort option without a pricesource
+- Fix error on load if stock professions addons aren't loaded
+
 Version 4.03
 
 - Update for patch 11.0.5

@@ -108,7 +108,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
 
     if cache:Has(key) then return cache:Get(key) end
 
-    Promise:Yield()
+    Promise:YieldFirst()
 
     local skillBase = operation:GetSkillBounds()
     if not skillBase then return end
@@ -196,7 +196,7 @@ function Self:GetRecipeCostAllocations(operation)
 
     if cache:Has(key) then return cache:Get(key) end
 
-    Promise:Yield()
+    Promise:YieldFirst()
 
     local skillBase, skillBest = operation:GetSkillBounds()
     if not skillBase then return end
@@ -246,7 +246,7 @@ function Self:GetRecipeWeightsAndPrices(operation)
 
     if cache:Has(key) then return unpack(cache:Get(key)) end
 
-    Promise:Yield()
+    Promise:YieldFirst()
 
     local qualitySlots = operation:GetQualityReagentSlots()
 

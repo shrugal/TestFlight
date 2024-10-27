@@ -1,2 +1,4 @@
-- Fix showing recipe sort option without a pricesource
-- Fix error on load if stock professions addons aren't loaded
+- Fix error on recipes without quality
+- Fix reagents tracker positioning when not all items are loaded immediately
+- Fix reagents tracker running some updates when it's disabled
+- Internal: Improve background task scheduling

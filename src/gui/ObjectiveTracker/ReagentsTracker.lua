@@ -38,11 +38,14 @@ function Self:Create()
     return frame
 end
 
+---@param self ReagentsTrackerFrame
 function Self:InitModule()
-    self.dirtyCallback = function () self:Update() end
+    self.dirtyCallback = function () self:UpdatePosition(true) end
 end
 
 function Self:MarkDirty()
+    if Addon.DB and not Addon.DB.Account.reagents then return end
+
     if self.isDirty then return end
     self.isDirty = true
     if InCombatLockdown() then return end
@@ -62,7 +65,7 @@ function Self:Update(availableHeight, dirtyUpdate)
 end
 
 function Self:LayoutContents()
-    if not Addon.DB.Account.reagents then return end
+    if Addon.DB and not Addon.DB.Account.reagents then return end
 
 	if self.continuableContainer then self.continuableContainer:Cancel() end
 	self.continuableContainer = ContinuableContainer:Create()
@@ -182,7 +185,7 @@ end
 ---@param self ReagentsTrackerFrame
 ---@param dirtyUpdate? boolean
 function Self:UpdatePosition(dirtyUpdate)
-    if not Addon.DB.Account.reagents then return end
+    if Addon.DB and not Addon.DB.Account.reagents then return end
 
     if InCombatLockdown() then
         if self:ShouldHideInCombat() then self:RemoveFromParent() end
@@ -250,6 +253,8 @@ end
 
 ---@param self ReagentsTrackerFrame
 function Self:OnEvent(event)
+    if Addon.DB and not Addon.DB.Account.reagents then return end
+
     if event == "PLAYER_REGEN_DISABLED" then
         if not self:ShouldHideInCombat() then return end
         self:RemoveFromParent()

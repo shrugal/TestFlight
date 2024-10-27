@@ -18,8 +18,8 @@ Static.DEBUG_LOCALS = false
 Static.MAX_FRAMETIME_PERCENT = 0.5
 -- Max. absolute frametime used
 Static.MAX_FRAMETIME_MS = 100
--- Max. runtime per promise resume (scaled by promise priority)
-Static.MAX_RUNTIME_MS = 1
+-- Max. runtime per promise resume (scaled by priority)
+Static.MAX_RUNTIME_MS = 2
 
 ---@enum Promise.Status
 Static.Status = {
@@ -59,6 +59,7 @@ function Static:IsPromise(obj)
     return type(obj) == "table" and obj.__promise__ == true
 end
 
+-- Get the currenly running promise
 function Static:GetCurrent()
     return Static.stack[#Static.stack]
 end
@@ -78,9 +79,20 @@ function Static:YieldTime(label)
 
     local time = (debugprofilestop() - current.start) / current.priority
     if time < Static.MAX_RUNTIME_MS then return end
-    if time > 5 then Addon:Debug(time * current.priority, label or "YieldTime") end
+
+    if time > Static.MAX_RUNTIME_MS * 2 then
+        Addon:Debug(time * current.priority, label or "YieldTime")
+    end
 
     self:Yield()
+end
+
+-- Yield if currently in a promise that has not suspended before
+---@vararg any
+function Static:YieldFirst(...)
+    local current = self:GetCurrent()
+    if not current or current.hasSuspended then return end
+    self:Yield(...)
 end
 
 -- Yield if currently in a promise that has suspended before
