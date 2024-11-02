@@ -42,8 +42,10 @@ function Self:AddRecipe(_, recipeID, isRecraft)
     end
     if amount ~= 1 then
         blockName = ("%d %s"):format(amount, blockName)
+        blockName = Util:StrAbbr(blockName, 38)
     end
     if quality then
+        blockName = Util:StrAbbr(blockName, 35)
         blockName = ("%s %s"):format(blockName, C_Texture.GetCraftingReagentQualityChatIcon(quality))
     end
 

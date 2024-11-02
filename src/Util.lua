@@ -518,6 +518,26 @@ function Self:StrUcFirst(str)
     return str:sub(1, 1):upper() .. str:sub(2)
 end
 
+---@param str string
+---@param prefix string
+function Self:StrStartsWith(str, prefix)
+    return str:sub(1, prefix:len()) == prefix
+end
+
+---@param str string
+---@param suffix string
+function Self:StrEndsWith(str, suffix)
+    return str:sub(suffix:len()) == suffix
+end
+
+---@param str string
+---@param maxLength number
+function Self:StrAbbr(str, maxLength)
+    if str:len() <= maxLength then return str end
+    if self:StrEndsWith(str, "...") then str = str:sub(-3) end
+    return str:sub(1, maxLength - 3) .. "..."
+end
+
 -- Num
 
 ---@param amount number

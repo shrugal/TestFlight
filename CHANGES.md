@@ -1,2 +1,3 @@
 - Show reagent costs in customer order form
 - Use marginal cost when optimizing non-profitable crafts for concentration
+- Abbreviate long recipe names to prevent line breaks in the recipe tracker
