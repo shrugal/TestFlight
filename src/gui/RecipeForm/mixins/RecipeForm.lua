@@ -199,10 +199,6 @@ function Self:OnRefresh()
     self:UpdateExperimentBox()
 end
 
-function Self:OnAllocationModified()
-    Recipes:SetTrackedByForm(self)
-end
-
 ---@param recipeID number
 ---@param tracked boolean
 function Self:OnTrackedRecipeUpdated(recipeID, tracked)

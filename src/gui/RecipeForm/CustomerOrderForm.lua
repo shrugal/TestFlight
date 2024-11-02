@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
+local GUI, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.AmountForm, NS.OrderForm)
@@ -20,14 +20,74 @@ function Self:GetTrackCheckbox()
     return self.form.TrackRecipeCheckbox.Checkbox
 end
 
+function Self:InsertReagentPrice()
+    local parent = self.form.PaymentContainer
+    ---@type Region, Region
+    local prev, curr
+
+    -- TimeRemaining
+    prev, curr = parent.Tip, parent.TimeRemaining
+    curr:ClearAllPoints()
+    curr:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 6)
+
+    -- Duration
+    prev, curr = parent.Tip, parent.Duration
+    curr:ClearAllPoints()
+    curr:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 6)
+
+    -- PostingFee
+    prev, curr = curr, parent.PostingFee
+    curr:ClearAllPoints()
+    curr:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 6)
+
+    -- TotalPrice
+    prev, curr = curr, parent.TotalPrice
+    curr:ClearAllPoints()
+    curr:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 6)
+
+    -- Cost label
+    prev, curr = curr, parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    curr:SetSize(110, 40)
+    curr:SetJustifyH("RIGHT")
+    curr:SetText("Reagents")
+    curr:SetPoint("TOPLEFT", prev, "BOTTOMLEFT", 0, 6)
+    self.costLabel = curr
+
+    -- Cost value
+    curr = GUI:InsertElement("Frame", parent, "MoneyDisplayFrameTemplate") --[[@as MoneyDisplayFrame]]
+    curr:SetPoint("LEFT", self.costLabel, "RIGHT", 10, 0)
+    curr:SetPoint("RIGHT")
+    curr:SetAmount(0)
+    curr.hideCopper = true
+    curr.leftAlign = true
+    curr.useAuctionHouseIcons = true
+    curr:OnLoad()
+    self.costValue = curr
+end
+
+function Self:UpdateReagentPrice()
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    self.costValue:SetAmount(Prices:GetRecipeAllocationPrice(recipe, self:GetAllocation(), self:GetOrder()))
+end
+
 ---------------------------------------
 --               Hooks
 ---------------------------------------
+
+function Self:Init()
+    local s = Enum.CraftingOrderState
+	local completed = Util:OneOf(self.form.order.orderState, s.Expired, s.Rejected, s.Canceled, s.Fulfilled)
+    self.form.PaymentContainer.PostingFee:ClearAllPoints()
+    self.form.PaymentContainer.PostingFee:SetPoint("TOPLEFT", self.form.PaymentContainer.Duration, "BOTTOMLEFT", 0, completed and 46 or 6)
+end
 
 function Self:InitSchematic()
     self:UpdateExperimentBox()
     self:UpdateAmountSpinner()
     self:UpdateTrackOrderBox()
+    self:UpdateReagentPrice()
 end
 
 function Self:UpdateListOrderButton()
@@ -70,13 +130,19 @@ end
 function Self:OnRefresh()
     Parent.OnRefresh(self)
 
-    if not self.form or not self.form:IsVisible() then return end
+    if not self.form or not self.form:IsShown() then return end
 
     self.form:InitSchematic()
 
     if not Addon.enabled then return end
 
     self.form.PaymentContainer.ListOrderButton:SetEnabled(false)
+end
+
+function Self:OnAllocationUpdated()
+    if not self.form:IsShown() then return end
+
+    self:UpdateReagentPrice()
 end
 
 ---@param addonName string
@@ -107,12 +173,18 @@ function Self:OnAddonLoaded(addonName)
     )
     self.amountSpinner:SetScale(0.9)
 
+    -- Insert cost frame
+
+    self:InsertReagentPrice()
+
     -- Hooks
 
+    hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.form, "InitSchematic", Util:FnBind(self.InitSchematic, self))
     hooksecurefunc(self.form, "UpdateListOrderButton", Util:FnBind(self.UpdateListOrderButton, self))
     hooksecurefunc(self.form, "UpdateReagentSlots", Util:FnBind(self.UpdateReagentSlots, self))
 
+    EventRegistry:RegisterCallback("Professions.AllocationUpdated", self.OnAllocationUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

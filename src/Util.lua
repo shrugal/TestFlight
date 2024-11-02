@@ -48,9 +48,10 @@ function Self:TblGet(tbl, path)
 end
 
 ---@generic K, T
----@param a Enumerator<T, K> | table<K, T>
----@param b? table<K, T>
----@param c? K
+---@param a Enumerator<T, K> | table<K, T> | T
+---@param b? table<K, T> | T
+---@param c? K | T
+---@vararg T
 ---@return Enumerator<T, K>
 ---@return table<K, T>?
 ---@return K?

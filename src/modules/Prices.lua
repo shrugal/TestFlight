@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local Reagents, Recipes, Util = Addon.Reagents, Addon.Recipes, Addon.Util
+local Orders, Recipes, Util = Addon.Orders, Addon.Recipes, Addon.Util
 
 
 ---@class Prices
@@ -140,8 +140,11 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order)
 
     local price = 0
 
-    for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+    for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
         local missing = reagent.required and reagent.quantityRequired or 0
+
+        -- Reagents provided by crafter
+        if Orders:IsCreatingProvided(order, slotIndex) then break end
 
         local allocations = allocation and allocation[reagent.slotIndex]
         if allocations then
@@ -157,7 +160,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order)
 
                 price = price + quantity * self:GetReagentPrice(item)
             end
-        elseif order and missing > 0 then
+        elseif missing > 0 and order and not Orders:IsCreating(order) then
             for _,reagent in pairs(order.reagents) do
                 if reagent.slotIndex == slotIndex then
                     missing = max(0, missing - reagent.reagent.quantity)
@@ -168,7 +171,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order)
         if missing > 0 then
             price = price + missing * math.min(self:GetReagentPrices(reagent))
         end
-    end
+    until true end
 
     return price
 end

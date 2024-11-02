@@ -259,6 +259,7 @@ ProfessionsCustomerOrdersFrame = nil
 
 ---@class CustomerOrderForm: RecipeForm
 ---@field committed boolean
+---@field depositCost number
 ---@field order CraftingOrderInfo
 ---@field PaymentContainer OrdersFormPayments
 ---@field ReagentContainer OrdersFormReagents
@@ -267,6 +268,13 @@ ProfessionsCustomerOrdersFrame = nil
 
 ---@class OrdersFormPayments: Frame
 ---@field ListOrderButton Button
+---@field Tip FontString
+---@field Duration DropdownButton
+---@field TimeRemaining FontString
+---@field PostingFee FontString
+---@field TotalPrice FontString
+---@field TipMoneyInputFrame LargeMoneyInputFrame
+---@field TotalPriceMoneyDisplayFrame MoneyDisplayFrame
 
 ---@class OrdersFormReagents: Frame
 
@@ -905,3 +913,52 @@ SelectionBehaviorMixin = nil
 ---@class StatusBar
 ---@field Text FontString
 ---@field Icon Texture
+
+---@class MoneyDenominationDisplayMixin
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field SetDisplayType fun(self: self, ...: unknown): unknown
+---@field UpdateDisplayType fun(self: self, ...: unknown): unknown
+---@field SetFontObject fun(self: self, ...: unknown): unknown
+---@field GetFontObject fun(self: self, ...: unknown): unknown
+---@field SetFontAndIconDisabled fun(self: self, ...: unknown): unknown
+---@field SetFormatter fun(self: self, ...: unknown): unknown
+---@field SetForcedHidden fun(self: self, ...: unknown): unknown
+---@field IsForcedHidden fun(self: self, ...: unknown): unknown
+---@field SetShowsZeroAmount fun(self: self, ...: unknown): unknown
+---@field ShowsZeroAmount fun(self: self, ...: unknown): unknown
+---@field ShouldBeShown fun(self: self, ...: unknown): unknown
+---@field SetAmount fun(self: self, ...: unknown): unknown
+---@field UpdateWidth fun(self: self, ...: unknown): unknown
+
+---@class MoneyDenominationDisplayFrame: Frame, MoneyDenominationDisplayMixin
+
+---@class MoneyDisplayFrameMixin
+---@field hideCopper boolean
+---@field leftAlign boolean
+---@field useAuctionHouseIcons boolean
+---@field CopperDisplay MoneyDenominationDisplayFrame
+---@field SilverDisplay MoneyDenominationDisplayFrame
+---@field GoldDisplay MoneyDenominationDisplayFrame
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field SetFontAndIconDisabled fun(self: self, ...: unknown): unknown
+---@field SetFontObject fun(self: self, ...: unknown): unknown
+---@field GetFontObject fun(self: self, ...: unknown): unknown
+---@field UpdateAnchoring fun(self: self, ...: unknown): unknown
+---@field SetAmount fun(self: self, amount: number)
+---@field UpdateWidth fun(self: self, ...: unknown): unknown
+---@field GetAmount fun(self: self): number
+---@field SetResizeToFit fun(self: self, ...: unknown): unknown
+
+---@class MoneyDisplayFrame: Frame, MoneyDisplayFrameMixin
+
+---@class LargeMoneyInputFrameMixin
+---@field OnLoad fun(self: self, ...: unknown): unknown
+---@field SetNextEditBox fun(self: self, ...: unknown): unknown
+---@field Clear fun(self: self, ...: unknown): unknown
+---@field SetEnabled fun(self: self, ...: unknown): unknown
+---@field SetAmount fun(self: self, amount: number)
+---@field GetAmount fun(self: self): number
+---@field SetOnValueChangedCallback fun(self: self, ...: unknown): unknown
+---@field OnAmountChanged fun(self: self, ...: unknown): unknown
+
+---@class LargeMoneyInputFrame: Frame, LargeMoneyInputFrameMixin

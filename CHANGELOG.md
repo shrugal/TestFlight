@@ -1,3 +1,10 @@
+Version 4.05
+
+- Fix error on recipes without quality
+- Fix reagents tracker positioning when not all items are loaded immediately
+- Fix reagents tracker running some updates when it's disabled
+- Internal: Improve background task scheduling
+
 Version 4.04
 
 - Fix showing recipe sort option without a pricesource

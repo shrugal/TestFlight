@@ -316,7 +316,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 end
 
                 -- Costs
-                GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagent costs", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+                GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagents", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
                 GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
                 if supportsQualities and not isSalvage then
@@ -508,6 +508,10 @@ function Self:OnExtraSkillUpdated()
 
     self.form:UpdateDetailsStats()
     self.form:UpdateRecraftSlot()
+end
+
+function Self:OnAllocationModified()
+    Recipes:SetTrackedByForm(self)
 end
 
 function Self:OnAddonLoaded()

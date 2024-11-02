@@ -7,6 +7,7 @@
 
 ## Features
 
+- Show checkbox for tracked orders in the order list
 - Cost breakdown by reagent in the tooltip
 - Show profit per resourcefulness/multicraft/ingenuity point
 - Include ingenuity in profit/concentration calculation

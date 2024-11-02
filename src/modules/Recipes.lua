@@ -70,11 +70,8 @@ function Self:GetTrackedReagentAmounts()
             local order = Orders:GetTracked(recipe)
 
             for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
-                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
-
                 -- Account for reagents provided by crafter
-                local isProvidedByCrafter = Orders:IsCreating(order) and Orders.creatingProvidedReagents[itemID]
-                if isProvidedByCrafter then break end
+                if Orders:IsCreatingProvided(order, slotIndex) then break end
 
                 local required = reagent.required and reagent.quantityRequired or 0
                 local missing = amount * required
@@ -102,6 +99,7 @@ function Self:GetTrackedReagentAmounts()
                 if missing <= 0 then break end
 
                 -- Fill up with lowest quality reagents
+                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
                 reagents[itemID] = (reagents[itemID] or 0) + missing
             until true end
         until true end

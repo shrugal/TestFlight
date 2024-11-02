@@ -8,8 +8,8 @@ local Self = Mixin(Addon.Orders, CallbackRegistryMixin)
 
 ---@type table<boolean, CraftingOrderInfo[]>
 Self.tracked = { [false] = {}, [true] = {} }
----@type number[]
-Self.creatingProvidedReagents = {}
+---@type boolean[]
+Self.creatingProvidedSlots = {}
 
 ---------------------------------------
 --              Tracking
@@ -38,7 +38,11 @@ function Self:GetTrackedProvidedReagentAmounts()
             if self:IsCreating(order) then
                 local amount = Recipes:GetTrackedAmount(order) or 1
                 if amount > 0 then
-                    for itemID,quantity in pairs(self.creatingProvidedReagents) do
+                    local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
+
+                    for slotIndex in pairs(self.creatingProvidedSlots) do
+                        local reagent = recipe.reagentSlotSchematics[slotIndex]
+                        local itemID, quantity = reagent.reagents[1].itemID, reagent.quantityRequired ---@cast itemID -?
                         reagents[itemID] = (reagents[itemID] or 0) + quantity * amount
                     end
                 end
@@ -107,15 +111,34 @@ function Self:GetCreating()
     end
 end
 
+---@param order? CraftingOrderInfo
+---@param slotIndex number
+function Self:IsCreatingProvided(order, slotIndex)
+    if not self:IsCreating(order) then return false end ---@cast order -?
+    if Self.creatingProvidedSlots[slotIndex] then return true end
+
+    local frame = ProfessionsCustomerOrdersFrame
+    if not frame or frame.Form.order ~= order then return false end
+
+    local recipe = frame.Form.transaction:GetRecipeSchematic()
+    if not recipe or recipe.recipeID ~= order.spellID or recipe.isRecraft ~= order.isRecraft then return false end
+
+    for slot in frame.Form.reagentSlotPool:EnumerateActive() do
+        if slot:GetSlotIndex() == slotIndex then
+            return slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
+        end
+    end
+
+    return false
+end
+
 ---@param slot ReagentSlot
 ---@param silent? boolean
 function Self:UpdateCreatingReagent(slot, silent)
     local reagent = slot:GetReagentSlotSchematic()
-    local itemID = reagent.reagents[1].itemID ---@cast itemID -?
     local provided = slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
-    local required = reagent.required and reagent.quantityRequired
 
-    self.creatingProvidedReagents[itemID] = provided and required or nil
+    self.creatingProvidedSlots[reagent.slotIndex] = provided and reagent.required or nil
 
     if silent then return end
 
@@ -125,7 +148,7 @@ end
 function Self:UpdateCreatingReagents()
     if not ProfessionsCustomerOrdersFrame then return end
 
-    wipe(self.creatingProvidedReagents)
+    wipe(self.creatingProvidedSlots)
 
     local form = ProfessionsCustomerOrdersFrame.Form
     local recipe = form.transaction:GetRecipeSchematic()
