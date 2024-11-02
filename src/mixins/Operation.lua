@@ -330,18 +330,20 @@ function Self:GetResultPrice()
     return self.resultPrice
 end
 
----@return number? profit
----@return number? revenue
----@return number? resourcefulness
----@return number? multicraft
----@return number? rewards
----@return number? traderCut
+---@return number profit
+---@return number revenue
+---@return number resourcefulness
+---@return number multicraft
+---@return number rewards
+---@return number traderCut
 function Self:GetProfit()
     if not self.profit then
         local reagentPrice = self:GetReagentPrice() ---@cast reagentPrice -?
         local resultPrice = self:GetResultPrice()
-        local profit, revenue, resourcefulness, multicraft, rewards, traderCut = Prices:GetRecipeProfit(self.recipe, self:GetOperationInfo(), self.allocation, reagentPrice, resultPrice, self:GetOrder())
-        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut = profit, revenue, resourcefulness, multicraft, rewards, traderCut
+        local operationInfo = self:GetOperationInfo()
+        local order = self:GetOrder()
+
+        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut = Prices:GetRecipeProfit(self.recipe, operationInfo, self.allocation, reagentPrice, resultPrice, order)
     end
     return self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut
 end

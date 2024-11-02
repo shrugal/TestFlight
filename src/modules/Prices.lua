@@ -336,6 +336,7 @@ function Self:GetReagentPrices(reagent)
 end
 
 ---@param reagents CraftingReagentInfo[]
+---@return number
 function Self:GetReagentsPrice(reagents)
     local price = 0
 

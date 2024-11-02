@@ -118,7 +118,7 @@ function Self:GetRecipeProfitAllocations(operation, optimizeConcentration)
     ---@type Operation[]
     local operations = Util:TblCopy(self:GetRecipeCostAllocations(operation) --[=[@as Operation[]]=])
 
-    if operation:HasProfit() then
+    if optimizeConcentration or operation:HasProfit() then
         local prevQuality, prevPrice = math.huge, math.huge
 
         for qualityID,operation in pairs(operations) do
@@ -392,31 +392,34 @@ function Self:GetReagentsForMethod(operation, method)
     local qualityReagentsPrice = Prices:GetReagentsPrice(operation:GetQualityReagents())
     local resFactor = operation:GetResourcefulnessFactor()
 
-    ---@type number, number
-    local maxProfit, maxProfitWeight = -math.huge, lowerWeight
-    local prevPrice = math.huge
+    local lowerProfit = profit + (qualityReagentsPrice - prices[lowerWeight]) * (1 - resFactor)
+    local lowerCon = operation:GetConcentrationCost(lowerWeight)
 
-    for weight=upperWeight, lowerWeight, -1 do
-        local weightPrice = prices[weight]
+    local maxRelProfit, maxProfitWeight = lowerProfit / lowerCon, lowerWeight
+    local prevProfit, prevCon = lowerProfit, lowerCon
 
-        if weightPrice < prevPrice then
-            local profit = profit + (qualityReagentsPrice - weightPrice) * (1 - resFactor)
+    for weight = lowerWeight + 1, upperWeight do repeat
+        local weightPrice, nextPrice = prices[weight], prices[weight + 1] or math.huge
+        if weightPrice >= nextPrice then break end
 
-            if method == self.Method.ProfitPerConcentration then
-                profit = profit / operation:GetConcentrationCost(weight)
+        local profit = profit + (qualityReagentsPrice - weightPrice) * (1 - resFactor)
+        local hasProfit = profit >= 0
 
-                Promise:YieldTime("GetReagentsForMethod: Profit per concentration")
-            end
+        if not hasProfit and maxRelProfit >= 0 then break end
 
-            if profit > maxProfit then
-                maxProfit, maxProfitWeight = profit, weight
-            end
+        -- Profit per concentration (profit >= 0) or marginal cost (profit < 0)
+        local concentration = operation:GetConcentrationCost(weight)
+        local relProfit = hasProfit and profit / concentration or (profit - prevProfit) / (prevCon - concentration)
+
+        if relProfit > maxRelProfit then
+            maxProfitWeight = weight
+            prevProfit, prevCon = profit, concentration
+
+            if hasProfit then maxRelProfit = relProfit end
         end
 
-        prevPrice = weightPrice
-
         Promise:YieldTime("GetReagentsForMethod: End")
-    end
+    until true end
 
     return self:GetReagentsForWeight(operation, maxProfitWeight)
 end
@@ -429,7 +432,7 @@ Self.Cache = {
     ---@type Cache<table, fun(self: Cache, operation: Operation): string>
     WeightsAndPrices = Addon.Cache:Create(
         ---@param operation Operation
-        function (_, operation) 
+        function (_, operation)
             return Self:GetRecipeCacheKey(operation)
         end,
         5

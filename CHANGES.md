@@ -1,1 +1,2 @@
-- Add showing reagents costs in customer order form
+- Show reagent costs in customer order form
+- Use marginal cost when optimizing non-profitable crafts for concentration
