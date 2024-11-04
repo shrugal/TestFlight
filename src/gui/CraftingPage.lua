@@ -8,7 +8,7 @@ local Self = GUI.CraftingPage
 
 ---@type Optimization.Method?
 Self.sortMethod = nil
----@type table<Optimization.Method, Cache<Operation, fun(self: self, recipe: CraftingRecipeSchematic): number>>
+---@type table<Optimization.Method, Cache<{ [1]: number, [2]: Operation }, fun(self: self, recipe: CraftingRecipeSchematic): number>>
 Self.sortCaches = {}
 ---@type TreeDataProviderMixin
 Self.dataProvider = CreateTreeDataProvider()
@@ -168,30 +168,30 @@ function Self:UpdateSort(refresh)
         self.sortJob = Promise:Async(function ()
             Promise:GetCurrent():SetPriority(5)
 
-            for i,recipeID in ipairs(recipeIDs) do repeat
+            for i,recipeID in ipairs(recipeIDs) do
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
 
-                local key = cache:Key(recipe)
-                if not cache:Has(key) then
-                    cache:Set(key, Optimization:GetRecipeAllocation(recipe, method))
+                local key, time = cache:Key(recipe), Prices:GetRecipeScanTime(recipe)
+                if not cache:Has(key) or cache:Get(key)[1] ~= time then
+                    cache:Set(key, { time, Optimization:GetRecipeAllocation(recipe, method) })
                 end
 
-                local operation = cache:Get(key)
-                if not operation then break end
+                local operation = cache:Get(key)[2]
+                if operation then
+                    local value = Optimization:GetOperationValue(operation, method)
+                    if value and abs(value) ~= math.huge then
+                        self.dataProvider:Insert({
+                            recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
+                            allocation = operation.allocation,
+                            value = value,
+                            method = method,
+                            quality = operation:GetQuality()
+                        })
+                    end
+                end
 
-                local value = Optimization:GetOperationValue(operation, method)
-                if not value or abs(value) == math.huge then break end
-
-                self.dataProvider:Insert({
-                    recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
-                    allocation = operation.allocation,
-                    value = value,
-                    method = method,
-                    quality = operation:GetQuality()
-                })
-
-                Promise:YieldAgain(i, n)
-            until true end
+                Promise:Progress(i, n)
+            end
 
             self.frame.RecipeList.NoResultsText:SetShown(self.dataProvider:IsEmpty())
 
@@ -232,7 +232,7 @@ end
 ---@param ignoreSkillLine? boolean
 function Self:ProfessionsIsUsingDefaultFilters(ignoreSkillLine)
     local res = Util:TblGetHooked(Professions, "IsUsingDefaultFilters")(ignoreSkillLine)
-    if not res or not self.frame:IsShown() then return res end
+    if not res or not self.frame:IsVisible() then return res end
 
     return not self.sortMethod
 end
@@ -264,13 +264,13 @@ end
 
 -- Filter reset
 function Self:OnSetDefaultFilters()
-    if not self.sortMethod or not self.frame:IsShown() then return end
+    if not self.sortMethod or not self.frame:IsVisible() then return end
     self:SetSortSelected()
 end
 
 -- Filter changed
 function Self:OnTradeSkillListUpdate()
-    if not self.sortMethod or not self.frame:IsShown() then return end
+    if not self.sortMethod or not self.frame:IsVisible() then return end
     self:UpdateSort()
 end
 

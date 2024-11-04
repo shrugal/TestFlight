@@ -6,7 +6,7 @@ local GUI, Util = Addon.GUI, Addon.Util
 local Self = GUI.ObjectiveTracker.WorldQuestTracker
 
 function Self:RefreshTrackerAnchor()
-    if not WorldQuestTrackerScreenPanel or not WorldQuestTrackerScreenPanel:IsShown() then return end
+    if not WorldQuestTrackerScreenPanel or not WorldQuestTrackerScreenPanel:IsVisible() then return end
     if not WorldQuestTrackerAddon.db.profile.tracker_attach_to_questlog then return end
 
     local reagentsTracker = GUI.ObjectiveTracker.ReagentsTracker.module
@@ -15,7 +15,7 @@ function Self:RefreshTrackerAnchor()
     local point, relativeTo, relativePoint, x, y = ObjectiveTrackerFrame:GetPoint(1)
     if not point then return end
 
-    local height = reagentsTracker:IsShown() and reagentsTracker:GetHeight() or 0
+    local height = reagentsTracker:IsVisible() and reagentsTracker:GetHeight() or 0
 
     WorldQuestTrackerScreenPanel:SetPoint(point, relativeTo, relativePoint, x - 10, y - 20 - WorldQuestTrackerAddon.TrackerHeight - height)
 end

@@ -56,73 +56,60 @@ end
 function Self:GetTrackedReagentAmounts()
     ---@type number[]
     local reagents = {}
-    for i=0,1 do
-        local isRecraft = i == 1
-        local recipeIDs = self:GetTrackedIDs(isRecraft)
+    for recipe in self:Enumerate() do repeat
+        local amount = self:GetTrackedAmount(recipe)
+        if amount <= 0 then break end
 
-        for _,recipeID in pairs(recipeIDs) do repeat
-            local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+        local allocation = self:GetTrackedAllocation(recipe)
+        local order = Orders:GetTracked(recipe)
 
-            local amount = self:GetTrackedAmount(recipe)
-            if amount <= 0 then break end
+        for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
+            -- Account for reagents provided by crafter
+            if Orders:IsCreatingProvided(order, slotIndex) then break end
 
-            local allocation = self:GetTrackedAllocation(recipe)
-            local order = Orders:GetTracked(recipe)
+            local required = reagent.required and reagent.quantityRequired or 0
+            local missing = amount * required
 
-            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
-                -- Account for reagents provided by crafter
-                if Orders:IsCreatingProvided(order, slotIndex) then break end
+            local isProvidedByCustomer = order and order.reagents and Util:TblWhere(order.reagents, "slotIndex", slotIndex)
 
-                local required = reagent.required and reagent.quantityRequired or 0
-                local missing = amount * required
+            if allocation and allocation[slotIndex] then
+                -- Account for allocated items
+                for _, alloc in allocation[slotIndex]:Enumerate() do repeat
+                    missing = missing - amount * alloc.quantity
 
-                local isProvidedByCustomer = order and order.reagents and Util:TblWhere(order.reagents, "slotIndex", slotIndex)
+                    local amount, itemID = amount, alloc.reagent.itemID ---@cast itemID -?
 
-                if allocation and allocation[slotIndex] then
-                    -- Account for allocated items
-                    for _, alloc in allocation[slotIndex]:Enumerate() do repeat
-                        missing = missing - amount * alloc.quantity
+                    -- Account for allocated reagents provided by customer
+                    if isProvidedByCustomer then amount = amount - 1 end
+                    if amount <= 0 then break end
 
-                        local amount, itemID = amount, alloc.reagent.itemID ---@cast itemID -?
+                    reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
+                until true end
+            elseif isProvidedByCustomer then
+                -- Account for unallocated reagents provided by customer
+                missing = missing - required
+            end
 
-                        -- Account for allocated reagents provided by customer
-                        if isProvidedByCustomer then amount = amount - 1 end
-                        if amount <= 0 then break end
+            if missing <= 0 then break end
 
-                        reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
-                    until true end
-                elseif isProvidedByCustomer then
-                    -- Account for unallocated reagents provided by customer
-                    missing = missing - required
-                end
-
-                if missing <= 0 then break end
-
-                -- Fill up with lowest quality reagents
-                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
-                reagents[itemID] = (reagents[itemID] or 0) + missing
-            until true end
+            -- Fill up with lowest quality reagents
+            local itemID = reagent.reagents[1].itemID ---@cast itemID -?
+            reagents[itemID] = (reagents[itemID] or 0) + missing
         until true end
-    end
+    until true end
     return reagents
 end
 
 function Self:GetTrackedResultAmounts()
     ---@type number[]
     local items = {}
-    for _,recipeID in pairs(self:GetTrackedIDs(false)) do repeat
-        local quality = self:GetTrackedQuality(recipeID)
+    for recipe in self:Enumerate(false) do repeat
+        if Orders:GetTracked(recipe) then break end
 
-        local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false, quality)
-        if not recipe then break end
-
-        local order = Orders:GetTracked(recipeID)
-        if order then break end
-
-        local output = C_TradeSkillUI.GetRecipeOutputItemData(recipeID, nil, nil, quality)
+        local output = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, nil, nil, self:GetTrackedQuality(recipe))
         if not output or not output.itemID then break end
 
-        local amount = self:GetTrackedAmount(recipeID)
+        local amount = self:GetTrackedAmount(recipe)
         items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
     until true end
     return items
@@ -263,6 +250,26 @@ end
 --              Util
 ---------------------------------------
 
+---@param isRecraft? boolean
+---@return fun(): CraftingRecipeSchematic?
+function Self:Enumerate(isRecraft)
+    local recraft, recipeIDs, i, recipeID
+    return function ()
+        while true do
+            if recraft ~= nil then
+                i, recipeID = next(recipeIDs, i)
+                if i ~= nil then return C_TradeSkillUI.GetRecipeSchematic(recipeID, recraft, self:GetTrackedQuality(recipeID, recraft)) end
+            end
+            if isRecraft == nil then
+                if recraft == false then return else recraft = not recraft end
+            else
+                if recraft == isRecraft then return else recraft = isRecraft end
+            end
+            recipeIDs = self:GetTrackedIDs(recraft)
+        end
+    end
+end
+
 ---@param recipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 ---@param isRecraft? boolean
 ---@return number, boolean
@@ -291,6 +298,26 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
     Promise:YieldTime("GetOperationInfo")
 
     return res
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
+---@param optionalReagents? CraftingReagentInfo[]
+---@param qualityID? number
+function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
+    if not qualityID then qualityID = operationInfo.craftingQualityID end
+    if recipe.isRecraft then return end
+
+    if Addon.ENCHANTS[operationInfo.craftingDataID] then
+        return Addon.ENCHANTS[operationInfo.craftingDataID][qualityID]
+    end
+
+    local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+    local id, link = data.itemID, data.hyperlink
+
+    if link and select(14, C_Item.GetItemInfo(link)) == Enum.ItemBind.OnAcquire then return 0 end
+
+    return link or id
 end
 
 ---@param recipe CraftingRecipeSchematic

@@ -33,24 +33,22 @@ end
 function Self:GetTrackedProvidedReagentAmounts()
     ---@type number[]
     local reagents = {}
-    for _,orders in pairs(self.tracked) do
-        for _,order in pairs(orders) do
-            if self:IsCreating(order) then
-                local amount = Recipes:GetTrackedAmount(order) or 1
-                if amount > 0 then
-                    local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
+    for order in self:Enumerate() do
+        if self:IsCreating(order) then
+            local amount = Recipes:GetTrackedAmount(order) or 1
+            if amount > 0 then
+                local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
 
-                    for slotIndex in pairs(self.creatingProvidedSlots) do
-                        local reagent = recipe.reagentSlotSchematics[slotIndex]
-                        local itemID, quantity = reagent.reagents[1].itemID, reagent.quantityRequired ---@cast itemID -?
-                        reagents[itemID] = (reagents[itemID] or 0) + quantity * amount
-                    end
+                for slotIndex in pairs(self.creatingProvidedSlots) do
+                    local reagent = recipe.reagentSlotSchematics[slotIndex]
+                    local itemID, quantity = reagent.reagents[1].itemID, reagent.quantityRequired ---@cast itemID -?
+                    reagents[itemID] = (reagents[itemID] or 0) + quantity * amount
                 end
-            else
-                for _,reagent in pairs(order.reagents) do
-                    local itemID, quantity = reagent.reagent.itemID, reagent.reagent.quantity
-                    reagents[itemID] = (reagents[itemID] or 0) + quantity
-                end
+            end
+        else
+            for _,reagent in pairs(order.reagents) do
+                local itemID, quantity = reagent.reagent.itemID, reagent.reagent.quantity
+                reagents[itemID] = (reagents[itemID] or 0) + quantity
             end
         end
     end
@@ -81,17 +79,15 @@ end
 
 ---@param orderID number
 function Self:ClearTrackedByOrderID(orderID)
-    for _,orders in pairs(self.tracked) do
-        for _,order in pairs(orders) do
-            if order.orderID == orderID then self:SetTracked(order, false) end
-        end
+    for order in self:Enumerate() do
+        if order.orderID == orderID then self:SetTracked(order, false) end
     end
 end
 
 ---@param recipeID number
 function Self:ClearTrackedByRecipeID(recipeID)
-    for _,orders in pairs(self.tracked) do
-        if orders[recipeID] then self:SetTracked(orders[recipeID], false) break end
+    for order in self:Enumerate() do
+        if order.spellID == recipeID then self:SetTracked(order, false) end
     end
 end
 
@@ -161,6 +157,15 @@ function Self:UpdateCreatingReagents()
     end
 
     self:TriggerEvent(self.Event.CreatingReagentsUpdated)
+end
+
+---------------------------------------
+--               Util
+---------------------------------------
+
+---@return fun(): CraftingOrderInfo?
+function Self:Enumerate()
+    return Util:TblEnum(self.tracked, 2)
 end
 
 ---------------------------------------

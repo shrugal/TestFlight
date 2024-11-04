@@ -84,7 +84,7 @@ end
 ---@param recipeID number
 ---@param tracked boolean
 function Self:OnTrackedRecipeUpdated(recipeID, tracked)
-    if not self.form:IsShown() then return end
+    if not self.form:IsVisible() then return end
 
     local order = self:GetOrder()
     if not order or order.spellID ~= recipeID then return end

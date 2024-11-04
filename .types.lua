@@ -32,14 +32,20 @@ TSM_API = nil
 
 ---@class Auctionator
 ---@field API { v1: AuctionatorAPIV1 }
+---@field SavedState { TimeOfLastGetAllScan: number? }
 Auctionator = nil
 
 ---@class AuctionatorAPIV1
 ---@field GetVendorPriceByItemID fun(callerID: string, itemID: number): number?
 ---@field GetAuctionPriceByItemID fun(callerID: string, itemID: number): number?
+---@field GetAuctionAgeByItemID fun(callerID: string, itemID: number): number?
 ---@field GetVendorPriceByItemLink fun(callerID: string, itemLink: string): number?
 ---@field GetAuctionPriceByItemLink fun(callerID: string, itemLink: string): number?
+---@field GetAuctionAgeByItemLink fun(callerID: string, itemLink: string): number?
 
+---@class RECrystallize
+---@field Config { LastScan: number }
+RECrystallize = nil
 ---@type fun(itemID: number): number?
 RECrystallize_PriceCheckItemID = nil
 ---@type fun(itemLink: string): number?
@@ -49,8 +55,11 @@ RECrystallize_PriceCheck = nil
 OEMarketInfo = nil
 
 ---@class Auctioneer
----@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: fun(self: self): number, unknown} }
+---@field Statistics fun(self: self, itemKey: ItemKey): { ["Stats:OverTime"]?: { Best: (fun(self: self): number), points: AuctioneerPoint[] } }
 Auctioneer = nil
+
+---@class AuctioneerPoint
+---@field timeslice number
 
 ---@class WorldQuestTracker
 ---@field TrackerHeight number

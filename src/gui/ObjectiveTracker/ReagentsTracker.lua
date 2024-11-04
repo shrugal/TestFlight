@@ -189,7 +189,7 @@ function Self:UpdatePosition(dirtyUpdate)
 
     if InCombatLockdown() then
         if self:ShouldHideInCombat() then self:RemoveFromParent() end
-        if not self:IsShown() then
+        if not self:IsVisible() then
             if not dirtyUpdate then self.isDirty = true end
             return
         end
@@ -227,7 +227,7 @@ end
 
 ---@param self ReagentsTrackerFrame
 function Self:RemoveFromParent()
-    if not self:IsShown() or self:GetContentsHeight() == 0 then return end
+    if not self:IsVisible() or self:GetContentsHeight() == 0 then return end
 
     local parent = self.parentContainer
     if not parent then return end

@@ -64,6 +64,17 @@ function Static:GetCurrent()
     return Static.stack[#Static.stack]
 end
 
+--- Publish progress updates during a running promise
+---@vararg any
+function Static:Progress(...)
+    local current = self:GetCurrent()
+    if not current then return end
+
+    Util:TblFill(current.statusResult, ...)
+
+    current:TriggerCallbacks(Static.Event.OnProgress, ...)
+end
+
 -- Yield if currently in a coroutine, do nothing if not
 ---@vararg any
 function Static:Yield(...)
@@ -487,6 +498,7 @@ function Self:Handle(success, ...)
 
     if self.status == Static.Status.Running then
         local state = coroutine.status(self.coroutine)
+
         if not success then
             self.runDebugInfo = self:GetDebugInfo(self.coroutine)
             self:Reject(...)

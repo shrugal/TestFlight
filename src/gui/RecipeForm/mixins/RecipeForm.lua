@@ -188,7 +188,7 @@ end
 ---------------------------------------
 
 function Self:OnRefresh()
-    if self.form:IsShown() then return end
+    if self.form:IsVisible() then return end
 
     if not Addon.enabled then
         self:ResetReagentSlots()
@@ -202,7 +202,7 @@ end
 ---@param recipeID number
 ---@param tracked boolean
 function Self:OnTrackedRecipeUpdated(recipeID, tracked)
-    if not tracked or not self.form:IsShown() then return end
+    if not tracked or not self.form:IsVisible() then return end
 
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID then return end

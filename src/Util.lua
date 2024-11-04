@@ -80,6 +80,27 @@ function Self:IEach(a, b, c, ...)
     end
 end
 
+-- Enumerate recursively over table
+---@param tbl table
+---@param n number
+function Self:TblEnum(tbl, n)
+    if (n or 1) == 1 then
+       local i, v
+       return function () i, v = next(tbl, i) return v end
+    end
+
+    local i, t, v, iter
+    return function ()
+        while true do
+            if iter then v = iter() end
+            if v ~= nil then return v end
+            i, t = next(tbl, i)
+            if i == nil then return end
+            iter = self:TblEnum(t, n - 1)
+        end
+    end
+end
+
 ---@param tbl table
 function Self:TblKeys(tbl)
     local t = {}

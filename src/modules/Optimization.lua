@@ -463,13 +463,14 @@ function Self:GetRecipeCacheKey(operation, optionalReagents, optimizeConcentrati
     local order = operation:GetOrder()
     local profInfo = operation:GetProfessionInfo()
 
-    local key = ("%d;%d;%d;%d;%d;%d"):format(
+    local key = ("%d;%d;%d;%d;%d;%d;%d"):format(
         operation.recipe.recipeID,
         operation.recipe.isRecraft and 1 or 0,
-        profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
+        profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill,
         order and order.orderID or 0,
         operation.applyConcentration and 1 or 0,
-        optimizeConcentration and 1 or 0
+        optimizeConcentration and 1 or 0,
+        Prices:GetRecipeScanTime(operation.recipe, nil, order)
     )
 
     if optionalReagents then

@@ -130,7 +130,7 @@ end
 function Self:OnRefresh()
     Parent.OnRefresh(self)
 
-    if not self.form or not self.form:IsShown() then return end
+    if not self.form or not self.form:IsVisible() then return end
 
     self.form:InitSchematic()
 
@@ -140,7 +140,7 @@ function Self:OnRefresh()
 end
 
 function Self:OnAllocationUpdated()
-    if not self.form:IsShown() then return end
+    if not self.form:IsVisible() then return end
 
     self:UpdateReagentPrice()
 end

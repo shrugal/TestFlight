@@ -50,7 +50,7 @@ end
 ---@param recipeID number
 ---@param tracked boolean
 function Self:OnTrackedRecipeUpdated(recipeID, tracked)
-    if not self.form:IsShown() then return end
+    if not self.form:IsVisible() then return end
 
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID then return end
@@ -63,7 +63,7 @@ end
 ---@param isRecraft boolean
 ---@param amount number?
 function Self:OnTrackedRecipeAmountUpdated(recipeID, isRecraft, amount)
-    if not self.form:IsShown() then return end
+    if not self.form:IsVisible() then return end
 
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID or recipe.isRecraft ~= isRecraft then return end
@@ -72,7 +72,7 @@ function Self:OnTrackedRecipeAmountUpdated(recipeID, isRecraft, amount)
 end
 
 function Self:OnTradeSkillCraftBegin()
-    if not self.form:IsShown() then return end
+    if not self.form:IsVisible() then return end
 
     Self.craftingRecipe = self:GetRecipe()
 end

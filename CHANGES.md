@@ -1,3 +1,6 @@
 - Show reagent costs in customer order form
 - Use marginal cost when optimizing non-profitable crafts for concentration
+- Recalculate optimal allocations when prices from price source addon change
 - Abbreviate long recipe names to prevent line breaks in the recipe tracker
+- Fix sometimes using wrong recipe allocation when starting to track a recipe
+- Fix not updating scanning progress when many recipes without profit are skipped

@@ -128,6 +128,13 @@ function Self:GetOperationInfo()
     return self.operationInfo
 end
 
+function Self:GetResult()
+    if not self.result then
+        self.result = Recipes:GetResult(self.recipe, self:GetOperationInfo(), self:GetOptionalReagents(), self:GetResultQuality()) --[[@as string | number]]
+    end
+    return self.result
+end
+
 -- Reagents
 
 function Self:GetQualityReagentSlots()

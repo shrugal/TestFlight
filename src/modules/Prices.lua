@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local Orders, Recipes, Util = Addon.Orders, Addon.Recipes, Addon.Util
+local Orders, Recipes, Reagents, Util = Addon.Orders, Addon.Recipes, Addon.Reagents, Addon.Util
 
 
 ---@class Prices
@@ -12,60 +12,11 @@ local Self = Addon.Prices
 Self.CUT_AUCTION_HOUSE = 0.05
 
 ---------------------------------------
---              Sources
+--              Source
 ---------------------------------------
 
----@class PriceSource
----@field IsAvailable fun(self: self): boolean
----@field GetItemPrice fun(self, item: string | number): number?
-
 ---@type table<string, PriceSource>
-Self.SOURCES = {
-    TradeSkillMaster = {
-        IsAvailable = function () return TSM_API ~= nil end,
-        GetItemPrice = function (_, item)
-            local itemStr = type(item) == "number" and "i:" .. item or TSM_API.ToItemString(item --[[@as string]])
-            return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", itemStr)
-        end
-    },
-    Auctionator = {
-        IsAvailable = function () return Auctionator ~= nil end,
-        GetItemPrice = function (_, item)
-            if type(item) == "number" then
-                return Auctionator.API.v1.GetVendorPriceByItemID(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemID(Name, item)
-            else
-                return Auctionator.API.v1.GetVendorPriceByItemLink(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemLink(Name, item)
-            end
-        end
-    },
-    RECrystallize = {
-        IsAvailable = function () return RECrystallize_PriceCheckItemID ~= nil end,
-        GetItemPrice = function (_, item)
-            if type(item) == "number" then
-                return RECrystallize_PriceCheckItemID(item)
-            else
-                return RECrystallize_PriceCheck(item)
-            end
-        end
-    },
-    OribosExchange = {
-        result = {},
-        IsAvailable = function () return OEMarketInfo ~= nil end,
-        GetItemPrice = function (self, item)
-            local res = OEMarketInfo(item, self.result)
-            return res and ((res.market or 0) > 0 and res.market or (res.region or 0) > 0 and res.region) or nil
-        end
-    },
-    Auctioneer = {
-        IsAvailable = function () return Auctioneer ~= nil end,
-        GetItemPrice = function (_, item)
-            local itemKey = C_AuctionHouse.MakeItemKey(C_Item.GetItemInfoInstant(item), C_Item.GetDetailedItemLevelInfo(item), 0, 0)
-            local stats = Auctioneer:Statistics(itemKey)
-            return stats["Stats:OverTime"] and stats["Stats:OverTime"]:Best() or nil
-        end
-    },
-}
-
+Self.SOURCES = {}
 ---@type PriceSource?
 Self.SOURCE = nil
 
@@ -94,10 +45,43 @@ function Self:IsSourceAvailable()
     return source and source:IsAvailable() or false
 end
 
----@param itemLinkOrID string | number
-function Self:GetItemPrice(itemLinkOrID)
+---@param item string | number
+function Self:GetItemPrice(item)
     if not self:IsSourceAvailable() then return 0 end
-    return self:GetSource():GetItemPrice(itemLinkOrID) or 0
+    return self:GetSource():GetItemPrice(item) or 0
+end
+
+function Self:GetFullScanTime()
+    if not self:IsSourceAvailable() then return end
+    local source = self:GetSource()
+    return source.GetFullScanTime and source:GetFullScanTime() or 0
+end
+
+---@param item string | number
+function Self:GetItemScanTime(item)
+    if not self:IsSourceAvailable() then return end
+    local source = self:GetSource()
+    return source.GetItemScanTime and source:GetItemScanTime(item) or self:GetFullScanTime()
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param result? string | number
+---@param order? CraftingOrderInfo
+function Self:GetRecipeScanTime(recipe, result, order)
+    if not self:IsSourceAvailable() then return end
+    if not self:GetSource().GetItemScanTime then return self:GetFullScanTime() end
+
+    local time = result and self:GetItemScanTime(result) or 0
+
+    for _,reagent in pairs(recipe.reagentSlotSchematics) do
+        if not Reagents:IsProvidedByOrder(reagent, order) then
+            for _,item in pairs(reagent.reagents) do
+                time = max(time, self:GetItemScanTime(item.itemID) or 0)
+            end
+        end
+    end
+
+    return time
 end
 
 ---------------------------------------
@@ -182,26 +166,12 @@ end
 ---@param qualityID? number
 ---@return number
 function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID)
-    if not qualityID then qualityID = operationInfo.craftingQualityID end
     if recipe.isRecraft then return 0 end
 
-    ---@type string | number | nil
-    local itemLinkOrID
+    local item = Recipes:GetResult(recipe, operationInfo, optionalReagents, qualityID)
+    if not item then return 0 end
 
-    if Addon.ENCHANTS[operationInfo.craftingDataID] then
-        itemLinkOrID = Addon.ENCHANTS[operationInfo.craftingDataID][qualityID]
-    else
-        local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
-        local id, link = data.itemID, data.hyperlink
-
-        if link and select(14, C_Item.GetItemInfo(link)) == Enum.ItemBind.OnAcquire then return 0 end
-
-        itemLinkOrID = link or id
-    end
-
-    if not itemLinkOrID then return 0 end
-
-    local price = self:GetItemPrice(itemLinkOrID)
+    local price = self:GetItemPrice(item)
     local quantity = (recipe.quantityMin + recipe.quantityMax) / 2 -- TODO
 
     return price * quantity
@@ -345,4 +315,107 @@ function Self:GetReagentsPrice(reagents)
     end
 
     return price
+end
+
+---------------------------------------
+--              Sources
+---------------------------------------
+
+---@class PriceSource
+---@field IsAvailable fun(self: self): boolean
+---@field GetItemPrice fun(self: self, item: string | number): number?
+---@field GetFullScanTime? fun(self: self): number?
+---@field GetItemScanTime? fun(self: self, item: string | number): number?
+
+-- TradeSkillMaster
+
+---@class TradeSkillMasterPriceSource
+Self.SOURCES.TradeSkillMaster = {}
+
+function Self.SOURCES.TradeSkillMaster:IsAvailable()
+    return TSM_API ~= nil
+end
+function Self.SOURCES.TradeSkillMaster:GetItemPrice(item)
+    local itemStr = type(item) == "number" and "i:" .. item or TSM_API.ToItemString(item --[[@as string]])
+    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", itemStr)
+end
+
+-- Auctionator
+
+---@class AuctionatorPriceSource
+Self.SOURCES.Auctionator = {}
+
+function Self.SOURCES.Auctionator:IsAvailable()
+    return Auctionator ~= nil
+end
+function Self.SOURCES.Auctionator:GetItemPrice(item)
+    if type(item) == "number" then
+        return Auctionator.API.v1.GetVendorPriceByItemID(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemID(Name, item)
+    else
+        return Auctionator.API.v1.GetVendorPriceByItemLink(Name, item) or Auctionator.API.v1.GetAuctionPriceByItemLink(Name, item)
+    end
+end
+function Self.SOURCES.Auctionator:GetFullScanTime()
+    return Auctionator.SavedState.TimeOfLastGetAllScan
+end
+
+-- RECrystallize
+
+---@class RECrystallizePriceSource
+Self.SOURCES.RECrystallize = {}
+
+function Self.SOURCES.RECrystallize:IsAvailable()
+    return RECrystallize_PriceCheckItemID ~= nil
+end
+function Self.SOURCES.RECrystallize:GetItemPrice(item)
+    if type(item) == "number" then
+        return RECrystallize_PriceCheckItemID(item)
+    else
+        return RECrystallize_PriceCheck(item)
+    end
+end
+function Self.SOURCES.RECrystallize:GetFullScanTime()
+    return RECrystallize.Config.LastScan
+end
+
+-- OribosExchange
+
+---@class OribosExchangePriceSource
+Self.SOURCES.OribosExchange = { result = {} }
+
+function Self.SOURCES.OribosExchange:IsAvailable()
+    return OEMarketInfo ~= nil
+end
+function Self.SOURCES.OribosExchange:GetItemPrice(item)
+    local res = OEMarketInfo(item, self.result)
+    return res and ((res.market or 0) > 0 and res.market or (res.region or 0) > 0 and res.region) or nil
+end
+
+-- Auctioneer
+
+---@class AuctioneerPriceSource
+Self.SOURCES.Auctioneer = {}
+
+function Self.SOURCES.Auctioneer:IsAvailable()
+    return Auctioneer ~= nil
+end
+function Self.SOURCES.Auctioneer:GetItemStats(item)
+    local itemKey = C_AuctionHouse.MakeItemKey(C_Item.GetItemInfoInstant(item), C_Item.GetDetailedItemLevelInfo(item), 0, 0)
+    local stats = Auctioneer:Statistics(itemKey)
+    return stats["Stats:OverTime"]
+end
+function Self.SOURCES.Auctioneer:GetItemPrice(item)
+    local stats = self:GetItemStats(item)
+    if not stats then return end
+    return stats:Best()
+end
+function Self.SOURCES.Auctioneer:GetItemScanTime(item)
+    local stats = self:GetItemStats(item)
+    if not stats then return end
+
+    local val = 0
+    for _,point in ipairs(stats.points) do
+        val = max(val, point.timeslice)
+    end
+    return val * 3600
 end
