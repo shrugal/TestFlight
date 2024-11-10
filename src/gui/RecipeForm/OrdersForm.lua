@@ -67,6 +67,12 @@ function Self:OnAddonLoaded(addonName)
         "RIGHT", -50, 1
     )
 
+    -- Insert concentration cost spinner
+    self:InsertConcentrationCostSpinner(
+        self.form.Details.StatLines.ConcentrationStatLine,
+        "RIGHT", -50, 1
+    )
+
     -- Insert optimization buttons
     self:InsertOptimizationButtons(
         ordersView,

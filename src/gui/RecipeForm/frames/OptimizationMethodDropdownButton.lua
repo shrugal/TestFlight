@@ -31,14 +31,14 @@ function Self:OnLoad()
         local SetSelected = Util:FnBind(self.SetSelected, self)
 
         for name,method in pairs(Optimization.Method) do
-			if method == Optimization.Method.ProfitPerConcentration then
+			if method == Optimization.Method.CostPerConcentration then
+				name = "Cost per Concentration"
+			elseif method == Optimization.Method.ProfitPerConcentration then
 				name = "Profit per Concentration"
 			end
 
 			local radio = rootDescription:CreateRadio(name, IsSelected, SetSelected, method)
-			radio:AddInitializer(function(frame, description, menu)
-				frame.fontString:SetFontObject("GameFontHighlightOutline")
-			end)
+			radio:AddInitializer(function(frame) frame.fontString:SetFontObject("GameFontHighlightOutline") end)
         end
 
 		rootDescription:SetMinimumWidth(200)

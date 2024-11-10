@@ -42,6 +42,7 @@ Auctionator = nil
 ---@field GetVendorPriceByItemLink fun(callerID: string, itemLink: string): number?
 ---@field GetAuctionPriceByItemLink fun(callerID: string, itemLink: string): number?
 ---@field GetAuctionAgeByItemLink fun(callerID: string, itemLink: string): number?
+---@field MultiSearchAdvanced fun(callerID: string, searchTerms: table)
 
 ---@class RECrystallize
 ---@field Config { LastScan: number }

@@ -295,7 +295,7 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
         res = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
     end
 
-    Promise:YieldTime("GetOperationInfo")
+    Promise:YieldTime()
 
     return res
 end
@@ -323,7 +323,7 @@ end
 ---@param recipe CraftingRecipeSchematic
 function Self:LoadAllocation(recipe)
     local quality = self:GetTrackedQuality(recipe) or 1
-    local allocations = Optimization:GetRecipeCostAllocations(Addon:CreateOperation(recipe))
+    local allocations = Optimization:GetMinCostAllocations(Addon:CreateOperation(recipe))
     local allocation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
     if not allocation then return end
 

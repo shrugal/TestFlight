@@ -16,7 +16,9 @@ TestFlightDB = {
     ---@type boolean
     reagents = true,
     ---@type string?
-    priceSource = nil
+    priceSource = nil,
+    ---@type number
+    concentrationCost = 50000
 }
 
 ---@class AddonCharDB
@@ -44,6 +46,17 @@ function Self:SetExtraSkill(value)
     self:TriggerEvent(self.Event.ExtraSkillUpdated)
 end
 
+---@param value number
+function Self:SetConcentrationCost(value)
+    value = max(0, value)
+
+    if self.DB.Account.concentrationCost == value then return end
+
+    self.DB.Account.concentrationCost = value
+
+    self:TriggerEvent(self.Event.ConcentrationCostUpdated)
+end
+
 ---------------------------------------
 --             Lifecycle
 ---------------------------------------
@@ -62,6 +75,10 @@ function Self:Load()
         self.DB.Account.amounts = nil
         self.DB.Account.reagents = true
         self.DB.Account.v = 1
+    end
+    if self.DB.Account.v < 2 then
+        self.DB.Account.concentrationCost = 50000
+        self.DB.Account.v = 2
     end
 
     -- Char
@@ -159,7 +176,7 @@ function SlashCmdList.TESTFLIGHT(input)
     if cmd == "tt" then cmd = "tooltip" end
     if cmd == "re" then cmd = "reagents" end
     if cmd == "rc" then cmd = "recraft" end
-    if cmd == "pc" then cmd = "pricesource" end
+    if cmd == "ps" then cmd = "pricesource" end
 
     if cmd == "tooltip" or cmd == "reagents" then
         local name = Util:StrUcFirst(cmd)
@@ -248,8 +265,9 @@ end
 ---@field Disabled "Disabled"
 ---@field Toggled "Toggled"
 ---@field ExtraSkillUpdated "ExtraSkillUpdated"
+---@field ConcentrationCostUpdated "ConcentrationCostUpdated"
 
-Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated" })
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated" })
 Self:OnLoad()
 
 ---@param addonName string

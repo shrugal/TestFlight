@@ -8,6 +8,7 @@ local Parent = NS.RecipeForm
 ---@class GUI.RecipeForm.RecipeCraftingForm: GUI.RecipeForm.RecipeForm
 ---@field form RecipeCraftingForm
 ---@field skillSpinner NumericInputSpinner
+---@field concentrationCostSpinner NumericInputSpinner
 ---@field decreaseBtn ButtonFitToText
 ---@field optimizeBtn ButtonFitToText
 ---@field increaseBtn ButtonFitToText
@@ -36,6 +37,7 @@ end
 ---@param frame NumericInputSpinner
 function Self:SkillSpinnerOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+    GameTooltip_AddColoredLine(GameTooltip, "Extra skill", HIGHLIGHT_FONT_COLOR)
     GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
     GameTooltip:Show()
 end
@@ -54,11 +56,54 @@ function Self:InsertSkillSpinner(parent, ...)
         Util:FnBind(self.SkillSpinnerOnChange, self),
         ...
     )
+    self.skillSpinner:SetWidth(26)
+    self.skillSpinner.DecrementButton:SetAlpha(0.7)
+    self.skillSpinner.IncrementButton:SetAlpha(0.7)
 end
 
 function Self:UpdateSkillSpinner()
     self.skillSpinner:SetShown(Addon.enabled and not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe())
     self.skillSpinner:SetValue(Addon.extraSkill)
+end
+
+-- Concentration cost spinner
+
+---@param frame NumericInputSpinner
+function Self:ConcentrationCostSpinnerOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+    GameTooltip_AddColoredLine(GameTooltip, "Cost per Concentration", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Set the max. amount of gold you are willing to spend to save one concentration point.")
+    GameTooltip:Show()
+end
+
+---@param frame NumericInputSpinner
+---@param value number
+function Self:ConcentrationCostSpinnerOnChange(frame, value)
+    Addon:SetConcentrationCost(value * 10000)
+end
+
+---@param parent Frame
+function Self:InsertConcentrationCostSpinner(parent, ...)
+    self.concentrationCostSpinner = GUI:InsertNumericSpinner(
+        parent,
+        Util:FnBind(self.ConcentrationCostSpinnerOnEnter, self),
+        Util:FnBind(self.ConcentrationCostSpinnerOnChange, self),
+        ...
+    )
+    self:UpdateConcentrationCostSpinner()
+    self.concentrationCostSpinner:SetWidth(26)
+    self.concentrationCostSpinner:SetMinMaxValues(0, 999)
+    self.concentrationCostSpinner.DecrementButton:SetAlpha(0.7)
+    self.concentrationCostSpinner.IncrementButton:SetAlpha(0.7)
+end
+
+function Self:UpdateConcentrationCostSpinner()
+    self.concentrationCostSpinner:SetShown(
+        not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe()
+        and self.optimizationMethod == Optimization.Method.CostPerConcentration
+        and self.form:GetRecipeOperationInfo().concentrationCost > 0
+    )
+    self.concentrationCostSpinner:SetValue(floor(Addon.DB.Account.concentrationCost / 10000))
 end
 
 -- Optimization buttons
@@ -125,6 +170,8 @@ end
 ---@param method Optimization.Method
 function Self:SetOptimizationMethod(method)
     self.optimizationMethod = method
+
+    self:UpdateConcentrationCostSpinner()
 end
 
 ---------------------------------------
@@ -184,6 +231,7 @@ end
 function Self:Refresh()
     self:UpdateExperimentBox()
     self:UpdateSkillSpinner()
+    self:UpdateConcentrationCostSpinner()
     self:UpdateOptimizationButtons()
 end
 
@@ -195,8 +243,9 @@ function Self:UpdateDetailsStats()
     local difficulty = op.baseDifficulty + op.bonusDifficulty
 
     self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
-    self.skillSpinner:SetValue(Addon.extraSkill)
 
+    self:UpdateSkillSpinner()
+    self:UpdateConcentrationCostSpinner()
     self:UpdateOptimizationButtons()
 end
 
@@ -510,6 +559,12 @@ function Self:OnExtraSkillUpdated()
     self.form:UpdateRecraftSlot()
 end
 
+function Self:OnConcentrationCostUpdated()
+    if not self.form or not self.form:IsVisible() then return end
+
+    self:UpdateConcentrationCostSpinner()
+end
+
 function Self:OnAllocationModified()
     Recipes:SetTrackedByForm(self)
 end
@@ -522,4 +577,5 @@ function Self:OnAddonLoaded()
     Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
     Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)
     Addon:RegisterCallback(Addon.Event.ExtraSkillUpdated, self.OnExtraSkillUpdated, self)
+    Addon:RegisterCallback(Addon.Event.ConcentrationCostUpdated, self.OnConcentrationCostUpdated, self)
 end

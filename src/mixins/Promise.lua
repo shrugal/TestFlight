@@ -64,17 +64,6 @@ function Static:GetCurrent()
     return Static.stack[#Static.stack]
 end
 
---- Publish progress updates during a running promise
----@vararg any
-function Static:Progress(...)
-    local current = self:GetCurrent()
-    if not current then return end
-
-    Util:TblFill(current.statusResult, ...)
-
-    current:TriggerCallbacks(Static.Event.OnProgress, ...)
-end
-
 -- Yield if currently in a coroutine, do nothing if not
 ---@vararg any
 function Static:Yield(...)
@@ -82,36 +71,40 @@ function Static:Yield(...)
     return coroutine.yield(...)
 end
 
+-- Yield if currently in a promise that has not suspended before
+---@vararg any
+function Static:YieldFirst(...)
+    local current = self:GetCurrent()
+    if not current or current.hasSuspended then return end
+
+    self:Yield(...)
+    return true
+end
+
 -- Yield if currently in a promise and some time has passed since resuming it
----@param label? string
-function Static:YieldTime(label)
+function Static:YieldTime(...)
     local current = self:GetCurrent()
     if not current then return end
 
     local time = (debugprofilestop() - current.start) / current.priority
     if time < Static.MAX_RUNTIME_MS then return end
 
-    if time > Static.MAX_RUNTIME_MS * 2 then
-        Addon:Debug(time * current.priority, label or "YieldTime")
-    end
-
-    self:Yield()
+    self:Yield(...)
+    return true
 end
 
--- Yield if currently in a promise that has not suspended before
+-- Yield if currently in a promise and some time has passed since resuming it,
+-- only publish progress updates if not
 ---@vararg any
-function Static:YieldFirst(...)
-    local current = self:GetCurrent()
-    if not current or current.hasSuspended then return end
-    self:Yield(...)
-end
+function Static:YieldProgress(...)
+    if self:YieldTime(...) then return true end
 
--- Yield if currently in a promise that has suspended before
----@vararg any
-function Static:YieldAgain(...)
     local current = self:GetCurrent()
-    if not current or not current.hasSuspended then return end
-    self:Yield(...)
+    if not current then return end
+
+    Util:TblFill(current.statusResult, ...)
+
+    current:TriggerCallbacks(Static.Event.OnProgress, ...)
 end
 
 -- Resolves when n promises resolve, rejects if #promises - n reject or cancel

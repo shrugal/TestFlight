@@ -1,3 +1,5 @@
+---@type string
+local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
 local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
@@ -15,7 +17,9 @@ local settings = {
         "CRAFTINGORDERS_CLAIMED_ORDER_REMOVED",
         "CRAFTINGORDERS_CLAIMED_ORDER_UPDATED",
         "PLAYER_REGEN_DISABLED",
-        "PLAYER_REGEN_ENABLED"
+        "PLAYER_REGEN_ENABLED",
+        "PLAYER_INTERACTION_MANAGER_FRAME_SHOW",
+        "PLAYER_INTERACTION_MANAGER_FRAME_HIDE",
     },
     blockTemplate = "ObjectiveTrackerAnimBlockTemplate",
     lineTemplate = "ObjectiveTrackerAnimLineTemplate",
@@ -41,6 +45,8 @@ end
 ---@param self ReagentsTrackerFrame
 function Self:InitModule()
     self.dirtyCallback = function () self:UpdatePosition(true) end
+
+    self:InsertSearchButton()
 end
 
 function Self:MarkDirty()
@@ -58,10 +64,17 @@ function Self:Update(availableHeight, dirtyUpdate)
         if not parent then return end
 
         availableHeight = parent:GetAvailableHeight()
-        for _,m in pairs(parent.modules) do availableHeight = availableHeight - m:GetContentsHeight() end
+
+        if parent.modules then
+            for _,m in pairs(parent.modules) do availableHeight = availableHeight - m:GetContentsHeight() end
+        end
     end
 
-    return ObjectiveTrackerModuleMixin.Update(self, availableHeight, dirtyUpdate)
+    local height, truncated = ObjectiveTrackerModuleMixin.Update(self, availableHeight, dirtyUpdate)
+
+    self:UpdateSearchButton()
+
+    return height, truncated
 end
 
 function Self:LayoutContents()
@@ -195,19 +208,19 @@ function Self:UpdatePosition(dirtyUpdate)
         end
     end
 
-    if ProfessionsRecipeTracker:GetContentsHeight() == 0 then return end
-
     local parent = self.parentContainer
     if not parent then return end
 
     self.prevModule = nil
-    for _,module in ipairs(parent.modules) do
-        if module == ProfessionsRecipeTracker then break end
-        if module:GetContentsHeight() > 0 then self.prevModule = module end
+
+    if parent.modules then
+        for _,module in ipairs(parent.modules) do
+            if module == ProfessionsRecipeTracker then break end
+            if module:GetContentsHeight() > 0 then self.prevModule = module end
+        end
     end
 
     local height = self:Update(nil, dirtyUpdate)
-
     if height == 0 then return end
 
     self:ClearAllPoints()
@@ -248,6 +261,48 @@ function Self:RemoveFromParent()
 end
 
 ---------------------------------------
+--              Search
+---------------------------------------
+
+function Self:InsertSearchButton()
+    if not C_AddOns.IsAddOnLoaded("Auctionator") then return end
+
+    self.SearchButton = CreateFrame(
+        "Frame",
+        nil,
+        self.Header,
+        "AuctionatorCraftingInfoObjectiveTrackerFrameTemplate"
+    )
+
+    function self.SearchButton:SearchButtonClicked()
+        local searchTerms = {}
+
+        for itemID,amount in pairs(select(2, Reagents:GetTrackedBySource())) do
+            local name = C_Item.GetItemInfo(itemID)
+            local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
+
+            tinsert(searchTerms, {
+                searchString = name,
+                tier = quality,
+                isExact = true,
+                quantity = amount
+            })
+        end
+
+        Auctionator.API.v1.MultiSearchAdvanced(Name, searchTerms)
+    end
+end
+
+function Self:UpdateSearchButton()
+    if not C_AddOns.IsAddOnLoaded("Auctionator") then return end
+
+    self.SearchButton:SetShown(
+        self:GetContentsHeight() > 0
+        and AuctionHouseFrame and AuctionHouseFrame:IsShown()
+    )
+end
+
+---------------------------------------
 --              Events
 ---------------------------------------
 
@@ -261,6 +316,8 @@ function Self:OnEvent(event)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if not self.isDirty then return end
         self:UpdatePosition(true)
+    elseif Util:OneOf(event, "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE") then
+        self:UpdateSearchButton()
     else
         self:MarkDirty()
     end

@@ -81,13 +81,15 @@ function Self:CreateRecipeListFilter()
             local sortSubmenu = rootDescription:CreateButton("Sort")
             sortSubmenu:CreateRadio(NONE, IsSortSelected, SetSortSelected)
 
-            for name,method in pairs(Optimization.Method) do
-                if method == Optimization.Method.ProfitPerConcentration then
+            for name,method in pairs(Optimization.Method) do repeat
+                if method == Optimization.Method.CostPerConcentration then
+                    break
+                elseif method == Optimization.Method.ProfitPerConcentration then
                     name = "Profit per Concentration"
                 end
 
                 sortSubmenu:CreateRadio(name, IsSortSelected, SetSortSelected, method)
-            end
+            until true end
 
             -- Add skillLine options
             if isNPCCrafting then return end
@@ -119,13 +121,13 @@ end
 function Self:SetSortSelected(method)
     self.sortMethod = method
 
-
     if method then
         GUI.RecipeForm.CraftingForm:SetOptimizationMethod(method)
 
         self:UpdateSort(true)
     else
         if self.sortJob then self.sortJob:Cancel() end
+        for _,cache in pairs(self.sortCaches) do cache:Clear() end
 
          self.frame:Init(self.frame.professionInfo)
     end
@@ -190,7 +192,7 @@ function Self:UpdateSort(refresh)
                     end
                 end
 
-                Promise:Progress(i, n)
+                Promise:YieldProgress(i, n)
             end
 
             self.frame.RecipeList.NoResultsText:SetShown(self.dataProvider:IsEmpty())
