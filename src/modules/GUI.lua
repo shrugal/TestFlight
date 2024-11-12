@@ -86,7 +86,8 @@ end
 
 ---@param tooltip? GameTooltip
 function Self:TooltipPostCall(tooltip)
-    if not Addon.DB.Account.tooltip or not tooltip then return end
+    if not Addon.DB.Account.tooltip then return end
+    if not tooltip or not tooltip.GetItem then return end
 
     local _, link = tooltip:GetItem()
     if not link then return end

@@ -1,8 +1,6 @@
 ## Fixes
 
 - Profit calculation for gathering recipes that increase reagent quality
-- Invalidate caches when prices change (e.g. after an AH scan)
-- Disable scanning/sorting without price source
 - Handle finishing reagents that change resourcefulness/multicraft yield
 
 ## Features
@@ -18,5 +16,6 @@
 
 ## Maybe
 
+- Handle finishing reagents that change skill
 - Profession gear optimization
 - Reagent costs override

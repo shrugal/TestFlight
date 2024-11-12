@@ -458,7 +458,7 @@ end
 
 function Self:GetQuality()
     local op = self.form:GetRecipeOperationInfo()
-    if op.isQualityCraft then return floor(op.quality) end
+    if op and op.isQualityCraft then return floor(op.quality) end
 end
 
 ---@param quality? number
