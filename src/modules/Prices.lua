@@ -110,7 +110,7 @@ function Self:GetRecipePrices(recipe, operationInfo, allocation, order, optional
         return reagentPrice, resultPrice
     end
 
-    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order)
+    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -193,7 +193,7 @@ end
 function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
     local revenue = order and order.tipAmount or resultPrice
     local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
-    local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice)
+    local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
     local traderCut = order and order.consortiumCut or self.CUT_AUCTION_HOUSE * resultPrice
 
     local rewards = 0
@@ -255,10 +255,11 @@ end
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@return number value
 function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
-    local factor = Recipes:GetResourcefulnessFactor(recipe, operationInfo)
+    local factor = Recipes:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if factor == 0 then return 0 end
 
     if order and order.reagentState ~= Enum.CraftingOrderReagentsType.None then
+        -- Not passing order here on purpose
         reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation)
     end
 
@@ -268,8 +269,9 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
 ---@param resultPrice number
-function Self:GetMulticraftValue(recipe, operationInfo, resultPrice)
-    local factor = Recipes:GetMulticraftFactor(recipe, operationInfo)
+---@param optionalReagents? CraftingReagentInfo[]
+function Self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
+    local factor = Recipes:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
     if factor == 0 then return 0 end
 
     local itemPrice = resultPrice * 2 / (recipe.quantityMax + recipe.quantityMin)

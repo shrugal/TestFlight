@@ -202,7 +202,8 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param stat "mc" | "rf" | "ig"
-function Self:GetPerkStats(recipe, stat)
+---@param optionalReagents? CraftingReagentInfo[]
+function Self:GetStatValue(recipe, stat, optionalReagents)
     local val = 0
 
     local perks = Addon.PERKS.recipes[recipe.recipeID]
@@ -218,30 +219,42 @@ function Self:GetPerkStats(recipe, stat)
         end
     end
 
+    local reagents = Addon.FINISHING_REAGENTS
+    if optionalReagents then
+        for _,reagent in pairs(optionalReagents) do
+            local data = reagents[reagent.itemID]
+            if data and data[stat] then
+                val = val + data[stat] / 100
+            end
+        end
+    end
+
     return val
 end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
-function Self:GetResourcefulnessFactor(recipe, operationInfo)
+---@param optionalReagents? CraftingReagentInfo[]
+function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetPerkStats(recipe, "rf")
+    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetStatValue(recipe, "rf", optionalReagents)
 
     return chance * yield
 end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
-function Self:GetMulticraftFactor(recipe, operationInfo)
+---@param optionalReagents? CraftingReagentInfo[]
+function Self:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
     local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
     local baseYield = Addon.MULTICRAFT_YIELD[recipe.quantityMax] or Addon.MULTICRAFT_YIELD[0]
-    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetPerkStats(recipe, "mc"))) / 2
+    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatValue(recipe, "mc", optionalReagents))) / 2
 
     return chance * yield
 end

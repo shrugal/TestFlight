@@ -309,14 +309,14 @@ end
 
 function Self:GetResourcefulnessFactor()
     if not self.resourcefulnessFactor then
-        self.resourcefulnessFactor = Recipes:GetResourcefulnessFactor(self.recipe, self:GetOperationInfo())
+        self.resourcefulnessFactor = Recipes:GetResourcefulnessFactor(self.recipe, self:GetOperationInfo(), self:GetOptionalReagents())
     end
     return self.resourcefulnessFactor
 end
 
 function Self:GetMulticraftFactor()
     if not self.multicraftFactor then
-        self.multicraftFactor = Recipes:GetMulticraftFactor(self.recipe, self:GetOperationInfo())
+        self.multicraftFactor = Recipes:GetMulticraftFactor(self.recipe, self:GetOperationInfo(), self:GetOptionalReagents())
     end
     return self.multicraftFactor
 end
@@ -349,8 +349,9 @@ function Self:GetProfit()
         local resultPrice = self:GetResultPrice()
         local operationInfo = self:GetOperationInfo()
         local order = self:GetOrder()
+        local optionalReagents = self:GetOptionalReagents()
 
-        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut = Prices:GetRecipeProfit(self.recipe, operationInfo, self.allocation, reagentPrice, resultPrice, order)
+        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut = Prices:GetRecipeProfit(self.recipe, operationInfo, self.allocation, reagentPrice, resultPrice, order, optionalReagents)
     end
     return self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut
 end
