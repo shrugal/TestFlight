@@ -201,7 +201,7 @@ end
 ---------------------------------------
 
 ---@param recipe CraftingRecipeSchematic
----@param stat "mc" | "rf"
+---@param stat "mc" | "rf" | "ig"
 function Self:GetPerkStats(recipe, stat)
     local val = 0
 
