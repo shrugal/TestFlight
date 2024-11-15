@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
+local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
 local NS = GUI.ObjectiveTracker
 
 local Parent = NS.ProfessionsTrackerModule
@@ -30,7 +30,7 @@ end
 ---@param isRecraft boolean
 function Self:AddRecipe(_, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-    local amount = Recipes:GetTrackedAmount(recipe) or 1
+    local amount = (Recipes:GetTrackedAmount(recipe) or 1) + (Orders:GetTrackedAmount(recipe) or 0)
     local quality = Recipes:GetTrackedQuality(recipe)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
@@ -68,7 +68,7 @@ function Self:AddRecipe(_, recipeID, isRecraft)
 
         local reagent = schematic.reagents[1]
         local quantity = ProfessionsUtil.AccumulateReagentsInPossession(schematic.reagents)
-        local quantityRequired = schematic.quantityRequired * Recipes:GetTrackedAmount(recipe)
+        local quantityRequired = schematic.quantityRequired * amount
         local metQuantity = quantity >= quantityRequired
         local name = nil
 

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Recipes, Util = Addon.GUI, Addon.Recipes, Addon.Util
+local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.AmountForm: GUI.RecipeForm.RecipeForm
 ---@field amountSpinner NumericInputSpinner
@@ -19,10 +19,10 @@ end
 ---@param frame NumericInputSpinner
 ---@param value number
 function Self:AmountSpinnerOnChange(frame, value)
-    if not self.form.transaction then return end
     local recipe = self:GetRecipe()
-    if not recipe then return end
-    Recipes:SetTrackedAmount(recipe, value)
+    if not recipe or not self.form.transaction then return end
+
+    self:GetTracking():SetTrackedAmount(recipe, value)
 end
 
 ---@return NumericInputSpinner
@@ -36,44 +36,32 @@ function Self:InsertAmountSpinner(...)
 end
 
 function Self:UpdateAmountSpinner()
-    local recipe = self:GetRecipe()
-    local trackBox = self:GetTrackCheckbox()
-
-    self.amountSpinner:SetShown(trackBox:IsShown() and trackBox:GetChecked())
-    self.amountSpinner:SetValue(recipe and Recipes:GetTrackedAmount(recipe) or 1)
+    local Service, model = self:GetTracking()
+    self.amountSpinner:SetShown(model and Service:IsTracked(model))
+    self.amountSpinner:SetValue(model and Service:GetTrackedAmount(model) or 1)
 end
 
 ---------------------------------------
 --              Events
 ---------------------------------------
 
----@param recipeID number
----@param tracked boolean
-function Self:OnTrackedRecipeUpdated(recipeID, tracked)
+function Self:OnTrackedUpdated()
     if not self.form:IsVisible() then return end
-
-    local recipe = self:GetRecipe()
-    if not recipe or recipe.recipeID ~= recipeID then return end
-
-    self.amountSpinner:SetShown(tracked and not ProfessionsUtil.IsCraftingMinimized())
-    self.amountSpinner:SetValue(Recipes:GetTrackedAmount(recipe) or 1)
+    self:UpdateAmountSpinner()
 end
 
----@param recipeID number
----@param isRecraft boolean
----@param amount number?
-function Self:OnTrackedRecipeAmountUpdated(recipeID, isRecraft, amount)
-    if not self.form:IsVisible() then return end
+function Self:OnTrackedRecipeUpdated()
+    if self:GetTracking() ~= Recipes then return end
+    self:OnTrackedUpdated()
+end
 
-    local recipe = self:GetRecipe()
-    if not recipe or recipe.recipeID ~= recipeID or recipe.isRecraft ~= isRecraft then return end
-
-    self.amountSpinner:SetValue(amount or 1)
+function Self:OnTrackedOrderUpdated()
+    if self:GetTracking() ~= Orders then return end
+    self:OnTrackedUpdated()
 end
 
 function Self:OnTradeSkillCraftBegin()
     if not self.form:IsVisible() then return end
-
     Self.craftingRecipe = self:GetRecipe()
 end
 
@@ -87,15 +75,17 @@ function Self:OnSpellcastStoppedOrSucceeded()
 
     Self.craftingRecipe = nil
 
-    local amount = Recipes:GetTrackedAmount(recipe)
+    local amount = self:GetTracking():GetTrackedAmount(recipe)
     if not amount then return end
 
-    Recipes:SetTrackedAmount(recipe, amount - 1)
+    self:GetTracking():SetTrackedAmount(recipe, amount - 1)
 end
 
 function Self:OnAddonLoaded()
+    local Service = self:GetTracking()
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
-    Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, self.OnTrackedRecipeAmountUpdated, self)
+    Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedOrderUpdated, self)
+    Service:RegisterCallback(Service.Event.TrackedAmountUpdated, self.OnTrackedUpdated, self)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", self.OnTradeSkillCraftBegin, self)
 end

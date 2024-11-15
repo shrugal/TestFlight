@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Orders, Prices, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.AmountForm, NS.OrderForm)
@@ -14,10 +14,6 @@ function Self:ListOrderButtonOnEnter(btn)
     GameTooltip:SetOwner(btn, "ANCHOR_RIGHT");
     GameTooltip_AddErrorLine(GameTooltip, "Experimentation mode is enabled.");
     GameTooltip:Show();
-end
-
-function Self:GetTrackCheckbox()
-    return self.form.TrackRecipeCheckbox.Checkbox
 end
 
 function Self:InsertReagentPrice()
@@ -73,6 +69,14 @@ function Self:UpdateReagentPrice()
 end
 
 ---------------------------------------
+--               Util
+---------------------------------------
+
+function Self:GetTrackRecipeCheckbox()
+    return self.form.TrackRecipeCheckbox.Checkbox
+end
+
+---------------------------------------
 --               Hooks
 ---------------------------------------
 
@@ -91,12 +95,12 @@ function Self:InitSchematic()
 end
 
 function Self:UpdateListOrderButton()
-    Recipes:SetTrackedByForm(self)
+    self:UpdateTracking()
 
     if not Addon.enabled or self.form.committed then return end
 
     local listOrderButton = self.form.PaymentContainer.ListOrderButton
-    listOrderButton:SetEnabled(false);
+    listOrderButton:SetEnabled(false)
     listOrderButton:SetScript("OnEnter", Util:FnBind(self.ListOrderButtonOnEnter, self))
 end
 
@@ -141,7 +145,6 @@ end
 
 function Self:OnAllocationUpdated()
     if not self.form:IsVisible() then return end
-
     self:UpdateReagentPrice()
 end
 
@@ -185,6 +188,7 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.form, "UpdateReagentSlots", Util:FnBind(self.UpdateReagentSlots, self))
 
     EventRegistry:RegisterCallback("Professions.AllocationUpdated", self.OnAllocationUpdated, self)
+    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.OnAllocationUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

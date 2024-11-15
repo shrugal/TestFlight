@@ -7,6 +7,7 @@ local Parent = NS.RecipeForm
 
 ---@class GUI.RecipeForm.OrderForm: GUI.RecipeForm.RecipeForm
 ---@field trackOrderBox CheckButton
+---@field GetTrackRecipeCheckbox fun(self: self): CheckButton
 local Self = NS.OrderForm
 
 -- Track order checkbox
@@ -17,10 +18,6 @@ function Self:TrackOrderBoxOnClick(frame)
     if not order then return end
 
     Orders:SetTracked(order, value)
-
-    if not value then return end
-
-    Recipes:SetTrackedByForm(self)
 end
 
 ---@return CheckButton
@@ -77,6 +74,19 @@ function Self:IsClaimableOrder(order)
     return order.orderID and order.orderState == Enum.CraftingOrderState.Created
 end
 
+-- Tracking service
+
+function Self:GetTracking()
+    return Orders, self:GetOrder()
+end
+
+function Self:UpdateTracking()
+    local order = self:GetOrder()
+    if not order or not Orders:IsTracked(order) then return end
+
+    Orders:SetTrackedAllocation(order, self:GetAllocation())
+end
+
 ---------------------------------------
 --              Events
 ---------------------------------------
@@ -90,6 +100,10 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     if not order or order.spellID ~= recipeID then return end
 
     self.trackOrderBox:SetShown(tracked)
+
+    if not tracked then return end
+
+    Orders:SetTracked(order)
 end
 
 ---@param updatedOrder CraftingOrderInfo
@@ -99,9 +113,21 @@ function Self:OnTrackedOrderUpdated(updatedOrder, tracked)
     if not order or order.orderID ~= updatedOrder.orderID then return end
 
     self.trackOrderBox:SetChecked(tracked)
+
+    if not tracked then return end
+
+    self:UpdateTracking()
+end
+
+function Self:OnTrackRecipeCheckboxClicked()
+    local recipe = self:GetRecipe()
+    if not recipe or not self:GetTrackRecipeCheckbox():GetChecked() then return end
+    Recipes:SetTrackedAmount(recipe, 0)
 end
 
 function Self:OnAddonLoaded()
+    self:GetTrackRecipeCheckbox():HookScript("OnClick", Util:FnBind(self.OnTrackRecipeCheckboxClicked, self))
+
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
     Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedOrderUpdated, self)
 end

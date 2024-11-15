@@ -18,10 +18,6 @@ local Self = Mixin(NS.RecipeCraftingForm, Parent)
 
 Self.optimizationMethod = Optimization.Method.Cost
 
-function Self:GetTrackCheckbox()
-    return self.form.TrackRecipeCheckbox
-end
-
 -- Experiment box
 
 function Self:UpdateExperimentBox()
@@ -220,11 +216,12 @@ function Self:Init(_, recipe)
     if not self:CanAllocateReagents() then return end
 
     -- Set or update tracked allocation
-    local allocation = Recipes:GetTrackedAllocation(recipe)
+    local Service, model = self:GetTracking()
+    local allocation = model and Service:GetTrackedAllocation(model)
     if allocation then
         self:AllocateReagents(allocation)
     else
-        Recipes:SetTrackedByForm(self)
+        self:UpdateTracking()
     end
 end
 
@@ -456,6 +453,10 @@ end
 --               Util
 ---------------------------------------
 
+function Self:GetTrackRecipeCheckbox()
+    return self.form.TrackRecipeCheckbox
+end
+
 function Self:GetQuality()
     local op = self.form:GetRecipeOperationInfo()
     if op and op.isQualityCraft then return floor(op.quality) end
@@ -566,7 +567,7 @@ function Self:OnConcentrationCostUpdated()
 end
 
 function Self:OnAllocationModified()
-    Recipes:SetTrackedByForm(self)
+    self:UpdateTracking()
 end
 
 function Self:OnAddonLoaded()

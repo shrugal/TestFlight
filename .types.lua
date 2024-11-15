@@ -15,6 +15,8 @@
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
 
+---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
+
 -----------------------------------------------------
 ---                   Globals                      --
 -----------------------------------------------------
@@ -255,6 +257,8 @@ ProfessionsFrame = nil
 ---@field SetItem fun(self: self, item?: ItemMixin)
 ---@field ClearItem fun(self: self)
 ---@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
+---@field SetTransaction fun(self: self, tx: ProfessionTransaction)
+---@field GetTransaction fun(self: self): ProfessionTransaction
 
 ---@class OutputSlot: Frame
 

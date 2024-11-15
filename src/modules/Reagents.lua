@@ -99,32 +99,37 @@ end
 function Self:GetTrackedBySource()
     local GetCraftingReagentCount = Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")
 
-    local reagents = Recipes:GetTrackedReagentAmounts()
-    local crafting = Recipes:GetTrackedResultAmounts()
-    local provided = Orders:GetTrackedProvidedReagentAmounts()
+    local recipeReagents = Recipes:GetTrackedReagentAmounts()
+    local recipeResults = Recipes:GetTrackedResultAmounts()
+    local orderReagents, orderProvided = Orders:GetTrackedReagentAmounts()
+    local orderResults = Orders:GetTrackedResultAmounts()
 
-    local missing, crafted, owned = {}, {}, {}
+    -- Combine
+    local reagents, crafted = recipeReagents, recipeResults
 
-    for itemID,required in pairs(reagents) do
-        -- Account for owned items
+    for itemID,amount in pairs(orderReagents) do reagents[itemID] = (reagents[itemID] or 0) + amount end
+    for itemID,amount in pairs(orderResults) do crafted[itemID] = (crafted[itemID] or 0) + amount end
+
+    -- Split reagents in missing, owned and crafting
+    local missing, owned, crafting = {}, {}, {}
+
+    for itemID,amount in pairs(reagents) do
         local ownedItems = GetCraftingReagentCount(itemID)
         if ownedItems > 0 then
-            owned[itemID], required = ownedItems, max(0, required - ownedItems)
+            owned[itemID], amount = ownedItems, max(0, amount - ownedItems)
         end
 
-        -- Account for crafting results
-        local craftingItems = min(required, crafting[itemID] or 0)
+        local craftingItems = min(amount, crafted[itemID] or 0)
         if craftingItems > 0 then
-            crafted[itemID], required = craftingItems, required - craftingItems
+            crafting[itemID], amount = craftingItems, amount - craftingItems
         end
 
-        -- Add to missing reagents
-        if required > 0 then
-            missing[itemID] = required
+        if amount > 0 then
+            missing[itemID] = amount
         end
     end
 
-    return reagents, missing, owned, crafted, provided
+    return reagents, missing, owned, crafting, orderProvided
 end
 
 ---------------------------------------

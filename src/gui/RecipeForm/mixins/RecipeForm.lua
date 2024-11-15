@@ -5,7 +5,7 @@ local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reag
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
 ---@field experimentBox CheckButton
----@field GetTrackCheckbox fun(self: self): CheckButton
+---@field GetTrackRecipeCheckbox fun(self: self): CheckButton
 local Self = GUI.RecipeForm.RecipeForm
 
 -- Experiment checkbox
@@ -105,7 +105,6 @@ function Self:AllocateReagents(allocation)
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
-
 -- Restore slots
 
 function Self:AllocateBasicReagents()
@@ -183,6 +182,27 @@ function Self:RestoreOriginalSlotItem(slot)
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
+-- Tracking service
+
+---@return Recipes | Orders
+---@return (CraftingRecipeSchematic | CraftingOrderInfo)?
+function Self:GetTracking()
+    return Recipes, self:GetRecipe()
+end
+
+function Self:UpdateTracking()
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    local quality, allocation
+    if Recipes:IsTracked(recipe) then
+        quality, allocation = self:GetQuality(), self:GetAllocation()
+    end
+
+    Recipes:SetTrackedQuality(recipe, quality)
+    Recipes:SetTrackedAllocation(recipe, allocation)
+end
+
 ---------------------------------------
 --             Events
 ---------------------------------------
@@ -207,12 +227,7 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID then return end
 
-    Recipes:SetTrackedByForm(self)
-
-    local order = self:GetOrder()
-    if not order then return end
-
-    Orders:SetTracked(order)
+    self:UpdateTracking()
 end
 
 function Self:OnAddonLoaded()
