@@ -1,3 +1,17 @@
+Version 4.06
+
+- Add Auctionator search button to reagents tracker
+- Add cost per concentration optimization method
+- Add input to set max. marginal cost per point when using cost per concentration
+- Add showing reagent costs in customer order form
+- Recalculate optimal allocations when prices from price source addon change
+- Clear recipe sort caches when resetting sort order
+- Abbreviate long recipe names to prevent line breaks in the recipe tracker
+- Fix sometimes using wrong recipe allocation when starting to track a recipe
+- Fix not updating scanning progress when many recipes without profit are skipped
+- Fix reagents tracker sometimes not hiding when all recipes are untracked
+- Fix price source command shorthand
+
 Version 4.05
 
 - Fix error on recipes without quality

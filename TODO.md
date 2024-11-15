@@ -1,7 +1,6 @@
 ## Fixes
 
 - Profit calculation for gathering recipes that increase reagent quality
-- Handle finishing reagents that change resourcefulness/multicraft yield
 
 ## Features
 
