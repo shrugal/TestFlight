@@ -10,7 +10,7 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB
 TestFlightDB = {
-    v = 1,
+    v = 2,
     ---@type boolean
     tooltip = false,
     ---@type boolean
@@ -64,7 +64,7 @@ end
 function Self:Load()
     self.DB = {
         Account = TestFlightDB,
-        Char = TestFlightCharDB
+        Char = TestFlightCharDB,
     }
 
     -- Migrations

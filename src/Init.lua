@@ -9,6 +9,8 @@ Addon.Util = {}
 Addon.Promise = {}
 ---@type Cache.Static
 Addon.Cache = {}
+---@type Operation.Static
+Addon.Operation = {}
 
 ---@type Prices
 Addon.Prices = {}

@@ -798,8 +798,8 @@ function Self:DebugTime(label)
     prevTime = time
 end
 
----@type table<string | number, number>, string?, number?
-local segments, segment, segmentPrevTime = {}, nil, nil
+---@type table?, table?, number?
+local segments, segmentStack, segmentPrevTime = nil, nil, nil
 
 function Self:DebugProfileStart(label)
     if not Addon.DEBUG then return end
@@ -809,40 +809,88 @@ function Self:DebugProfileStart(label)
         segmentPrevTime = debugprofilestop()
         origResume(...)
     end) --[[@as function]]
-    origHandle = self:TblHook(Addon.Promise, "Handle", function (...) ---@cast segment -?
-        local time = debugprofilestop()
-        segments[segment] = (segments[segment] or 0) + (time - segmentPrevTime)
-        segmentPrevTime = time
+    origHandle = self:TblHook(Addon.Promise, "Handle", function (...)
+        self:DebugProfileStep()
         origHandle(...)
     end) --[[@as function]]
 
-    wipe(segments)
-    segment, segmentPrevTime = label, debugprofilestop()
-end
-
-function Self:DebugProfileSegment(label)
-    if not Addon.DEBUG or not segment then return end
-
-    local time = debugprofilestop()
-    segments[segment] = (segments[segment] or 0) + (time - segmentPrevTime)
-    segment, segmentPrevTime = label, time
+    segments, segmentStack, segmentPrevTime = {}, { label, 0 }, debugprofilestop()
 end
 
 function Self:DebugProfileStop()
-    if not Addon.DEBUG then return end
+    if not Addon.DEBUG or not segments then return end
 
     self:TblUnhook(Addon.Promise, "Resume")
     self:TblUnhook(Addon.Promise, "Handle")
 
-    Addon:Debug("Time (ms)", "Label")
-    local labels = self(segments):Keys():SortBy(function (l) return l and segments[l] end)()
-    for _,label in pairs(labels) do
-        Addon:Debug(tonumber(("%.3f"):format(segments[label])), label)
+    local function Aggregate(segment)
+        segment[0], segment[1] = segment[0] or 0, segment[0] or 0
+        for l,s in pairs(segment) do
+            if type(l) ~= "number" then segment[1] = segment[1] + Aggregate(s) end
+        end
+        return segment[1]
     end
-    Addon:Debug(tostring(tonumber(("%.3f"):format(self:TblAggregate(segments, self.FnAdd, 0)))), "Total")
 
-    wipe(segments)
-    segment, segmentPrevTime = nil, nil
+    local function Print(segment, label, level)
+        level = level or -1
+
+        if label then Addon:Debug(self:NumRound(segment[1]), ("  "):rep(level) .. label) end
+
+        if segment[0] ~= segment[1] then
+            if label then Addon:Debug(self:NumRound(segment[0]), ("  "):rep(level + 1) .. "Self") end
+
+            local labels = self(segment):Keys()
+                :Filter(function (l) return type(l) ~= "number" end)
+                :SortBy(function (l) return -segment[l][1] end)()
+
+            for _,l in pairs(labels) do Print(segment[l], l, level + 1) end
+        end
+    end
+
+    Addon:Debug("Time (ms)", "Label")
+    Aggregate(segments)
+    Print(segments)
+
+    segments, segmentStack, segmentPrevTime = nil, nil, nil
+end
+
+function Self:DebugProfileStep()
+    if not Addon.DEBUG or not segmentStack then return end
+
+    local time = debugprofilestop()
+    local segment = self:TblReduce(segmentStack, function (s, l)
+        if l == 0 then return s end
+        if not s[l] then s[l] = {} end
+        return s[l]
+    end, segments)
+
+    segment[0] = (segment[0] or 0) + (time - segmentPrevTime)
+end
+
+function Self:DebugProfileSegment(label)
+    if not Addon.DEBUG or not segmentStack then return end
+
+    self:DebugProfileStep()
+    tremove(segmentStack)
+    tinsert(segmentStack, label or 0)
+    segmentPrevTime = debugprofilestop()
+end
+
+function Self:DebugProfileLevel(label)
+    if not Addon.DEBUG or not segmentStack then return end
+
+    self:DebugProfileStep()
+    tinsert(segmentStack, label)
+    tinsert(segmentStack, 0)
+    segmentPrevTime = debugprofilestop()
+end
+
+function Self:DebugProfileLevelStop(n)
+    if not Addon.DEBUG or not segmentStack then return end
+
+    self:DebugProfileStep()
+    for i=1, 2 * (n or 1) do tremove(segmentStack) end
+    segmentPrevTime = debugprofilestop()
 end
 
 local counts = {}

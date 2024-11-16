@@ -351,3 +351,16 @@ function Self:GetFinishingSlots(recipe)
         return reagent.reagentType == Enum.CraftingReagentType.Finishing
     end)
 end
+
+---------------------------------------
+--              Stats
+---------------------------------------
+
+---@param reagent CraftingReagentInfo | number
+---@param stat "mc" | "rf" | "cc" | "ig"
+function Self:GetStatValue(reagent, stat)
+    if type(reagent) == "table" then reagent = reagent.itemID end
+
+    local stats = Addon.FINISHING_REAGENTS[reagent]
+    return stats and stats[stat] / 100 or 0
+end

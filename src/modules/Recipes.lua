@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Optimization, Orders, Promise, Reagents, Util = Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Reagents, Addon.Util
+local Operation, Optimization, Promise, Reagents, Util = Addon.Operation, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event
@@ -170,7 +170,7 @@ end
 ---------------------------------------
 
 ---@param recipe CraftingRecipeSchematic
----@param stat "mc" | "rf" | "ig"
+---@param stat "mc" | "rf" | "cc" | "ig"
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetStatValue(recipe, stat, optionalReagents)
     local val = 0
@@ -305,7 +305,7 @@ end
 ---@param recipe CraftingRecipeSchematic
 function Self:LoadAllocation(recipe)
     local quality = self:GetTrackedQuality(recipe) or 1
-    local allocations = Optimization:GetMinCostAllocations(Addon:CreateOperation(recipe))
+    local allocations = Optimization:GetMinCostAllocations(Operation:Create(recipe))
     local allocation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
     if not allocation then return end
 

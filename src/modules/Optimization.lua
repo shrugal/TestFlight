@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Prices, Promise, Reagents, Recipes, Util = Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
+local Operation, Prices, Promise, Reagents, Recipes, Util = Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -37,7 +37,7 @@ function Self:GetRecipeAllocation(recipe, method)
     if recipe.isRecraft or not recipe.hasCraftingOperationInfo then return end
     if not Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) then return end
 
-    local operation = Addon:CreateOperation(recipe, nil, nil, method == Self.Method.ProfitPerConcentration)
+    local operation = Operation:Create(recipe, nil, nil, method == Self.Method.ProfitPerConcentration)
 
     -- Only tradable crafts
     if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) and not operation:HasProfit() then return end
@@ -81,7 +81,7 @@ function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGU
 
     if transaction then
         local allocation = Util:TblCopy(transaction.allocationTbls, true)
-        operation = Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration or transaction:IsApplyingConcentration())
+        operation = Operation:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration or transaction:IsApplyingConcentration())
 
         -- Remove finishing reagents for profit optimizations
         ---@todo Skill modifiying finishing slots should stay untouched
@@ -89,7 +89,7 @@ function Self:GetRecipeAllocations(recipe, method, transaction, orderOrRecraftGU
             operation = operation:WithFinishingReagents()
         end
     else
-        operation = Addon:CreateOperation(recipe, nil, orderOrRecraftGUID, applyConcentration)
+        operation = Operation:Create(recipe, nil, orderOrRecraftGUID, applyConcentration)
     end
 
     return self:GetAllocationsForMethod(operation, method)
@@ -99,12 +99,13 @@ end
 ---@param operation Operation
 ---@param method Optimization.Method
 function Self:GetAllocationsForMethod(operation, method)
+    Util:DebugProfileLevel("GetAllocationsForMethod")
+
     local optimizeProfit = Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration)
     local optimizeConcentration = Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
 
-    Util:DebugProfileSegment("Optimize > Cache Get")
+    Util:DebugProfileSegment("Cache")
 
-    -- Check allocations cache
     local cache = self.Cache.Allocations
     local key = cache:Key(operation, method)
 
@@ -112,44 +113,38 @@ function Self:GetAllocationsForMethod(operation, method)
 
     Promise:YieldFirst()
 
-    Util:DebugProfileSegment("Optimize > GetMinCostAllocations")
+    Util:DebugProfileSegment("GetMinCostAllocations")
 
     local operations = self:GetMinCostAllocations(operation)
 
-    Util:DebugProfileSegment("Optimize > HasProfit")
+    Util:DebugProfileSegment()
 
     optimizeProfit = optimizeProfit and operation:HasProfit()
 
     if operations and (optimizeConcentration or optimizeProfit) then
-        Util:DebugProfileSegment("Optimize > Operation Copy")
-
         operations = Util:TblCopy(operations)
 
         local prevQuality, prevPrice, prevName = math.huge, math.huge, nil
 
         for qualityID,operation in pairs(operations) do
-            Util:DebugProfileSegment("Optimize > GetConcentrationCost")
-
             local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
             Promise:YieldTime()
 
             local baseWeight = operation:GetWeight()
 
             if optimizeConcentration then
-                Util:DebugProfileSegment("Optimize > Concentration > Weight")
+                Util:DebugProfileSegment("Concentration")
 
                 local weight = self:GetWeightForMethod(operation, method)
                 Promise:YieldTime()
 
                 if weight ~= baseWeight then
-                    Util:DebugProfileSegment("Optimize > Concentration > WithQualityReagents")
-
                     operation = operation:WithQualityReagents(self:GetReagentsForWeight(operation, weight))
                 end
             end
 
             if optimizeProfit then
-                Util:DebugProfileSegment("Optimize > Profit Start")
+                Util:DebugProfileLevel("Profit")
 
                 local profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
                 local bonusSkill = operation:GetOperationInfo().bonusSkill
@@ -158,47 +153,43 @@ function Self:GetAllocationsForMethod(operation, method)
 
                 for i,reagent in pairs(operation:GetFinishingReagentSlots()) do
                     for j,item in ipairs_reverse(reagent.reagents) do
-                        Util:DebugProfileSegment("Optimize > Reagent > Start")
+                        Util:DebugProfileSegment()
 
                         local itemID = item.itemID ---@cast itemID -?
                         local name, quality = C_Item.GetItemInfo(itemID), C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
                         local price = Prices:GetItemPrice(itemID)
 
                         if quality and price > 0 and (quality > prevQuality or price < prevPrice) then
-                            Util:DebugProfileSegment("Optimize > Reagent > CreateCraftingInfoFromSchematic")
-
                             finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(reagent, j)
                             
-                            Util:DebugProfileSegment("Optimize > Reagent > WithFinishingReagents")
+                            Util:DebugProfileSegment("WithFinishingReagents")
                             
                             ---@type Operation, number
                             local operation, profit = operation:WithFinishingReagents(finishingReagents), nil
                             local baseWeight = operation:GetWeight()
                             
-                            Util:DebugProfileSegment("Optimize > Reagent > bonusSkill")
+                            Util:DebugProfileSegment("bonusSkill")
 
                             ---@todo Nothing that modifies skill requirements, for now
                             if operation:GetOperationInfo().bonusSkill == bonusSkill then
                                 if optimizeConcentration and (not name or name ~= prevName) then
-                                    Util:DebugProfileSegment("Optimize > Reagent > Concentration > Weight")
+                                    Util:DebugProfileSegment("Concentration")
 
                                     local weight = self:GetWeightForMethod(operation, method)
                                     Promise:YieldTime()
 
                                     if weight ~= baseWeight then
-                                        Util:DebugProfileSegment("Optimize > Reagent > Concentration > WithQualityReagents")
-
                                         operation = operation:WithQualityReagents(self:GetReagentsForWeight(operation, weight))
                                     else
                                         prevName = name
                                     end
                                 end
 
-                                Util:DebugProfileSegment("Optimize > Reagent > GetProfit")
+                                Util:DebugProfileSegment("GetProfit")
 
                                 profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
 
-                                Util:DebugProfileSegment("Optimize > Reagent > End")
+                                Util:DebugProfileSegment()
 
                                 if profit > maxProfit then
                                     maxProfit, maxProfitOperation = profit, operation
@@ -210,6 +201,8 @@ function Self:GetAllocationsForMethod(operation, method)
                     end
                 end
 
+                Util:DebugProfileLevelStop()
+
                 operation = maxProfitOperation
             end
 
@@ -219,9 +212,11 @@ function Self:GetAllocationsForMethod(operation, method)
         end
     end
 
-    Util:DebugProfileSegment("Optimize > Cache Set")
+    Util:DebugProfileSegment("Cache")
 
     cache:Set(key, operations)
+
+    Util:DebugProfileLevelStop()
 
     return operations
 end
@@ -229,7 +224,6 @@ end
 -- Recipe allocations that minimize cost
 ---@param operation Operation
 function Self:GetMinCostAllocations(operation)
-    -- Check allocations cache
     local cache = self.Cache.Allocations
     local key = cache:Key(operation, Self.Method.Cost)
 
@@ -279,7 +273,6 @@ end
 ---@return table<number, table<number, number>>
 ---@return table<number, number>
 function Self:GetWeightsAndPrices(operation)
-    -- Check weights cache
     local cache = self.Cache.WeightsAndPrices
     local key = cache:Key(operation)
 
@@ -419,9 +412,13 @@ end
 ---@param operation Operation
 ---@param method Optimization.Method
 function Self:GetWeightForMethod(operation, method)
+    Util:DebugProfileLevel("GetWeightForMethod")
+
     local _, prices = self:GetWeightsAndPrices(operation)
 
+    Util:DebugProfileSegment("GetWeightThresholds")
     local lowerWeight, upperWeight = operation:GetWeightThresholds()
+    Util:DebugProfileSegment()
 
     if Util:OneOf(method, self.Method.Cost, self.Method.Profit) then
         return lowerWeight
@@ -432,8 +429,8 @@ function Self:GetWeightForMethod(operation, method)
     local profit = operation:GetProfit()
     local qualityReagentsPrice = Prices:GetReagentsPrice(operation:GetQualityReagents())
     local resFactor = operation:GetResourcefulnessFactor()
-
     local lowerProfit = profit + (qualityReagentsPrice - prices[lowerWeight]) * (1 - resFactor)
+
     local lowerCon = operation:GetConcentrationCost(lowerWeight)
 
     local maxValue, maxValueWeight = optimizeProfit and lowerProfit / lowerCon or -Addon.DB.Account.concentrationCost, lowerWeight
@@ -446,6 +443,7 @@ function Self:GetWeightForMethod(operation, method)
         if profit < 0 and maxValue >= 0 then break end
 
         local concentration = operation:GetConcentrationCost(weight)
+
         local value = optimizeProfit and profit / concentration or (profit - lowerProfit) / (lowerCon - concentration)
 
         if value > maxValue then
@@ -457,6 +455,8 @@ function Self:GetWeightForMethod(operation, method)
 
         Promise:YieldTime()
     until true end
+
+    Util:DebugProfileLevelStop()
 
     return maxValueWeight
 end

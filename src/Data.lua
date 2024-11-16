@@ -786,23 +786,26 @@ Addon.ENCHANTS = {
 }
 
 -- Source: CraftSim
----@type table<number, { mc: number, rf: number, ig: number }>
+---@type table<number, { mc: number, rf: number, cc: number, ig: number }>
 Addon.FINISHING_REAGENTS = {
-    [213762] = { mc = 0, rf = 6, ig = 0 },
-    [213763] = { mc = 0, rf = 9, ig = 0 },
-    [213764] = { mc = 0, rf = 12, ig = 0 },
-    [222511] = { mc = 12, rf = 0, ig = 0 },
-    [222512] = { mc = 18, rf = 0, ig = 0 },
-    [222513] = { mc = 25, rf = 0, ig = 0 },
-    [222879] = { mc = 12, rf = 0, ig = 0 },
-    [222880] = { mc = 18, rf = 0, ig = 0 },
-    [222881] = { mc = 25, rf = 0, ig = 0 },
-    [222885] = { mc = 0, rf = 12, ig = 0 },
-    [222886] = { mc = 0, rf = 18, ig = 0 },
-    [222887] = { mc = 0, rf = 25, ig = 0 },
-    [228404] = { mc = 12, rf = 0, ig = 0 },
-    [228405] = { mc = 18, rf = 0, ig = 0 },
-    [228406] = { mc = 25, rf = 0, ig = 0 },
+    [213762] = { mc = 0, rf = 6, cc = 0, ig = 0 },
+    [213763] = { mc = 0, rf = 9, cc = 0, ig = 0 },
+    [213764] = { mc = 0, rf = 12, cc = 0, ig = 0 },
+    [222511] = { mc = 12, rf = 0, cc = 0, ig = 0 },
+    [222512] = { mc = 18, rf = 0, cc = 0, ig = 0 },
+    [222513] = { mc = 25, rf = 0, cc = 0, ig = 0 },
+    [222879] = { mc = 12, rf = 0, cc = 0, ig = 0 },
+    [222880] = { mc = 18, rf = 0, cc = 0, ig = 0 },
+    [222881] = { mc = 25, rf = 0, cc = 0, ig = 0 },
+    [222885] = { mc = 0, rf = 12, cc = 0, ig = 0 },
+    [222886] = { mc = 0, rf = 18, cc = 0, ig = 0 },
+    [222887] = { mc = 0, rf = 25, cc = 0, ig = 0 },
+    [224173] = { mc = 0, rf = 0, cc = 6, ig = 0 },
+    [224174] = { mc = 0, rf = 0, cc = 8, ig = 0 },
+    [224175] = { mc = 0, rf = 0, cc = 10, ig = 0 },
+    [228404] = { mc = 12, rf = 0, cc = 0, ig = 0 },
+    [228405] = { mc = 18, rf = 0, cc = 0, ig = 0 },
+    [228406] = { mc = 25, rf = 0, cc = 0, ig = 0 },
 }
 
 -- Source: CraftSim

@@ -2,13 +2,20 @@
 local Addon = select(2, ...)
 local Prices, Reagents, Recipes, Util = Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
+---@class Operation.Static
+local Static = Addon.Operation
+
+---@type Operation
+---@diagnostic disable-next-line: missing-fields
+Static.Mixin = {}
+
 -- A crafting operation
 ---@class Operation
 ---@field recipe CraftingRecipeSchematic
 ---@field allocation RecipeAllocation
 ---@field orderOrRecraftGUID? CraftingOrderInfo | string
 ---@field applyConcentration? boolean
-local Self = {}
+local Self = Static.Mixin
 
 -- CREATE
 
@@ -16,13 +23,13 @@ local Self = {}
 ---@param allocation? RecipeAllocation
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
-function Addon:CreateOperation(recipe, allocation, orderOrRecraftGUID, applyConcentration)
-    return CreateAndInitFromMixin(Self, recipe, allocation, orderOrRecraftGUID, applyConcentration) --[[@as Operation]]
+function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration)
+    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration) --[[@as Operation]]
 end
 
 ---@param allocation? RecipeAllocation
 function Self:WithAllocation(allocation)
-    return Addon:CreateOperation(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration)
+    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration)
 end
 
 ---@param reagentType Enum.CraftingReagentType
@@ -244,38 +251,49 @@ function Self:GetWeightThresholds(absolute)
 end
 
 function Self:GetConcentrationFactors()
-    if not self.concentrationFactors then
-        self.concentrationFactors = {}
+    local cache = Static.Cache.ConcentrationFactors
+    local key = cache:Key(self)
 
-        local maxWeight = self:GetMaxWeight()
-        local baseSkill, bestSkill = self:GetSkillBounds()
-        local lowerSkill, upperSkill = self:GetSkillThresholds(true)
-        local prevWeight, prevCon
+    if cache:Has(key) then return cache:Get(key) end
 
-        for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
-            local skill = lowerSkill + v * (upperSkill - lowerSkill)
-            local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
+    ---@type number[]
+    local concentrationFactors = {}
 
-            local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
-            local op = self:WithQualityReagents(reagents)
-            local info = op:GetOperationInfo()
-            local opWeight = op:GetWeight()
-            local opCon = info.concentrationCost
+    local maxWeight = self:GetMaxWeight()
+    local baseSkill, bestSkill = self:GetSkillBounds()
+    local lowerSkill, upperSkill = self:GetSkillThresholds(true)
+    local prevWeight, prevCon
 
-            if i > 1 and opWeight <= weight then
-                self.concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
-            end
+    for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
+        local skill = lowerSkill + v * (upperSkill - lowerSkill)
+        local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
 
-            prevWeight, prevCon = opWeight, opCon
+        local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
+        local op = self:WithQualityReagents(reagents)
+        local info = op:GetOperationInfo()
+        local opWeight = op:GetWeight()
+        local opCon = info.concentrationCost
+
+        if i > 1 and opWeight <= weight then
+            concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
         end
+
+        prevWeight, prevCon = opWeight, opCon
     end
-    return self.concentrationFactors
+
+    cache:Set(key, concentrationFactors)
+
+    return concentrationFactors
 end
 
 function Self:GetConcentrationCost(weight)
+    Util:DebugProfileLevel("GetConcentrationCost")
+
     local concentration = self:GetOperationInfo().concentrationCost
 
     if not weight or weight == self:GetWeight() then
+        Util:DebugProfileLevelStop()
+
         return concentration
     end
 
@@ -301,6 +319,8 @@ function Self:GetConcentrationCost(weight)
           currWeight = targetWeight
        end
     end
+
+    Util:DebugProfileLevelStop()
 
     return currCon
 end
@@ -363,3 +383,23 @@ end
 function Self:HasProfit()
     return self:GetOrder() ~= nil or not self.orderOrRecraftGUID and self:GetResultPrice() > 0
 end
+
+-- CACHE
+
+Static.Cache = {
+    ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
+    ConcentrationFactors = Addon.Cache:Create(
+        ---@param operation Operation
+        function (_, operation)
+            local profInfo = operation:GetProfessionInfo()
+            local _, reagent = Util:TblFind(operation:GetOptionalReagents(), function (reagent) return Reagents:GetStatValue(reagent, "cc") > 0 end)
+
+            return ("%d;%d;%d;%d"):format(
+                operation.recipe.recipeID,
+                operation:GetQuality(),
+                reagent and reagent.itemID or 0,
+                profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill
+            )
+        end
+    )
+}

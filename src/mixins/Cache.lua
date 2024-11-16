@@ -21,7 +21,19 @@ local Self = Static.Mixin
 ---@param priority? boolean
 ---@return Cache<T, K>
 function Static:Create(getKey, limit, priority)
-    return CreateAndInitFromMixin(Static.Mixin, getKey, limit, priority)
+    return self:Unserialize({}, getKey, limit, priority)
+end
+
+---@generic T, K: function
+---@param cache table
+---@param getKey `K`
+---@param limit? number
+---@param priority? boolean
+---@return Cache<T, K>
+function Static:Unserialize(cache, getKey, limit, priority)
+    Mixin(cache, Static.Mixin)
+    cache:Init(getKey, limit, priority)
+    return cache
 end
 
 local function GetKey(_, ...)
@@ -39,10 +51,10 @@ function Self:Init(getKey, limit, priority)
     assert(not priority or limit, "Priority cache needs a limit")
 
     self.Key = getKey or GetKey
-    self.values = {}
-    self.size = 0
+    self.values = self.values or {}
+    self.size = self.size or 0
     self.limit = limit
-    self.keys = limit and {} or nil
+    self.keys = limit and (self.keys or {}) or nil
     self.priority = priority or false
 end
 
