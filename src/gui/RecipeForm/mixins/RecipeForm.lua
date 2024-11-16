@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
+local GUI, Reagents, Recipes, Util = Addon.GUI, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm

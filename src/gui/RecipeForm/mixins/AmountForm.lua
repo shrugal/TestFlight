@@ -69,7 +69,7 @@ function Self:OnUpdateTradeskillCastStopped()
     Self.craftingRecipe = nil
 end
 
-function Self:OnSpellcastStoppedOrSucceeded()
+function Self:OnSpellcastInterruptedOrSucceeded()
     local recipe = Self.craftingRecipe
     if not recipe then return end
 
@@ -88,8 +88,8 @@ function Self:OnAddonLoaded()
     Service:RegisterCallback(Service.Event.TrackedAmountUpdated, self.OnTrackedUpdated, self)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", self.OnTradeSkillCraftBegin, self)
+    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", self.OnSpellcastInterruptedOrSucceeded, self)
+    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", self.OnSpellcastInterruptedOrSucceeded, self)
 end
 
 EventRegistry:RegisterFrameEventAndCallback("UPDATE_TRADESKILL_CAST_STOPPED", Self.OnUpdateTradeskillCastStopped, Self)
-EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", Self.OnSpellcastStoppedOrSucceeded, Self)
-EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", Self.OnSpellcastStoppedOrSucceeded, Self)
