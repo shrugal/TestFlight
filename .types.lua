@@ -24,7 +24,7 @@
 ipairs_reverse = ipairs
 
 ---@class DevTool
----@field AddData fun(self: DevTool, data: any, name?: string)
+---@field AddData fun(self: DevTool, data: any, name?: string | number)
 DevTool = nil
 
 ---@class TSMAPI

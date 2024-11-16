@@ -123,7 +123,7 @@ Self.DEBUG = true
 --@end-do-not-package@
 
 ---@param data any
----@param name? string
+---@param name? string | number
 function Self:Debug(data, name)
     if not DevTool or not self.DEBUG then return end
     if data == false then data = "false" end

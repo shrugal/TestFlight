@@ -291,6 +291,23 @@ function Self:TblReduce(tbl, fn, value, obj)
     return value
 end
 
+---@generic T, R, S: table
+---@param tbl T[] | Enumerator<T>
+---@param fn (fun(prev: R, curr: T): R) | (fun(self: S, prev: R, curr: T): R)
+---@param value? R
+---@param obj? S
+---@return R
+function Self:TblAggregate(tbl, fn, value, obj)
+    for k,v in self:Each(tbl) do
+        if obj then
+            value = fn(obj, value, v)
+        else
+            value = fn(value, v)
+        end
+    end
+    return value
+end
+
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
 ---@param fn SearchFn<T, boolean, S>
@@ -599,6 +616,14 @@ function Self.FnId(...) return ... end
 
 function Self.FnNoop() end
 
+function Self.FnAdd(a, b) return a + b end
+
+function Self.FnSub(a, b) return a - b end
+
+function Self.FnMul(a, b) return a * b end
+
+function Self.FnDiv(a, b) return a / b end
+
 ---@generic T, R, S: table
 ---@param fn SearchFn<T, R, S>
 ---@param v T
@@ -753,6 +778,8 @@ end
 -- DEBUG
 
 function Self:DebugStack(level)
+    if not Addon.DEBUG then return end
+
     Addon:Debug("---", "Debugstack")
     local i = 0
     for line in debugstack((level or 1) + 1):gmatch("[^\n]+") do
@@ -764,9 +791,85 @@ end
 local prevTime
 
 function Self:DebugTime(label)
+    if not Addon.DEBUG then return end
+
     local time = debugprofilestop()
     if label and prevTime then Addon:Debug(time - prevTime, label) end
     prevTime = time
+end
+
+---@type table<string | number, number>, string?, number?
+local segments, segment, segmentPrevTime = {}, nil, nil
+
+function Self:DebugProfileStart(label)
+    if not Addon.DEBUG then return end
+
+    local origResume, origHandle
+    origResume = self:TblHook(Addon.Promise, "Resume", function (...)
+        segmentPrevTime = debugprofilestop()
+        origResume(...)
+    end) --[[@as function]]
+    origHandle = self:TblHook(Addon.Promise, "Handle", function (...) ---@cast segment -?
+        local time = debugprofilestop()
+        segments[segment] = (segments[segment] or 0) + (time - segmentPrevTime)
+        segmentPrevTime = time
+        origHandle(...)
+    end) --[[@as function]]
+
+    wipe(segments)
+    segment, segmentPrevTime = label, debugprofilestop()
+end
+
+function Self:DebugProfileSegment(label)
+    if not Addon.DEBUG or not segment then return end
+
+    local time = debugprofilestop()
+    segments[segment] = (segments[segment] or 0) + (time - segmentPrevTime)
+    segment, segmentPrevTime = label, time
+end
+
+function Self:DebugProfileStop()
+    if not Addon.DEBUG then return end
+
+    self:TblUnhook(Addon.Promise, "Resume")
+    self:TblUnhook(Addon.Promise, "Handle")
+
+    Addon:Debug("Time (ms)", "Label")
+    local labels = self(segments):Keys():SortBy(function (l) return l and segments[l] end)()
+    for _,label in pairs(labels) do
+        Addon:Debug(tonumber(("%.3f"):format(segments[label])), label)
+    end
+    Addon:Debug(tostring(tonumber(("%.3f"):format(self:TblAggregate(segments, self.FnAdd, 0)))), "Total")
+
+    wipe(segments)
+    segment, segmentPrevTime = nil, nil
+end
+
+local counts = {}
+
+function Self:DebugCountStart()
+    if not Addon.DEBUG then return end
+
+    wipe(counts)
+end
+
+function Self:DebugCountAdd(label, value)
+    if not Addon.DEBUG then return end
+
+    counts[label] = (counts[label] or 0) + (value or 1)
+end
+
+function Self:DebugCountStop()
+    if not Addon.DEBUG then return end
+
+    Addon:Debug("Count", "Label")
+    local labels = self(counts):Keys():SortBy(function (l) return l and counts[l] end)()
+    for _,label in pairs(labels) do
+        Addon:Debug(tonumber(("%.3f"):format(counts[label])), label)
+    end
+    Addon:Debug(tostring(tonumber(("%.3f"):format(self:TblAggregate(counts, self.FnAdd, 0)))), "Total")
+
+    wipe(counts)
 end
 
 -- Chain
