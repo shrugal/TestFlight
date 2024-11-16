@@ -102,6 +102,8 @@ function Self:GetAllocationsForMethod(operation, method)
     local optimizeProfit = Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration)
     local optimizeConcentration = Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
 
+    Util:DebugProfileSegment("Optimize > Cache Get")
+
     -- Check allocations cache
     local cache = self.Cache.Allocations
     local key = cache:Key(operation, method)
@@ -110,25 +112,45 @@ function Self:GetAllocationsForMethod(operation, method)
 
     Promise:YieldFirst()
 
+    Util:DebugProfileSegment("Optimize > GetMinCostAllocations")
+
     local operations = self:GetMinCostAllocations(operation)
+
+    Util:DebugProfileSegment("Optimize > HasProfit")
 
     optimizeProfit = optimizeProfit and operation:HasProfit()
 
     if operations and (optimizeConcentration or optimizeProfit) then
+        Util:DebugProfileSegment("Optimize > Operation Copy")
+
         operations = Util:TblCopy(operations)
 
-        local prevQuality, prevPrice = math.huge, math.huge
+        local prevQuality, prevPrice, prevName = math.huge, math.huge, nil
 
         for qualityID,operation in pairs(operations) do
+            Util:DebugProfileSegment("Optimize > GetConcentrationCost")
+
             local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
             Promise:YieldTime()
 
+            local baseWeight = operation:GetWeight()
+
             if optimizeConcentration then
-                operation = operation:WithQualityReagents(self:GetReagentsForMethod(operation, method))
+                Util:DebugProfileSegment("Optimize > Concentration > Weight")
+
+                local weight = self:GetWeightForMethod(operation, method)
                 Promise:YieldTime()
+
+                if weight ~= baseWeight then
+                    Util:DebugProfileSegment("Optimize > Concentration > WithQualityReagents")
+
+                    operation = operation:WithQualityReagents(self:GetReagentsForWeight(operation, weight))
+                end
             end
 
             if optimizeProfit then
+                Util:DebugProfileSegment("Optimize > Profit Start")
+
                 local profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
                 local bonusSkill = operation:GetOperationInfo().bonusSkill
                 local maxProfit, maxProfitOperation = profit, operation
@@ -136,24 +158,47 @@ function Self:GetAllocationsForMethod(operation, method)
 
                 for i,reagent in pairs(operation:GetFinishingReagentSlots()) do
                     for j,item in ipairs_reverse(reagent.reagents) do
+                        Util:DebugProfileSegment("Optimize > Reagent > Start")
+
                         local itemID = item.itemID ---@cast itemID -?
-                        local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
+                        local name, quality = C_Item.GetItemInfo(itemID), C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
                         local price = Prices:GetItemPrice(itemID)
 
                         if quality and price > 0 and (quality > prevQuality or price < prevPrice) then
-                            finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(reagent, j)
+                            Util:DebugProfileSegment("Optimize > Reagent > CreateCraftingInfoFromSchematic")
 
+                            finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(reagent, j)
+                            
+                            Util:DebugProfileSegment("Optimize > Reagent > WithFinishingReagents")
+                            
                             ---@type Operation, number
                             local operation, profit = operation:WithFinishingReagents(finishingReagents), nil
+                            local baseWeight = operation:GetWeight()
+                            
+                            Util:DebugProfileSegment("Optimize > Reagent > bonusSkill")
 
                             ---@todo Nothing that modifies skill requirements, for now
                             if operation:GetOperationInfo().bonusSkill == bonusSkill then
-                                if optimizeConcentration then
-                                    operation = operation:WithQualityReagents(self:GetReagentsForMethod(operation, method))
+                                if optimizeConcentration and (not name or name ~= prevName) then
+                                    Util:DebugProfileSegment("Optimize > Reagent > Concentration > Weight")
+
+                                    local weight = self:GetWeightForMethod(operation, method)
                                     Promise:YieldTime()
+
+                                    if weight ~= baseWeight then
+                                        Util:DebugProfileSegment("Optimize > Reagent > Concentration > WithQualityReagents")
+
+                                        operation = operation:WithQualityReagents(self:GetReagentsForWeight(operation, weight))
+                                    else
+                                        prevName = name
+                                    end
                                 end
 
+                                Util:DebugProfileSegment("Optimize > Reagent > GetProfit")
+
                                 profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
+
+                                Util:DebugProfileSegment("Optimize > Reagent > End")
 
                                 if profit > maxProfit then
                                     maxProfit, maxProfitOperation = profit, operation
@@ -173,6 +218,8 @@ function Self:GetAllocationsForMethod(operation, method)
             Promise:YieldTime()
         end
     end
+
+    Util:DebugProfileSegment("Optimize > Cache Set")
 
     cache:Set(key, operations)
 
@@ -371,13 +418,13 @@ end
 
 ---@param operation Operation
 ---@param method Optimization.Method
-function Self:GetReagentsForMethod(operation, method)
+function Self:GetWeightForMethod(operation, method)
     local _, prices = self:GetWeightsAndPrices(operation)
 
     local lowerWeight, upperWeight = operation:GetWeightThresholds()
 
     if Util:OneOf(method, self.Method.Cost, self.Method.Profit) then
-        return self:GetReagentsForWeight(operation, lowerWeight)
+        return lowerWeight
     end
 
     local optimizeProfit = method == Self.Method.ProfitPerConcentration
@@ -411,7 +458,7 @@ function Self:GetReagentsForMethod(operation, method)
         Promise:YieldTime()
     until true end
 
-    return self:GetReagentsForWeight(operation, maxValueWeight)
+    return maxValueWeight
 end
 
 ---------------------------------------
