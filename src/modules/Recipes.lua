@@ -188,13 +188,9 @@ function Self:GetStatValue(recipe, stat, optionalReagents)
         end
     end
 
-    local reagents = Addon.FINISHING_REAGENTS
     if optionalReagents then
         for _,reagent in pairs(optionalReagents) do
-            local data = reagents[reagent.itemID]
-            if data and data[stat] then
-                val = val + data[stat] / 100
-            end
+            val = val + Reagents:GetStatValue(reagent, stat)
         end
     end
 

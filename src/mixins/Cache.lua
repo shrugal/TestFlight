@@ -7,7 +7,14 @@ local Util = Addon.Util
 ---@class Cache.Static
 local Static = Addon.Cache
 
+---@type Cache[]
+Static.caches = {}
+
 Static.NIL = {}
+
+function Static:ClearAll()
+    for _,cache in pairs(self.caches) do cache:Clear() end
+end
 
 ---@type Cache
 Static.Mixin = {}
@@ -56,6 +63,8 @@ function Self:Init(getKey, limit, priority)
     self.limit = limit
     self.keys = limit and (self.keys or {}) or nil
     self.priority = priority or false
+
+    tinsert(Static.caches, self)
 end
 
 function Self:Set(key, value)
@@ -65,6 +74,11 @@ function Self:Set(key, value)
         if self.limit then
             tinsert(self.keys, key)
             if self.size > self.limit then self:Unset(self.keys[1]) end
+        end
+    elseif self.priority then
+        local i = Util:TblIndexOf(self.keys, key)
+        if i ~= self.size then
+            tinsert(self.keys, tremove(self.keys, i))
         end
     end
 

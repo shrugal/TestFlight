@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Prices, Reagents, Recipes, Util = Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Cache, Prices, Reagents, Recipes, Util = Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Operation.Static
 local Static = Addon.Operation
@@ -208,7 +208,14 @@ end
 ---@return number skillBest
 function Self:GetSkillBounds()
     if not self.skillBase or not self.skillBest then
-        self.skillBase, self.skillBest = Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID)
+        local cache = Static.Cache.SkillBounds
+        local key = cache:Key(self)
+
+        if not cache:Has(key) then
+            cache:Set(key, { Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID) })
+        end
+
+        self.skillBase, self.skillBest = unpack(cache:Get(key))
     end
     return self.skillBase, self.skillBest
 end
@@ -251,39 +258,43 @@ function Self:GetWeightThresholds(absolute)
 end
 
 function Self:GetConcentrationFactors()
-    local cache = Static.Cache.ConcentrationFactors
-    local key = cache:Key(self)
+    if not self.concentrationFactors then
+        local cache = Static.Cache.ConcentrationFactors
+        local key = cache:Key(self)
 
-    if cache:Has(key) then return cache:Get(key) end
+        if not cache:Has(key) then
+            ---@type number[]
+            local concentrationFactors = {}
 
-    ---@type number[]
-    local concentrationFactors = {}
+            local maxWeight = self:GetMaxWeight()
+            local baseSkill, bestSkill = self:GetSkillBounds()
+            local lowerSkill, upperSkill = self:GetSkillThresholds(true)
+            local prevWeight, prevCon
 
-    local maxWeight = self:GetMaxWeight()
-    local baseSkill, bestSkill = self:GetSkillBounds()
-    local lowerSkill, upperSkill = self:GetSkillThresholds(true)
-    local prevWeight, prevCon
+            for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
+                local skill = lowerSkill + v * (upperSkill - lowerSkill)
+                local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
 
-    for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
-        local skill = lowerSkill + v * (upperSkill - lowerSkill)
-        local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
+                local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
+                local op = self:WithQualityReagents(reagents)
+                local info = op:GetOperationInfo()
+                local opWeight = op:GetWeight()
+                local opCon = info.concentrationCost
 
-        local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
-        local op = self:WithQualityReagents(reagents)
-        local info = op:GetOperationInfo()
-        local opWeight = op:GetWeight()
-        local opCon = info.concentrationCost
+                if i > 1 and opWeight <= weight then
+                    concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
+                end
 
-        if i > 1 and opWeight <= weight then
-            concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
+                prevWeight, prevCon = opWeight, opCon
+            end
+
+            cache:Set(key, concentrationFactors)
         end
 
-        prevWeight, prevCon = opWeight, opCon
+        self.concentrationFactors = cache:Get(key)
     end
 
-    cache:Set(key, concentrationFactors)
-
-    return concentrationFactors
+    return self.concentrationFactors
 end
 
 function Self:GetConcentrationCost(weight)
@@ -326,6 +337,15 @@ function Self:GetConcentrationCost(weight)
 end
 
 -- Stats
+
+---@param stat "mc" | "rf" | "cc" | "ig"
+---@return number
+function Self:GetStatValue(stat)
+    if not self[stat] then
+        self[stat] = Recipes:GetStatValue(self.recipe, stat, self:GetOptionalReagents())
+    end
+    return self[stat]
+end
 
 function Self:GetResourcefulnessFactor()
     if not self.resourcefulnessFactor then
@@ -388,18 +408,34 @@ end
 
 Static.Cache = {
     ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
-    ConcentrationFactors = Addon.Cache:Create(
+    SkillBounds = Cache:Create(
         ---@param operation Operation
         function (_, operation)
-            local profInfo = operation:GetProfessionInfo()
-            local _, reagent = Util:TblFind(operation:GetOptionalReagents(), function (reagent) return Reagents:GetStatValue(reagent, "cc") > 0 end)
+            local order = operation:GetOrder()
+            local operationInfo = operation:GetOperationInfo()
 
             return ("%d;%d;%d;%d"):format(
                 operation.recipe.recipeID,
                 operation:GetQuality(),
-                reagent and reagent.itemID or 0,
+                order and order.orderID or 0,
+                operationInfo.baseSkill + operationInfo.bonusSkill + Addon.extraSkill
+            )
+        end,
+        10
+    ),
+    ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
+    ConcentrationFactors = Cache:Create(
+        ---@param operation Operation
+        function (_, operation)
+            local profInfo = operation:GetProfessionInfo()
+
+            return ("%d;%d;%d;%d"):format(
+                operation.recipe.recipeID,
+                operation:GetQuality(),
+                operation:GetStatValue("cc") * 100,
                 profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill
             )
-        end
+        end,
+        10
     )
 }

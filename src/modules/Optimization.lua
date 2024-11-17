@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Operation, Prices, Promise, Reagents, Recipes, Util = Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
+local Cache, Operation, Prices, Promise, Reagents, Recipes, Util = Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -99,12 +99,8 @@ end
 ---@param operation Operation
 ---@param method Optimization.Method
 function Self:GetAllocationsForMethod(operation, method)
-    Util:DebugProfileLevel("GetAllocationsForMethod")
-
     local optimizeProfit = Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration)
     local optimizeConcentration = Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
-
-    Util:DebugProfileSegment("Cache")
 
     local cache = self.Cache.Allocations
     local key = cache:Key(operation, method)
@@ -112,6 +108,8 @@ function Self:GetAllocationsForMethod(operation, method)
     if cache:Has(key) then return cache:Get(key) end
 
     Promise:YieldFirst()
+
+    Util:DebugProfileLevel("GetAllocationsForMethod")
 
     Util:DebugProfileSegment("GetMinCostAllocations")
 
@@ -212,7 +210,7 @@ function Self:GetAllocationsForMethod(operation, method)
         end
     end
 
-    Util:DebugProfileSegment("Cache")
+    Util:DebugProfileSegment()
 
     cache:Set(key, operations)
 
@@ -467,7 +465,7 @@ end
 
 Self.Cache = {
     ---@type Cache<table, fun(self: Cache, operation: Operation): string>
-    WeightsAndPrices = Addon.Cache:Create(
+    WeightsAndPrices = Cache:Create(
         ---@param operation Operation
         function (_, operation)
             return Self:GetRecipeCacheKey(operation)
@@ -475,7 +473,7 @@ Self.Cache = {
         5
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation, method: Optimization.Method): string>
-    Allocations = Addon.Cache:Create(
+    Allocations = Cache:Create(
         ---@param operation Operation
         ---@param method Optimization.Method
         function(_, operation, method)

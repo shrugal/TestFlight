@@ -175,7 +175,7 @@ function Self:UpdateSort(refresh)
             Util:DebugProfileLevel("Recipe")
 
             for i,recipeID in ipairs(recipeIDs) do
-                Util:DebugProfileSegment("GetRecipeSchematic")
+                Util:DebugProfileSegment()
 
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
 
@@ -188,7 +188,7 @@ function Self:UpdateSort(refresh)
 
                 local operation = cache:Get(key)[2]
                 if operation then
-                    Util:DebugProfileSegment("GetOperationValue")
+                    Util:DebugProfileSegment()
 
                     local value = Optimization:GetOperationValue(operation, method)
 
