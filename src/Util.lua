@@ -820,6 +820,8 @@ end
 function Self:DebugProfileStop()
     if not Addon.DEBUG or not segments then return end
 
+    self:DebugProfileStep()
+
     self:TblUnhook(Addon.Promise, "Resume")
     self:TblUnhook(Addon.Promise, "Handle")
 
