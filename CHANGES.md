@@ -1,4 +1,1 @@
-- Add tracking multiple orders of the same recipe
-- Properly handle finishing reagents that change resourcefulness/multicraft yield
-- Improve profit (~33%) and profit per concentration (~66%) optimization performance
-- Updated reagent, perk and recipe data
+- Untrack recipes when finishing all tracked crafts or orders

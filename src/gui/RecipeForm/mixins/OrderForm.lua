@@ -122,6 +122,7 @@ end
 function Self:OnTrackRecipeCheckboxClicked()
     local recipe = self:GetRecipe()
     if not recipe or not self:GetTrackRecipeCheckbox():GetChecked() then return end
+
     Recipes:SetTrackedAmount(recipe, 0)
 end
 

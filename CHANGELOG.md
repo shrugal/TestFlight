@@ -1,3 +1,10 @@
+Version 4.07
+
+- Add tracking multiple orders of the same recipe
+- Properly handle finishing reagents that change resourcefulness/multicraft yield
+- Improve profit (~33%) and profit per concentration (~66%) optimization performance
+- Updated reagent, perk and recipe data
+
 Version 4.06
 
 - Add Auctionator search button to reagents tracker

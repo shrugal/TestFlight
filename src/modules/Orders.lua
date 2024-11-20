@@ -38,6 +38,11 @@ function Self:GetTracked(recipeOrOrder, isRecraft)
     return self.tracked[isRecraft][recipeID]
 end
 
+function Self:GetTrackedByOrderID(orderID)
+    for order in self:Enumerate() do
+        if order.orderID == orderID then return order end
+    end
+end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
@@ -198,22 +203,6 @@ function Self:SetTrackedAllocation(recipeOrOrder, allocation, isRecraft)
     self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, orderID, allocation)
 end
 
--- Clear
-
----@param orderID number
-function Self:ClearTrackedByOrderID(orderID)
-    for order in self:Enumerate() do
-        if order.orderID == orderID then self:SetTracked(order, false) end
-    end
-end
-
----@param recipeID number
-function Self:ClearTrackedByRecipeID(recipeID)
-    for order in self:Enumerate() do
-        if order.spellID == recipeID then self:SetTracked(order, false) end
-    end
-end
-
 ---------------------------------------
 --             Creating
 ---------------------------------------
@@ -314,7 +303,9 @@ Self:OnLoad()
 function Self:OnTrackedRecipeUpdate(recipeID, tracked)
     if tracked then return end
 
-    self:ClearTrackedByRecipeID(recipeID)
+    for order in self:Enumerate() do
+        if order.spellID == recipeID then self:SetTracked(order, false) end
+    end
 end
 
 ---@param result Enum.CraftingOrderResult
@@ -323,7 +314,14 @@ function Self:OnClaimedFulfilled(result, orderID)
     local R = Enum.CraftingOrderResult
     if not Util:OneOf(result, R.Ok, R.Expired) then return end
 
-    self:ClearTrackedByOrderID(orderID)
+    local order = self:GetTrackedByOrderID(orderID)
+    if not order then return end
+
+    self:SetTracked(order, false)
+
+    if Recipes:GetTrackedAmount(order) > 0 then return end
+
+    Recipes:SetTracked(order, false)
 end
 
 EventRegistry:RegisterFrameEventAndCallback("TRACKED_RECIPE_UPDATE", Self.OnTrackedRecipeUpdate, Self)

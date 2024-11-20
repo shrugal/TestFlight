@@ -75,10 +75,18 @@ function Self:OnSpellcastInterruptedOrSucceeded()
 
     Self.craftingRecipe = nil
 
-    local amount = self:GetTracking():GetTrackedAmount(recipe)
+    local Service = self:GetTracking()
+
+    local amount = Service:GetTrackedAmount(recipe)
     if not amount then return end
 
-    self:GetTracking():SetTrackedAmount(recipe, amount - 1)
+    amount = amount - 1
+
+    if Service == Recipes and amount <= 0 then
+        Service:SetTracked(recipe, false)
+    else
+        Service:SetTrackedAmount(recipe, amount)
+    end
 end
 
 function Self:OnAddonLoaded()
