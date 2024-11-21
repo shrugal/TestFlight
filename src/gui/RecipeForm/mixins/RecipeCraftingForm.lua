@@ -272,9 +272,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
     local orderOrRecraftGUID = order or recraftGUID
 
     if isUnclaimedOrder then ---@cast order -?
-        local quality = applyConcentration and order.minQuality - 1 or order.minQuality
-        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, order)
-        local operation = operations and operations[math.max(quality, Util:TblMinKey(operations))]
+        local operation = Optimization:GetOrderAllocation(order, tx)
         allocation = operation and operation.allocation
         optionalReagents = operation and operation:GetOptionalReagents()
     end

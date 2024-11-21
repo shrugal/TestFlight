@@ -29,6 +29,7 @@ src/gui/frames/ProfessionsRecipeListProgressBar.xml
 
 src/gui/ItemFlyout.lua
 src/gui/CraftingPage.lua
+src/gui/OrdersPage.lua
 src/gui/OrdersView.lua
 
 src/gui/ObjectiveTracker/mixins/ProfessionsTrackerModule.lua

@@ -57,12 +57,7 @@ function Self:GetAllocation()
     local form, order = self.form, self:GetOrder()
 
     if form["GetRecipeOperationInfo"] and order and self:IsClaimableOrder(order) then ---@cast form RecipeCraftingForm
-        local tx = form.transaction
-        local recipe = tx:GetRecipeSchematic()
-        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, order)
-        local quality = tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
-
-        local operation = operations and operations[math.max(quality, Util:TblMinKey(operations))]
+        local operation = Optimization:GetOrderAllocation(order, form.transaction)
         if operation then return operation.allocation end
     end
 

@@ -70,6 +70,15 @@ function Self:GetRecipeAllocation(recipe, method)
     return bestOperation
 end
 
+---@param order CraftingOrderInfo
+---@param tx? ProfessionTransaction 
+function Self:GetOrderAllocation(order, tx)
+    local quality = tx and tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
+    local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
+    local operations = self:GetRecipeAllocations(recipe, self.Method.Cost, tx, order)
+    return operations and operations[math.max(quality, Util:TblMinKey(operations))]
+end
+
 -- Get optimized allocations for given optimization method
 ---@param recipe CraftingRecipeSchematic
 ---@param method Optimization.Method

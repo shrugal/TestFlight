@@ -23,6 +23,31 @@
 
 ipairs_reverse = ipairs
 
+---@class ProfessionsTableConstants
+---@field StandardPadding number
+---@field NoPadding number
+---@field Name ProfessionsTableConstantsColumn
+---@field Tip ProfessionsTableConstantsColumn
+---@field NumAvailable ProfessionsTableConstantsColumn
+---@field Quality ProfessionsTableConstantsColumn
+---@field Reagents ProfessionsTableConstantsColumn
+---@field Expiration ProfessionsTableConstantsColumn
+---@field ItemName ProfessionsTableConstantsColumn
+---@field Ilvl ProfessionsTableConstantsColumn
+---@field Slots ProfessionsTableConstantsColumn
+---@field Level ProfessionsTableConstantsColumn
+---@field Skill ProfessionsTableConstantsColumn
+---@field Status ProfessionsTableConstantsColumn
+---@field CustomerName ProfessionsTableConstantsColumn
+---@field OrderType ProfessionsTableConstantsColumn
+ProfessionsTableConstants = nil
+
+---@class ProfessionsTableConstantsColumn
+---@field Width number
+---@field Padding number
+---@field LeftCellPadding number
+---@field RightCellPadding number
+
 ---@class DevTool
 ---@field AddData fun(self: DevTool, data: any, name?: string | number)
 DevTool = nil
@@ -183,6 +208,8 @@ ProfessionsFrame = nil
 ---@field NoResultsText FontString
 
 ---@class OrdersPage: Frame
+---@field orderType Enum.CraftingOrderType
+---@field tableBuilder ProfessionsTableBuilderMixin
 ---@field RecipeList Frame
 ---@field OrderView OrdersView
 
@@ -929,6 +956,9 @@ SelectionBehaviorMixin = nil
 ---@field Icon Texture
 
 ---@class MoneyDenominationDisplayMixin
+---@field amount? number
+---@field showsZeroAmount? boolean
+---@field formatter? fun(amount: number): number | string
 ---@field OnLoad fun(self: self, ...: unknown): unknown
 ---@field SetDisplayType fun(self: self, ...: unknown): unknown
 ---@field UpdateDisplayType fun(self: self, ...: unknown): unknown
@@ -945,6 +975,8 @@ SelectionBehaviorMixin = nil
 ---@field UpdateWidth fun(self: self, ...: unknown): unknown
 
 ---@class MoneyDenominationDisplayFrame: Frame, MoneyDenominationDisplayMixin
+---@field Text FontString
+---@field Icon Texture
 
 ---@class MoneyDisplayFrameMixin
 ---@field hideCopper boolean
@@ -976,3 +1008,78 @@ SelectionBehaviorMixin = nil
 ---@field OnAmountChanged fun(self: self, ...: unknown): unknown
 
 ---@class LargeMoneyInputFrame: Frame, LargeMoneyInputFrameMixin
+
+---@class TableBuilderElementMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field Populate fun(self: self, ...: unknown): unknown
+
+---@class TableBuilderCellMixin: TableBuilderElementMixin
+---@field OnLineEnter fun(self: self, ...: unknown): unknown
+---@field OnLineLeave fun(self: self, ...: unknown): unknown
+
+---@class TableBuilderMixin
+---@field Init fun(self: self, ...: unknown): unknown
+---@field GetDataProvider fun(self: self, ...: unknown): unknown
+---@field SetDataProvider fun(self: self, ...: unknown): unknown
+---@field GetDataProviderData fun(self: self, ...: unknown): unknown
+---@field SetTableMargins fun(self: self, ...: unknown): unknown
+---@field SetColumnHeaderOverlap fun(self: self, ...: unknown): unknown
+---@field SetTableWidth fun(self: self, ...: unknown): unknown
+---@field GetTableWidth fun(self: self, ...: unknown): unknown
+---@field GetTableMargins fun(self: self, ...: unknown): unknown
+---@field GetColumnHeaderOverlap fun(self: self, ...: unknown): unknown
+---@field GetColumns fun(self: self, ...: unknown): unknown
+---@field GetHeaderContainer fun(self: self, ...: unknown): unknown
+---@field SetHeaderContainer fun(self: self, ...: unknown): unknown
+---@field GetHeaderPoolCollection fun(self: self, ...: unknown): unknown
+---@field EnumerateHeaders fun(self: self, ...: unknown): unknown
+---@field ConstructHeader fun(self: self, ...: unknown): unknown
+---@field Arrange fun(self: self, ...: unknown): unknown
+---@field Reset fun(self: self, ...: unknown): unknown
+---@field AddRow fun(self: self, ...: unknown): unknown
+---@field RemoveRow fun(self: self, ...: unknown): unknown
+---@field ArrangeCells fun(self: self, ...: unknown): unknown
+---@field AddColumn fun(self: self, ...: unknown): unknown
+---@field CalculateColumnSpacing fun(self: self, ...: unknown): unknown
+---@field ArrangeHorizontally fun(self: self, ...: unknown): unknown
+---@field ArrangeHeaders fun(self: self, ...: unknown): unknown
+
+---@class ProfessionsTableCellTextMixin: TableBuilderCellMixin
+---@field Text FontString
+---@field SetText fun(self: self, text: string)
+
+---@class ProfessionsCrafterTableCellItemNameMixin: TableBuilderCellMixin
+---@field Icon Texture
+---@field IconBorder Texture
+---@field Text FontString
+
+---@class ProfessionsCrafterTableCellItemNameFrame: Frame, ProfessionsCrafterTableCellItemNameMixin
+---@field GetParent fun(self: self): ProfessionsCrafterOrderListElementMixin
+
+---@class ProfessionsCrafterTableCellCommissionMixin: TableBuilderCellMixin
+---@field TipMoneyDisplayFrame MoneyDisplayFrame
+---@field RewardsContainer Frame
+---@field RewardIcon Texture
+
+---@class ProfessionsCrafterTableCellCommissionFrame: Frame, ProfessionsCrafterTableCellCommissionMixin
+---@field GetParent fun(self: self): ProfessionsCrafterOrderListElementMixin
+
+---@class ProfessionsTableBuilderMixin: TableBuilderMixin
+---@field AddColumnInternal fun(self: self, ...: unknown): unknown
+---@field AddUnsortableColumnInternal fun(self: self, ...: unknown): unknown
+---@field AddFixedWidthColumn fun(self: self, ...: unknown): unknown
+---@field AddFillColumn fun(self: self, ...: unknown): unknown
+---@field AddUnsortableFixedWidthColumn fun(self: self, owner: Frame, padding?: number, width?: number, leftCellPadding?: number, rightCellPadding?: number, headerText?: string, cellTemplate?: string, ...: unknown): unknown
+---@field AddUnsortableFillColumn fun(self: self, owner: Frame, padding?: number, fillCoefficient?: number, leftCellPadding?: number, rightCellPadding?: number, headerText?: string, cellTemplate?: string, ...: unknown): unknown
+
+---@class ProfessionsCrafterOrderListRowData
+---@field browseType number
+---@field option CraftingOrderInfo
+---@field pageFrame OrdersPage
+
+---@class ProfessionsCrafterOrderListElementMixin: ProfessionsCrafterOrderListRowData
+---@field OnLineEnter fun(self: self)
+---@field OnLineLeave fun(self: self)
+---@field OnUpdate fun(self: self)
+---@field OnClick fun(self: self, button: "LeftButton" | "RightButton")
+---@field Init fun(self: self, rowData: ProfessionsCrafterOrderListRowData)

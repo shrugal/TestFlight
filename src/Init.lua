@@ -58,6 +58,8 @@ Addon.GUI = {
 
     ---@type GUI.CraftingPage
     CraftingPage = {},
+    ---@type GUI.OrdersPage
+    OrdersPage = {},
     ---@type GUI.OrdersView
     OrdersView = {},
     ---@type GUI.ItemFlyout

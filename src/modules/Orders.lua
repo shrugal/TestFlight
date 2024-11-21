@@ -155,7 +155,13 @@ function Self:SetTracked(order, value)
     list[orderID] = value and order or nil
 
     if not value then
-        if not next(list) then self.tracked[isRecraft][recipeID] = nil end
+        if not next(list) then
+            self.tracked[isRecraft][recipeID] = nil
+            if Recipes:GetTrackedAmount(order) == 0 then
+                Recipes:SetTracked(order, false)
+            end
+        end
+
         self:SetTrackedAllocation(order, nil)
         if self:IsCreating(order) then self:SetTrackedAmount(order, nil) end
     elseif not Recipes:IsTracked(order) then
@@ -318,10 +324,6 @@ function Self:OnClaimedFulfilled(result, orderID)
     if not order then return end
 
     self:SetTracked(order, false)
-
-    if Recipes:GetTrackedAmount(order) > 0 then return end
-
-    Recipes:SetTracked(order, false)
 end
 
 EventRegistry:RegisterFrameEventAndCallback("TRACKED_RECIPE_UPDATE", Self.OnTrackedRecipeUpdate, Self)

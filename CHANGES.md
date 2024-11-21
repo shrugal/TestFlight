@@ -1,1 +1,6 @@
-- Untrack recipes when finishing all tracked crafts or orders
+- Automatically untrack recipes when finishing all tracked crafts or orders
+- Add tracking checkbox to order list
+- Add shift-clicking order list entries to track them
+- Add NPC reward item icons to order list
+- Replace tip amount with projected profit in order list
+- Highlight unlearned recipes in order list
