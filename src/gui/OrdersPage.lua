@@ -9,6 +9,69 @@ local Self = GUI.OrdersPage
 ---@type Cache<number, fun(self: Cache, order: CraftingOrderInfo): number>
 Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50)
 
+
+function Self:AdjustOrdersList()
+    local browseFrame = self.frame.BrowseFrame
+    local orderList = browseFrame.OrderList
+
+    orderList:ClearAllPoints()
+    orderList:SetPoint("TOPLEFT", browseFrame.RecipeList, "TOPRIGHT")
+    orderList:SetPoint("TOPRIGHT", -2, 0)
+    orderList:SetHeight(531)
+    orderList.NineSlice:SetPoint("BOTTOMRIGHT", -3, -2)
+end
+
+-- Claim order button
+
+function Self:ClaimOrderButtonOnClick()
+    ---@type CraftingOrderInfo?
+    local next
+
+    for order in Orders:Enumerate() do
+        if not next or order.expirationTime < next.expirationTime then
+            next = order
+        end
+    end
+
+    if not next then return end
+
+    self:ClaimOrder(next)
+end
+
+function Self:InsertClaimOrderButton()
+    self.claimOrderBtn = GUI:InsertButton("Start Next", self.frame.BrowseFrame, nil, Util:FnBind(self.ClaimOrderButtonOnClick, self), "BOTTOMRIGHT", -10, 7)
+    self:UpdateClaimOrderButton()
+end
+
+function Self:UpdateClaimOrderButton()
+    self.claimOrderBtn:SetEnabled(Orders:HasTracked())
+end
+
+-- Track all orders checkbox
+
+function Self:TrackAllOrdersBoxOnClick(frame)
+    self:SetAllOrdersTracked(frame:GetChecked())
+end
+
+function Self:InsertTrackAllOrdersBox()
+    local input = GUI:InsertCheckbox(self.frame.BrowseFrame, nil, Util:FnBind(self.TrackAllOrdersBoxOnClick, self), "BOTTOMLEFT", self.frame.BrowseFrame.RecipeList, "BOTTOMRIGHT", 3, 0)
+
+    input:SetSize(26, 26)
+    input.text:SetPoint("LEFT", input, "RIGHT", 0, 1)
+
+    self.trackAllOrdersBox = input
+    self:UpdateTrackAllOrdersBox()
+end
+
+function Self:UpdateTrackAllOrdersBox()
+    local enabled = self:HasOrders()
+    local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
+
+    self.trackAllOrdersBox:SetEnabled(enabled)
+    self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
+    self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
+end
+
 ---------------------------------------
 --            Hooks
 ---------------------------------------
@@ -34,7 +97,7 @@ function Self:ItemNameCellPopulate(cell, rowData)
         end)
 
         Orders:RegisterCallback(Orders.Event.TrackedUpdated, function (self, order, value)
-            if order == self.order then self:SetChecked(value) end
+            if order.orderID == self.order.orderID then self:SetChecked(value) end
         end, cell.TrackBox)
     end
 
@@ -124,6 +187,8 @@ end
 --              Util
 ---------------------------------------
 
+---@param order CraftingOrderInfo
+---@param value? boolean
 function Self:SetOrderTracked(order, value)
     Orders:SetTracked(order, value)
 
@@ -132,6 +197,42 @@ function Self:SetOrderTracked(order, value)
     local operation = Optimization:GetOrderAllocation(order)
 
     Orders:SetTrackedAllocation(order, operation and operation.allocation)
+end
+
+function Self:HasOrders()
+    return next(C_CraftingOrders.GetCrafterOrders()) ~= nil
+end
+
+function Self:EnumerateOrders()
+    local orders, i, order = C_CraftingOrders.GetCrafterOrders(), nil, nil
+    return function ()
+        while true do
+            i, order = next(orders, i)
+            if not order then return end
+            local recipeInfo = C_TradeSkillUI.GetRecipeInfo(order.spellID)
+            if recipeInfo and recipeInfo.learned then return order end
+        end
+    end
+end
+
+function Self:IsAllOrdersTracked()
+    for order in self:EnumerateOrders() do
+        if not Orders:IsTracked(order) then return false end
+    end
+    return true
+end
+
+---@param value? boolean
+function Self:SetAllOrdersTracked(value)
+    for order in self:EnumerateOrders() do
+        self:SetOrderTracked(order, value)
+    end
+end
+
+---@param order CraftingOrderInfo
+function Self:ClaimOrder(order)
+    C_CraftingOrders.ClaimOrder(order.orderID, C_TradeSkillUI.GetChildProfessionInfo().profession)
+    self.frame:ViewOrder(order)
 end
 
 ---------------------------------------
@@ -149,11 +250,24 @@ function Self:OnOrderListElementClick(rowData, button)
     end
 end
 
+function Self:OnTrackedOrderUpdated()
+    self:UpdateClaimOrderButton()
+    self:UpdateTrackAllOrdersBox()
+end
+
+function Self:OnOrderListUpdated()
+    self:UpdateTrackAllOrdersBox()
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     self.frame = ProfessionsFrame.OrdersPage
+
+    self:AdjustOrdersList()
+    self:InsertClaimOrderButton()
+    self:InsertTrackAllOrdersBox()
 
     ProfessionsTableConstants.Name.Width = ProfessionsTableConstants.Name.Width + 20
     ProfessionsTableConstants.Tip.Width = ProfessionsTableConstants.Tip.Width - 20
@@ -164,6 +278,9 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(ProfessionsCrafterTableCellItemNameMixin, "Populate", Util:FnBind(self.ItemNameCellPopulate, self))
     hooksecurefunc(ProfessionsCrafterTableCellCommissionMixin, "Populate", Util:FnBind(self.CommissionCellPopulate, self))
+    hooksecurefunc(self.frame, "OrderRequestCallback", Util:FnBind(self.OnOrderListUpdated, self))
+
+    Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedOrderUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

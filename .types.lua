@@ -212,6 +212,15 @@ ProfessionsFrame = nil
 ---@field tableBuilder ProfessionsTableBuilderMixin
 ---@field RecipeList Frame
 ---@field OrderView OrdersView
+---@field BrowseFrame OrdersBrowseFrame
+---@field ViewOrder fun(self: self, order: CraftingOrderInfo)
+
+---@class OrdersBrowseFrame: Frame
+---@field OrderList OrdersListFrame
+---@field RecipeList Frame
+
+---@class OrdersListFrame: Frame
+---@field NineSlice Frame
 
 ---@class OrdersView: Frame
 ---@field order CraftingOrderInfo

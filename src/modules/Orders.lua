@@ -19,6 +19,10 @@ Self.creatingProvided = {}
 --              Tracking
 ---------------------------------------
 
+function Self:HasTracked()
+    return next(self.tracked[true]) ~= nil or next(self.tracked[false]) ~= nil
+end
+
 -- Get
 
 ---@param recipeOrOrder RecipeOrOrder
