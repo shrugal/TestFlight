@@ -27,8 +27,8 @@ function Self:ClaimOrderButtonOnClick()
     ---@type CraftingOrderInfo?
     local next
 
-    for order in Orders:Enumerate() do
-        if not next or order.expirationTime < next.expirationTime then
+    for order in self:EnumerateOrders() do
+        if Orders:IsTracked(order) and (not next or order.expirationTime < next.expirationTime) then
             next = order
         end
     end

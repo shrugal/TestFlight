@@ -517,6 +517,8 @@ function Self:CanAllocateReagents()
     if order then
         -- The order is not claimed
         if order.orderState ~= Enum.CraftingOrderState.Claimed then return false end
+        -- Order is already crafted
+        if order.isFulfillable then return false end
         -- The order is not tracked
         if not Orders:IsTracked(order) then return false end
     else

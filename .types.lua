@@ -102,6 +102,21 @@ WorldQuestTrackerScreenPanel = nil
 ---                 WoW frames                    --
 -----------------------------------------------------
 
+---@class StaticPopupFrame: Frame
+---@field which any
+---@field data table
+
+---@type number
+STATICPOPUP_NUMDIALOGS = nil
+---@type fun(index: number): StaticPopupFrame?
+StaticPopup_GetDialog = nil
+---@type fun(which: any): string?, StaticPopupFrame?
+StaticPopup_Visible = nil
+---@type fun(which: any, data?: table)
+StaticPopup_Hide = nil
+---@type fun(dialog: StaticPopupFrame, buttonIndex: number)
+StaticPopup_OnClick = nil
+
 ---@class ScrollFrame
 ---@field view Frame
 ---@field SetDataProvider fun(self: self, dataProvider: TreeDataProviderMixin, retainScrollPosition?: boolean)
@@ -226,6 +241,11 @@ ProfessionsFrame = nil
 ---@field order CraftingOrderInfo
 ---@field OrderDetails OrdersDetails
 ---@field CreateButton Button
+---@field CompleteOrderButton Button
+---@field UpdateCreateButton fun(self: self)
+---@field IsRecrafting fun(self: self): boolean
+---@field CraftOrder fun(self: self)
+---@field RecraftOrder fun(self: self)
 
 ---@class OrdersDetails: Frame
 ---@field SchematicForm OrdersForm

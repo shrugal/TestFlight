@@ -1,8 +1,11 @@
-- Automatically untrack recipes when finishing all tracked crafts and orders
 - Add track order checkboxes to order list
 - Add shift-clicking order list entries to track them
 - Add NPC reward item icons to order list
 - Add checkbox to toggle tracking of all listed orders below order list
 - Add button to start next tracked order below order list
-- Show projected profit instead of tip amount in order list
-- Mark orders with unlearned recipes in order list
+- Add pressing create button again to confirm dialog about providing own reagents
+- Add showing projected profit instead of tip amount in order list
+- Add marking orders with unlearned recipes in order list
+- Automatically untrack recipes when finishing all tracked crafts and orders
+- Fix allocating reagents on already crafted orders
+- Fix complete order button positioning

@@ -6,6 +6,25 @@ local GUI, Util = Addon.GUI, Addon.Util
 ---@field frame OrdersView
 local Self = GUI.OrdersView
 
+function Self:InitCreateUpdate()
+    local orig = self.frame.CreateButton:GetScript("OnClick")
+    self.frame.CreateButton:SetScript("OnClick", function(...)
+        local dialog = self:GetConfirmationDialog()
+        if dialog then
+            StaticPopup_OnClick(dialog, 1)
+            self.frame:UpdateCreateButton()
+        else
+            orig(...)
+
+            dialog = self:GetConfirmationDialog()
+            if not dialog then return end
+
+            self.frame.CreateButton:SetText(RPE_CONFIRM)
+            dialog.data.cancelCallback = Util:FnBind(self.frame.UpdateCreateButton, self.frame)
+        end
+    end)
+end
+
 ---@param frame OrdersView
 function Self:UpdateCreateButton(frame)
     if not Addon.enabled then return end
@@ -22,6 +41,17 @@ function Self:CreateButtonOnEnter(frame)
 end
 
 ---------------------------------------
+--               Util
+---------------------------------------
+
+function Self:GetConfirmationDialog()
+    local _, dialog = StaticPopup_Visible("GENERIC_CONFIRMATION")
+    if dialog and dialog.data.text == CRAFTING_ORDERS_OWN_REAGENTS_CONFIRMATION then
+        return dialog
+    end
+end
+
+---------------------------------------
 --              Events
 ---------------------------------------
 
@@ -30,6 +60,11 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     self.frame = ProfessionsFrame.OrdersPage.OrderView
+
+    self:InitCreateUpdate()
+
+    -- This is just a visual fix
+    self.frame.CompleteOrderButton:SetPoint("BOTTOMRIGHT", -20, 7)
 
     hooksecurefunc(self.frame, "UpdateCreateButton", Util:FnBind(self.UpdateCreateButton, self))
 end
