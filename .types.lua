@@ -179,7 +179,7 @@ StaticPopup_OnClick = nil
 ---@field SelectFirst fun(self: self): ProfessionTransactionAllocation
 ---@field FindAllocationByPredicate fun(self: self, predicate: fun(v: ProfessionTransactionAllocation): boolean): ProfessionTransactionAllocation
 ---@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): ProfessionTransactionAllocation
----@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): number
+---@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification): number
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
 ---@field HasAllAllocations fun(quantityRequired: number): boolean
@@ -300,6 +300,8 @@ ProfessionsFrame = nil
 ---@field GetElementValidImplementation function
 
 ---@class ReagentSlot: Frame
+---@field item? ItemMixin
+---@field originalItem? ItemMixin
 ---@field reagentSlotSchematic CraftingReagentSlotSchematic
 ---@field Checkbox CheckButton
 ---@field Update fun(self: self)
@@ -315,6 +317,7 @@ ProfessionsFrame = nil
 ---@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
 ---@field SetTransaction fun(self: self, tx: ProfessionTransaction)
 ---@field GetTransaction fun(self: self): ProfessionTransaction
+---@field GetReagentType fun(self: self): Enum.CraftingReagentType
 
 ---@class OutputSlot: Frame
 

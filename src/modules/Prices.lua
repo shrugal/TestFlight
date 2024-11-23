@@ -67,14 +67,15 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param result? string | number
 ---@param order? CraftingOrderInfo
-function Self:GetRecipeScanTime(recipe, result, order)
+---@param recraftMods? CraftingItemSlotModification
+function Self:GetRecipeScanTime(recipe, result, order, recraftMods)
     if not self:IsSourceAvailable() then return end
     if not self:GetSource().GetItemScanTime then return self:GetFullScanTime() end
 
     local time = result and self:GetItemScanTime(result) or 0
 
     for _,reagent in pairs(recipe.reagentSlotSchematics) do
-        if not Reagents:IsProvidedByOrder(reagent, order) then
+        if not Reagents:IsProvided(reagent, order, recraftMods) then
             for _,item in pairs(reagent.reagents) do
                 time = max(time, self:GetItemScanTime(item.itemID) or 0)
             end
@@ -92,6 +93,7 @@ end
 ---@param operationInfo CraftingOperationInfo
 ---@param allocation RecipeAllocation | ItemMixin
 ---@param order? CraftingOrderInfo
+---@param recraftMods? CraftingItemSlotModification[]
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@param qualityID? number
 ---@return number reagentPrice
@@ -102,8 +104,8 @@ end
 ---@return number? multicraft
 ---@return number? rewards
 ---@return number? traderCut
-function Self:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents, qualityID)
-    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order)
+function Self:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents, qualityID)
+    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
     local resultPrice = self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID or order and order.minQuality)
 
     if resultPrice == 0 and not order then
@@ -116,8 +118,9 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param allocation? RecipeAllocation | ItemMixin
 ---@param order? CraftingOrderInfo
+---@param recraftMods? CraftingItemSlotModification[]
 ---@return number
-function Self:GetRecipeAllocationPrice(recipe, allocation, order)
+function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
     if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then ---@cast allocation ItemMixin
         return recipe.quantityMin * self:GetReagentPrice(allocation:GetItemID())
     end  ---@cast allocation RecipeAllocation
@@ -134,15 +137,18 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order)
         if allocations then
             missing = max(0, missing - allocations:Accumulate())
 
-            for _,item in allocations:Enumerate() do
-                local quantity = item.quantity
+            local provided = Reagents:GetProvided(reagent, order, recraftMods)
 
-                local orderReagent = order and Util:TblWhere(order.reagents, "slotIndex", slotIndex, "reagent.itemID", item.reagent.itemID)
-                if orderReagent then
-                    quantity = max(0, quantity - orderReagent.reagent.quantity)
+            for _,alloc in allocations:Enumerate() do
+                local quantity = alloc.quantity
+
+                for _,reagent in pairs(provided) do
+                    if reagent.itemID == alloc.reagent.itemID then
+                        quantity = max(0, quantity - (reagent.quantity or 1))
+                    end
                 end
 
-                price = price + quantity * self:GetReagentPrice(item)
+                price = price + quantity * self:GetReagentPrice(alloc)
             end
         elseif missing > 0 and order and not Orders:IsCreating(order) then
             for _,reagent in pairs(order.reagents) do
@@ -215,17 +221,18 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
 ---@param allocation RecipeAllocation | ItemMixin
+---@param recraftMods? CraftingItemSlotModification[]
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@param isApplyingConcentration? boolean
 ---@return number? noConProfit
 ---@return number? conProfit
 ---@return number? concentration
-function Self:GetConcentrationValue(recipe, operationInfo, allocation, optionalReagents, isApplyingConcentration)
+function Self:GetConcentrationValue(recipe, operationInfo, allocation, recraftMods, optionalReagents, isApplyingConcentration)
     local quality = operationInfo.craftingQualityID
     if isApplyingConcentration then quality = quality - 1 end
 
-    local noConProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, optionalReagents, quality))
-    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, optionalReagents, quality + 1))
+    local noConProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, recraftMods, optionalReagents, quality))
+    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, recraftMods, optionalReagents, quality + 1))
 
     return noConProfit, conProfit, operationInfo.concentrationCost
 end

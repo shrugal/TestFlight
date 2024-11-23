@@ -175,6 +175,18 @@ function Self:TblMap(tbl, fn, key, obj, ...)
     return t
 end
 
+---@generic T: table
+---@param tbl T[] | Enumerator<T>
+---@param key any
+---@return table
+function Self:TblPick(tbl, key)
+    local t = {}
+    for k,v in self:Each(tbl) do ---@cast v table
+        t[k] = self:TblGet(v, key)
+    end
+    return t
+end
+
 ---@generic T, R, S: table
 ---@param tbl T[] | Enumerator<T>
 ---@param by SearchFn<T, R, S> | string

@@ -75,7 +75,7 @@ function Self:AllocateReagent(slot, allocations, silent)
     self.form.transaction:OverwriteAllocations(slot:GetSlotIndex(), allocations)
     self.form.transaction:SetManuallyAllocated(true)
 
-    if Reagents:IsFinishingReagent(slot:GetReagentSlotSchematic()) then
+    if Reagents:IsFinishing(slot:GetReagentSlotSchematic()) then
         local alloc = allocations:SelectFirst()
         if alloc and alloc.quantity > 0 then
             slot:SetItem(Item:CreateFromItemID(alloc.reagent.itemID))
@@ -112,7 +112,7 @@ function Self:AllocateBasicReagents()
     if not recipe then return end
 
     for slot in self.form.reagentSlotPool:EnumerateActive() do
-        if Reagents:IsBasicReagent(slot:GetReagentSlotSchematic()) then
+        if Reagents:IsBasic(slot:GetReagentSlotSchematic()) then
             self:AllocateBasicReagent(slot)
         end
 	end

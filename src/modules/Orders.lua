@@ -12,8 +12,8 @@ Self.tracked = { [false] = {}, [true] = {} }
 Self.trackedAmounts = {}
 ---@type table<boolean, RecipeAllocation[]>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
----@type true[][]
-Self.creatingProvided = {}
+---@type table<boolean, (true | number)[][]>
+Self.creatingProvided = { [false] = {}, [true] = {} }
 
 ---------------------------------------
 --              Tracking
@@ -83,6 +83,7 @@ function Self:GetTrackedReagentAmounts()
 
         local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
         local allocation = self:GetTrackedAllocation(order)
+        local recraftMods = Reagents:GetRecraftMods(order)
 
         -- Provided by customer
         if not self:IsCreating(order) then
@@ -92,19 +93,24 @@ function Self:GetTrackedReagentAmounts()
             end
         end
 
-        for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+        for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
+            if reagent.reagentType == Enum.CraftingReagentType.Automatic then break end
+
             local required = reagent.required and reagent.quantityRequired or 0
             local missing = amount * required
 
             if self:IsCreatingProvided(order, slotIndex) then
                 -- Provided by crafter
-                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
+                local itemID = self.creatingProvided[order.isRecraft][order.spellID][slotIndex]
+                if type(itemID) ~= "number" then itemID = reagent.reagents[1].itemID --[[@cast itemID -?]] end
                 provided[itemID] = (provided[itemID] or 0) + missing
-            elseif not Reagents:IsProvidedByOrder(reagent, order) then
+            elseif Reagents:IsProvided(reagent, order, recraftMods) then
+                -- Provided by customer: Already accounted for
+            else
                 -- Allocated
                 if allocation and allocation[slotIndex] then
                     for _, alloc in allocation[slotIndex]:Enumerate() do
-                        missing = missing - amount * alloc.quantity
+                        missing = max(0, missing - amount * alloc.quantity)
 
                         local itemID = alloc.reagent.itemID ---@cast itemID -?
                         reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
@@ -116,7 +122,7 @@ function Self:GetTrackedReagentAmounts()
                     reagents[itemID] = (reagents[itemID] or 0) + missing
                 end
             end
-        end
+        until true end
     until true end
 
     return reagents, provided
@@ -152,15 +158,15 @@ function Self:SetTracked(order, value)
 
     local recipeID, isRecraft = Recipes:GetRecipeInfo(order)
     local orderID = order.orderID or 0
+    local recipes = self.tracked[isRecraft]
 
-    if value and not self.tracked[isRecraft][recipeID] then self.tracked[isRecraft][recipeID] = {} end
+    if value and not recipes[recipeID] then recipes[recipeID] = {} end
 
-    local list = self.tracked[isRecraft][recipeID]
-    list[orderID] = value and order or nil
+    recipes[recipeID][orderID] = value and order or nil
 
     if not value then
-        if not next(list) then
-            self.tracked[isRecraft][recipeID] = nil
+        if not next(recipes[recipeID]) then
+            recipes[recipeID] = nil
             if Recipes:GetTrackedAmount(order) == 0 then
                 Recipes:SetTracked(order, false)
             end
@@ -224,7 +230,11 @@ end
 
 ---@param slot ReagentSlot
 function Self:IsCreatingSlotProvided(slot)
-    return slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
+    if slot:GetReagentType() == Enum.CraftingReagentType.Modifying then
+        return slot:GetTransaction():GetRecipeSchematic().isRecraft and  slot:IsOriginalItemSet()
+    else
+        return slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
+    end
 end
 
 ---@param order? CraftingOrderInfo
@@ -232,8 +242,8 @@ end
 function Self:IsCreatingProvided(order, slotIndex)
     if not self:IsCreating(order) then return false end ---@cast order -?
 
-    local creatingProvided = Self.creatingProvided[order.spellID]
-    if creatingProvided then return creatingProvided[slotIndex] or false end
+    local slots = Self.creatingProvided[order.isRecraft][order.spellID]
+    if slots then return slots[slotIndex] and true or false end
 
     local frame = ProfessionsCustomerOrdersFrame
     if not frame or frame.Form.order ~= order then return false end
@@ -256,15 +266,17 @@ function Self:UpdateCreatingReagent(slot, silent)
     local tx, reagent = slot:GetTransaction(), slot:GetReagentSlotSchematic()
     local recipe = tx:GetRecipeSchematic()
     local provided = self:IsCreatingSlotProvided(slot)
+    local itemID = provided and slot.item and slot.item:GetItemID()
+    local recipes = Self.creatingProvided[recipe.isRecraft]
 
-    if not Self.creatingProvided[recipe.recipeID] then
+    if not recipes[recipe.recipeID] then
         if not provided then return end
-        Self.creatingProvided[recipe.recipeID] = {}
+        recipes[recipe.recipeID] = {}
     end
 
-    Self.creatingProvided[recipe.recipeID][reagent.slotIndex] = provided or nil
+    recipes[recipe.recipeID][reagent.slotIndex] = itemID or provided or nil
 
-    if not next(Self.creatingProvided[recipe.recipeID]) then Self.creatingProvided[recipe.recipeID] = nil end
+    if not next(recipes[recipe.recipeID]) then recipes[recipe.recipeID] = nil end
 
     if silent then return end
 
@@ -275,12 +287,15 @@ function Self:UpdateCreatingReagents()
     if not ProfessionsCustomerOrdersFrame then return end
 
     local form = ProfessionsCustomerOrdersFrame.Form
-    local tracked = self:IsTracked(form.order)
+    local order = form.order
+    local tracked = self:IsTracked(order)
 
     if tracked then
         for slot in form.reagentSlotPool:EnumerateActive() do
             self:UpdateCreatingReagent(slot, true)
         end
+    elseif Self.creatingProvided[order.isRecraft][order.spellID] then
+        Self.creatingProvided[order.isRecraft][order.spellID] = nil
     end
 
     self:TriggerEvent(self.Event.CreatingReagentsUpdated)
@@ -314,7 +329,9 @@ function Self:OnTrackedRecipeUpdate(recipeID, tracked)
     if tracked then return end
 
     for order in self:Enumerate() do
-        if order.spellID == recipeID then self:SetTracked(order, false) end
+        if order.spellID == recipeID and not Recipes:IsTracked(order) then
+            self:SetTracked(order, false)
+        end
     end
 end
 

@@ -37,8 +37,8 @@ end
 
 function Self:UpdateAmountSpinner()
     local Service, model = self:GetTracking()
-    self.amountSpinner:SetShown(model and Service:IsTracked(model))
-    self.amountSpinner:SetValue(model and Service:GetTrackedAmount(model) or 1)
+    self.amountSpinner:SetShown(model and not model.isRecraft and Service:IsTracked(model))
+    self.amountSpinner:SetValue(model and not model.isRecraft and Service:GetTrackedAmount(model) or 1)
 end
 
 ---------------------------------------

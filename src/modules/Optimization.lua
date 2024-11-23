@@ -331,21 +331,20 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param quality number
 ---@param optionalReagents? CraftingReagentInfo[]
----@param orderOrRecraftGUID? CraftingOrderInfo | string
-function Self:CanChangeCraftQuality(recipe, quality, optionalReagents, orderOrRecraftGUID)
-    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
-
+---@param order? CraftingOrderInfo
+---@param recraftGUID? string
+function Self:CanChangeCraftQuality(recipe, quality, optionalReagents, order, recraftGUID)
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID) ---@cast recipeInfo -?
     if recipeInfo.maxQuality == 0 then return false, false end
 
-    local qualityReagents = Reagents:GetQualitySlots(recipe, order)
+    local qualityReagents = Reagents:GetQualitySlots(recipe, order, Reagents:GetRecraftMods(order, recraftGUID))
     local reagents = Reagents:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
-    local operationInfo = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
+    local operationInfo = Recipes:GetOperationInfo(recipe, reagents, order or recraftGUID)
 
     local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
     local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
 
-    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, orderOrRecraftGUID)
+    local skillBase, skillBest = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, order or recraftGUID)
     local skillCheapest = skillBest * self:GetCheapestReagentWeight(qualityReagents) / Reagents:GetMaxWeight(qualityReagents)
 
     local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
@@ -505,7 +504,7 @@ function Self:GetRecipeCacheKey(operation, method)
         order and order.orderID or 0,
         operation.applyConcentration and 1 or 0,
         method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0,
-        Prices:GetRecipeScanTime(operation.recipe, nil, order)
+        Prices:GetRecipeScanTime(operation.recipe, nil, order, operation:GetRecraftMods())
     )
 
     if method then

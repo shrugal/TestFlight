@@ -58,7 +58,7 @@ end
 function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecraftGUID)
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
 
-    if not qualitySlots then qualitySlots = self:GetQualitySlots(recipe, order) end
+    if not qualitySlots then qualitySlots = self:GetQualitySlots(recipe) end
 
     -- Create crafting infos
     local reagents = self:CreateCraftingInfosFromSchematics(qualitySlots, optionalReagents)
@@ -67,7 +67,7 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
     if order then
         for _,reagent in pairs(order.reagents) do
             local schematic = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", reagent.slotIndex)
-            if schematic and self:IsModifyingReagent(schematic) then
+            if schematic and self:IsModified(schematic) then
                 tinsert(reagents, reagent.reagent)
             end
         end
@@ -171,7 +171,7 @@ function Self:CreateCraftingInfosFromAllocation(recipe, allocation, predicate)
     -- Add allocation reagents
     for slotIndex,allocations in pairs(allocation) do
         local reagent = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", slotIndex)
-        if reagent and self:IsModifyingReagent(reagent) and (not predicate or predicate(reagent)) then
+        if reagent and self:IsModified(reagent) and (not predicate or predicate(reagent)) then
             for _,alloc in pairs(allocations.allocs) do
                 tinsert(infos, Professions.CreateCraftingReagentInfo(alloc.reagent.itemID, reagent.dataSlotIndex, alloc.quantity))
             end
@@ -255,7 +255,7 @@ function Self:CreateAllocationFromSchematics(reagents)
 end
 
 ---@param allocations ProfessionTransationAllocations
----@param reagent CraftingReagent | CraftingReagentInfo |  number
+---@param reagent CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification | number
 ---@param quantity? number
 function Self:Allocate(allocations, reagent, quantity)
     if type(reagent) == "number" then
@@ -302,44 +302,82 @@ end
 ---------------------------------------
 
 ---@param reagent CraftingReagentSlotSchematic
-function Self:IsBasicReagent(reagent)
+function Self:IsBasic(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents == 1
 end
 
 ---@param reagent CraftingReagentSlotSchematic
-function Self:IsQualityReagent(reagent)
+function Self:IsQuality(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents > 1
+end
+
+---@param reagent CraftingReagentSlotSchematic
+function Self:IsModifying(reagent)
+    return reagent.reagentType == Enum.CraftingReagentType.Modifying
 end
 
 -- Reagent modifies the result quality
 ---@param reagent CraftingReagentSlotSchematic
-function Self:IsModifyingReagent(reagent)
+function Self:IsModified(reagent)
     return reagent.dataSlotType == Enum.TradeskillSlotDataType.ModifiedReagent
 end
 
 ---@param reagent CraftingReagentSlotSchematic
-function Self:IsFinishingReagent(reagent)
+function Self:IsFinishing(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Finishing
 end
 
 -- Reagent modifies the result quality, but is not a quality reagent
 ---@param reagent CraftingReagentSlotSchematic
-function Self:IsOptionalReagent(reagent)
+function Self:IsOptional(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Modifying or reagent.reagentType == Enum.CraftingReagentType.Finishing
 end
 
 ---@param reagent CraftingReagentSlotSchematic
 ---@param order? CraftingOrderInfo
-function Self:IsProvidedByOrder(reagent, order)
-    return order and Util:TblWhere(order.reagents, "slotIndex", reagent.slotIndex) ~= nil
+---@param recraftMods? CraftingItemSlotModification[]
+function Self:IsProvided(reagent, order, recraftMods)
+    if not order then return false end
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer then return order.orderID ~= nil end
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter then return order.orderID == nil end
+
+    if Util:TblWhere(order.reagents, "slotIndex", reagent.slotIndex) then return true end
+
+    if order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
+        local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
+        return slot and slot.itemID ~= 0
+    end
+
+    return false
+end
+
+---@param reagent CraftingReagentSlotSchematic
+---@param order? CraftingOrderInfo
+---@param recraftMods? CraftingItemSlotModification[]
+---@return CraftingReagentInfo[] | CraftingItemSlotModification[]
+function Self:GetProvided(reagent, order, recraftMods)
+    if not order then return {} end
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer and order.orderID == nil then return {} end
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return {} end
+
+    local list = Util:TblFilterWhere(order.reagents, "slotIndex", reagent.slotIndex)
+    for k,v in pairs(list) do --[=[@cast list CraftingReagentInfo[]]=] list[k] = v.reagent end
+
+    if #list == 0 and order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
+        local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
+        if slot and slot.itemID ~= 0 then tinsert(list, slot) end
+    end
+
+    return list
 end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param order CraftingOrderInfo?
+---@param recraftMods? CraftingItemSlotModification[]
 ---@return CraftingReagentSlotSchematic[]
-function Self:GetQualitySlots(recipe, order)
-    return Util:TblFilter(recipe.reagentSlotSchematics, function (reagent)
-        return self:IsQualityReagent(reagent) and not self:IsProvidedByOrder(reagent, order)
+function Self:GetQualitySlots(recipe, order, recraftMods)
+    return Util:TblFilter(recipe.reagentSlotSchematics, function (slot)
+        return self:IsQuality(slot) and not self:IsProvided(slot, order, recraftMods)
     end)
 end
 
@@ -350,6 +388,16 @@ function Self:GetFinishingSlots(recipe)
     return Util:TblFilter(recipe.reagentSlotSchematics, function (reagent)
         return reagent.reagentType == Enum.CraftingReagentType.Finishing
     end)
+end
+
+---@param order? CraftingOrderInfo
+---@param recraftGUID string?
+function Self:GetRecraftMods(order, recraftGUID)
+    if recraftGUID then
+        return C_TradeSkillUI.GetItemSlotModifications(recraftGUID)
+    elseif order and order.orderID and order.isRecraft then
+        return C_TradeSkillUI.GetItemSlotModificationsForOrder(order.orderID)
+    end
 end
 
 ---------------------------------------

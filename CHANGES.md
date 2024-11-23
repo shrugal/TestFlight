@@ -3,9 +3,15 @@
 - Add NPC reward item icons to order list
 - Add checkbox to toggle tracking of all listed orders below order list
 - Add button to start next tracked order below order list
-- Add pressing create button again to confirm dialog about providing own reagents
 - Add showing projected profit instead of tip amount in order list
 - Add marking orders with unlearned recipes in order list
+- Add pressing create button again to confirm dialog about providing own reagents
 - Automatically untrack recipes when finishing all tracked crafts and orders
 - Fix allocating reagents on already crafted orders
 - Fix complete order button positioning
+- Fix provided reagent detection for recraft orders
+- Fix sometimes not updating provided modifying reagents while creating an order
+- Fix reagent price not updating while creating an order after tracking and untracking a recipe
+- Fix untracking all orders of a recipe when only the recraft or non-recraft variant was untracked
+- Fix reagents tracker not showing if a recraft order for a socketed item was tracked
+- Fix amount spinner showing while creating a recraft order

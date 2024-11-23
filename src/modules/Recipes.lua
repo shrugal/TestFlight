@@ -316,7 +316,7 @@ function Self:LoadAllocations()
 
         for _,recipeID in pairs(tracked) do
             local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
-            local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQualityReagent, false, Reagents)
+            local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQuality, false, Reagents)
 
             if hasQualityReagents then
                 Promise:Async(function() self:LoadAllocation(recipe) end)

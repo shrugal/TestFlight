@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Prices, Promise, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Promise, Addon.Recipes, Addon.Util
+local GUI, Optimization, Orders, Prices, Promise, Reagents, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = NS.RecipeForm
@@ -152,11 +152,13 @@ function Self:UpdateOptimizationButtons()
     if not show then return end
 
     local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
+
     local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
         recipe,
         floor(quality),
         tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
-        order or tx:GetRecraftAllocation()
+        order,
+        tx:GetRecraftAllocation()
     )
 
     self.decreaseBtn:SetEnabled(canDecrease)
@@ -256,17 +258,17 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
 
     local recipeInfo, tx, order = frame.recipeInfo, frame.transaction, self:GetOrder()
     local recipe = tx:GetRecipeSchematic()
-    local applyConcentration = tx:IsApplyingConcentration()
     local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
     local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
 
-    ---@type (ProfessionAllocations | ItemMixin)?, CraftingReagentInfo[]?, string?
-    local allocation, optionalReagents, recraftGUID
+    ---@type (ProfessionAllocations | ItemMixin)?, CraftingReagentInfo[]?, string?, CraftingItemSlotModification[]?
+    local allocation, optionalReagents, recraftGUID, recraftMods
     if isSalvage then
         allocation = tx:GetSalvageAllocation()
     else
         allocation = tx.allocationTbls
         optionalReagents, recraftGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
+        recraftMods = Reagents:GetRecraftMods(order, recraftGUID)
     end
 
     local orderOrRecraftGUID = order or recraftGUID
@@ -280,7 +282,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
     ---@type string?, number?, number?, number?, number?, number?, number?, number?
     local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, rewards, multicraft
     if allocation then
-        reagentPrice, _, profit, revenue, resourcefulness, multicraft, rewards, traderCut = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, optionalReagents)
+        reagentPrice, _, profit, revenue, resourcefulness, multicraft, rewards, traderCut = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents)
         reagentPriceStr = Util:NumCurrencyString(reagentPrice)
     end
 
@@ -418,7 +420,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                             noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(operations, order)
                         end
                     elseif allocation then
-                        noConProfit, conProfit, concentration = Prices:GetConcentrationValue(recipe, operationInfo, allocation, optionalReagents, tx:IsApplyingConcentration())
+                        noConProfit, conProfit, concentration = Prices:GetConcentrationValue(recipe, operationInfo, allocation, recraftMods, optionalReagents, tx:IsApplyingConcentration())
                     end
 
                     if conProfit and concentration and concentration > 0 then

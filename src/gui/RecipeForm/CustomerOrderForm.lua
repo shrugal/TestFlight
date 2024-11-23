@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Prices, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Util
+local GUI, Orders, Prices, Reagents, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.AmountForm, NS.OrderForm)
@@ -65,7 +65,12 @@ function Self:UpdateReagentPrice()
     local recipe = self:GetRecipe()
     if not recipe then return end
 
-    self.costValue:SetAmount(Prices:GetRecipeAllocationPrice(recipe, self:GetAllocation(), self:GetOrder()))
+    local order = self:GetOrder()
+    local recraftMods = Reagents:GetRecraftMods(order, self.form.transaction:GetRecraftAllocation())
+
+    local price = Prices:GetRecipeAllocationPrice(recipe, self:GetAllocation(), order, recraftMods)
+
+    self.costValue:SetAmount(price)
 end
 
 ---------------------------------------
@@ -102,21 +107,7 @@ function Self:UpdateListOrderButton()
     local listOrderButton = self.form.PaymentContainer.ListOrderButton
     listOrderButton:SetEnabled(false)
     listOrderButton:SetScript("OnEnter", Util:FnBind(self.ListOrderButtonOnEnter, self))
-end
-
-function Self:UpdateReagentSlots()
-    Orders:UpdateCreatingReagents()
-
-    for slot in self.form.reagentSlotPool:EnumerateActive() do
-        local origCb = slot.Checkbox:GetScript("OnClick")
-        slot:SetCheckboxCallback(function (checked)
-            origCb(checked)
-
-            if not Orders:IsTracked(self:GetOrder()) then return end
-
-            Orders:UpdateCreatingReagent(slot)
-        end)
-    end
+    listOrderButton:SetScript("OnLeave", GameTooltip_Hide)
 end
 
 ---------------------------------------
@@ -144,6 +135,11 @@ function Self:OnRefresh()
 end
 
 function Self:OnAllocationUpdated()
+    if not self.form:IsVisible() then return end
+    Orders:UpdateCreatingReagents()
+end
+
+function Self:OnCreatingReagentsUpdated()
     if not self.form:IsVisible() then return end
     self:UpdateReagentPrice()
 end
@@ -185,10 +181,10 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.form, "InitSchematic", Util:FnBind(self.InitSchematic, self))
     hooksecurefunc(self.form, "UpdateListOrderButton", Util:FnBind(self.UpdateListOrderButton, self))
-    hooksecurefunc(self.form, "UpdateReagentSlots", Util:FnBind(self.UpdateReagentSlots, self))
 
-    EventRegistry:RegisterCallback("Professions.AllocationUpdated", self.OnAllocationUpdated, self)
-    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.OnAllocationUpdated, self)
+    EventRegistry:RegisterCallback("Professions.AllocationUpdated", Util:FnDebounce(self.OnAllocationUpdated), self)
+
+    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.OnCreatingReagentsUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

@@ -42,7 +42,7 @@ function Self:WithReagents(reagentType, reagents)
     for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
         local allocations = self.allocation[slot.slotIndex]
 
-        if slot.reagentType == reagentType and not Reagents:IsProvidedByOrder(slot, order) then
+        if slot.reagentType == reagentType and not Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
             allocation[slot.slotIndex] = Addon:CreateAllocations()
 
             if reagents then
@@ -90,16 +90,17 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
     -- Remove non-modifying and allocate provided order reagents
     local order = self:GetOrder()
     for slotIndex,allocations in pairs(self.allocation) do
-        local reagent = self.recipe.reagentSlotSchematics[slotIndex]
+        local slot = self.recipe.reagentSlotSchematics[slotIndex]
 
-        if not Reagents:IsModifyingReagent(reagent) then
+        if not Reagents:IsModified(slot) then
             self.allocation[slotIndex] = nil
-        elseif Reagents:IsProvidedByOrder(reagent, order) then
+        elseif Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
             Reagents:ClearAllocations(allocations)
 
-            for _,reagent in pairs(order.reagents) do
-                if reagent.slotIndex == slotIndex and allocations:GetQuantityAllocated(reagent.reagent) < reagent.reagent.quantity then
-                    Reagents:Allocate(allocations, reagent.reagent)
+            for _,reagent in pairs(Reagents:GetProvided(slot, order, self:GetRecraftMods())) do
+                local quantity = reagent.quantity or 1
+                if allocations:GetQuantityAllocated(reagent) < quantity then
+                    Reagents:Allocate(allocations, reagent, quantity)
                 end
             end
         end
@@ -146,7 +147,7 @@ end
 
 function Self:GetQualityReagentSlots()
     if not self.qualityReagentSlots then
-        self.qualityReagentSlots = Reagents:GetQualitySlots(self.recipe, self:GetOrder())
+        self.qualityReagentSlots = Reagents:GetQualitySlots(self.recipe, self:GetOrder(), self:GetRecraftMods())
     end
     return self.qualityReagentSlots
 end
@@ -160,7 +161,7 @@ end
 
 function Self:GetQualityReagents()
     if not self.qualityReagents then
-        local predicate = Util:FnBind(Reagents.IsQualityReagent, Reagents)
+        local predicate = Util:FnBind(Reagents.IsQuality, Reagents)
         self.qualityReagents = Reagents:CreateCraftingInfosFromAllocation(self.recipe, self.allocation, predicate)
     end
     return self.qualityReagents
@@ -168,7 +169,7 @@ end
 
 function Self:GetOptionalReagents()
     if not self.optionalReagents then
-        local predicate = Util:FnBind(Reagents.IsOptionalReagent, Reagents)
+        local predicate = Util:FnBind(Reagents.IsOptional, Reagents)
         self.optionalReagents = Reagents:CreateCraftingInfosFromAllocation(self.recipe, self.allocation, predicate)
     end
     return self.optionalReagents
@@ -179,6 +180,13 @@ function Self:GetReagents()
         self.reagents = Reagents:CreateCraftingInfosFromAllocation(self.recipe, self.allocation)
     end
     return self.reagents
+end
+
+function Self:GetRecraftMods()
+    if self.recipe.isRecraft and not self.recraftMods then
+        self.recraftMods = Reagents:GetRecraftMods(self:GetOrder(), self:GetRecraftGUID())
+    end
+    return self.recraftMods
 end
 
 -- Quality
@@ -365,7 +373,7 @@ end
 
 function Self:GetReagentPrice()
     if not self.reagentPrice then
-        self.reagentPrice = Prices:GetRecipeAllocationPrice(self.recipe, self.allocation, self:GetOrder())
+        self.reagentPrice = Prices:GetRecipeAllocationPrice(self.recipe, self.allocation, self:GetOrder(), self:GetRecraftMods())
     end
     return self.reagentPrice
 end

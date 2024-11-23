@@ -31,6 +31,7 @@ function Self:UpdateCreateButton(frame)
 
     self.frame.CreateButton:SetEnabled(false)
     self.frame.CreateButton:SetScript("OnEnter", Util:FnBind(self.CreateButtonOnEnter, self))
+    self.frame.CreateButton:SetScript("OnLeave", GameTooltip_Hide)
 end
 
 ---@param frame Button
