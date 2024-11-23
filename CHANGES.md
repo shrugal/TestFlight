@@ -7,6 +7,7 @@
 - Add marking orders with unlearned recipes in order list
 - Add pressing create button again to confirm dialog about providing own reagents
 - Automatically untrack recipes when finishing all tracked crafts and orders
+- Fix hiding recipes that don't require concentration for max quality when sorting by profit per concentration
 - Fix allocating reagents on already crafted orders
 - Fix complete order button positioning
 - Fix provided reagent detection for recraft orders

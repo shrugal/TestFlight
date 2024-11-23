@@ -168,7 +168,7 @@ function Self:UpdateSort(refresh)
         self.frame.RecipeList.NoResultsText:SetShown(false)
 
         self.sortJob = Promise:Async(function ()
-            Util:DebugProfileStart("Job")
+            -- Util:DebugProfileStart("Job")
 
             Promise:GetCurrent():SetPriority(5)
 

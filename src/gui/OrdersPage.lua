@@ -81,6 +81,8 @@ end
 function Self:ItemNameCellPopulate(cell, rowData)
     local order = rowData.option
 
+    if order.customerGuid == UnitGUID("player") then return end
+
     if not cell.TrackBox then
         ---@diagnostic disable-next-line: inject-field
         cell.TrackBox = CreateFrame("CheckButton", nil, cell, "UICheckButtonTemplate")
@@ -116,6 +118,8 @@ end
 function Self:CommissionCellPopulate(cell, rowData)
     local moneyFrame = cell.TipMoneyDisplayFrame
     local order = rowData.option
+
+    if order.customerGuid == UnitGUID("player") then return end
 
     -- Rewards
 

@@ -43,20 +43,21 @@ function Self:GetRecipeAllocation(recipe, method)
     if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) and not operation:HasProfit() then return end
 
     local operations = self:GetAllocationsForMethod(operation, method)
+
     if not operations then return end
 
     local d = method == Self.Method.Cost and -1 or 1
-    local bestOperation, bestValue, lastPrice
+    local bestOperation, bestValue, lastQuality, lastPrice
 
     for i=5, 1, -1 do repeat
         local operation = operations[i]
         if not operation then break end
 
-        -- Ignore lower qualities with higher prices
+        -- Ignore lower qualities with higher or equal prices
         if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) then
-            local price = operation:GetResultPrice()
-            if lastPrice and price >= lastPrice then break end
-            lastPrice = price
+            local quality, price = operation:GetResultQuality(), operation:GetResultPrice()
+            if lastQuality and lastPrice and quality < lastQuality and price >= lastPrice then break end
+            lastQuality, lastPrice = quality,  price
         end
 
         local value = self:GetOperationValue(operation, method)
