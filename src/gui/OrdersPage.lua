@@ -24,27 +24,17 @@ end
 -- Claim order button
 
 function Self:ClaimOrderButtonOnClick()
-    ---@type CraftingOrderInfo?
-    local next
-
-    for order in self:EnumerateOrders() do
-        if Orders:IsTracked(order) and (not next or order.expirationTime < next.expirationTime) then
-            next = order
-        end
-    end
-
-    if not next then return end
-
-    self:ClaimOrder(next)
+    local order = self:GetNextOrder()
+    if order then self:ClaimOrder(order) end
 end
 
 function Self:InsertClaimOrderButton()
-    self.claimOrderBtn = GUI:InsertButton("Start Next", self.frame.BrowseFrame, nil, Util:FnBind(self.ClaimOrderButtonOnClick, self), "BOTTOMRIGHT", -10, 7)
+    self.claimOrderBtn = GUI:InsertButton("Start Next", self.frame.BrowseFrame, nil, Util:FnBind(self.ClaimOrderButtonOnClick, self), "BOTTOMRIGHT", -20, 7)
     self:UpdateClaimOrderButton()
 end
 
 function Self:UpdateClaimOrderButton()
-    self.claimOrderBtn:SetEnabled(Orders:HasTracked())
+    self.claimOrderBtn:SetEnabled(self:HasNextOrder())
 end
 
 -- Track all orders checkbox
@@ -207,6 +197,24 @@ function Self:HasOrders()
     return next(C_CraftingOrders.GetCrafterOrders()) ~= nil
 end
 
+function Self:HasNextOrder()
+    for order in self:EnumerateOrders() do
+        if Orders:IsTracked(order) then return true end
+    end
+    return false
+end
+
+function Self:GetNextOrder()
+    ---@type CraftingOrderInfo?
+    local next
+    for order in self:EnumerateOrders() do
+        if Orders:IsTracked(order) and (not next or order.expirationTime < next.expirationTime) then
+            next = order
+        end
+    end
+    return next
+end
+
 function Self:EnumerateOrders()
     local orders, i, order = C_CraftingOrders.GetCrafterOrders(), nil, nil
     return function ()
@@ -255,12 +263,13 @@ function Self:OnOrderListElementClick(rowData, button)
 end
 
 function Self:OnTrackedOrderUpdated()
-    self:UpdateClaimOrderButton()
     self:UpdateTrackAllOrdersBox()
+    self:UpdateClaimOrderButton()
 end
 
 function Self:OnOrderListUpdated()
     self:UpdateTrackAllOrdersBox()
+    self:UpdateClaimOrderButton()
 end
 
 ---@param addonName string
