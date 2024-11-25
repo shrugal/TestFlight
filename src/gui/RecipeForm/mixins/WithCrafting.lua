@@ -1,176 +1,16 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Prices, Promise, Reagents, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
+local GUI, Optimization, Orders, Prices, Reagents, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
-local Parent = NS.RecipeForm
+---@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
+local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.WithOptimization)
 
----@class GUI.RecipeForm.RecipeCraftingForm: GUI.RecipeForm.RecipeForm
+---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization
 ---@field form RecipeCraftingForm
----@field skillSpinner NumericInputSpinner
----@field concentrationCostSpinner NumericInputSpinner
----@field decreaseBtn ButtonFitToText
----@field optimizeBtn ButtonFitToText
----@field increaseBtn ButtonFitToText
----@field optimizationMethodBtn GUI.RecipeForm.OptimizationMethodDropdown
----@field optimizationMethod Optimization.Method
-local Self = Mixin(NS.RecipeCraftingForm, Parent)
+local Self = Mixin(NS.WithCrafting, Parent)
 
 Self.optimizationMethod = Optimization.Method.Cost
-
--- Experiment box
-
-function Self:UpdateExperimentBox()
-    Parent.UpdateExperimentBox(self)
-
-    if self:IsCraftingRecipe() then return end
-
-    self.experimentBox:SetShown(false)
-end
-
--- Skill spinner
-
----@param frame NumericInputSpinner
-function Self:SkillSpinnerOnEnter(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-    GameTooltip_AddColoredLine(GameTooltip, "Extra skill", HIGHLIGHT_FONT_COLOR)
-    GameTooltip_AddNormalLine(GameTooltip, "Show result with extra crafting skill.")
-    GameTooltip:Show()
-end
-
----@param frame NumericInputSpinner
----@param value number
-function Self:SkillSpinnerOnChange(frame, value)
-    Addon:SetExtraSkill(value)
-end
-
----@param parent Frame
-function Self:InsertSkillSpinner(parent, ...)
-    self.skillSpinner = GUI:InsertNumericSpinner(
-        parent,
-        Util:FnBind(self.SkillSpinnerOnEnter, self),
-        Util:FnBind(self.SkillSpinnerOnChange, self),
-        ...
-    )
-    self.skillSpinner:SetWidth(26)
-    self.skillSpinner.DecrementButton:SetAlpha(0.7)
-    self.skillSpinner.IncrementButton:SetAlpha(0.7)
-end
-
-function Self:UpdateSkillSpinner()
-    self.skillSpinner:SetShown(Addon.enabled and not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe())
-    self.skillSpinner:SetValue(Addon.extraSkill)
-end
-
--- Concentration cost spinner
-
----@param frame NumericInputSpinner
-function Self:ConcentrationCostSpinnerOnEnter(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-    GameTooltip_AddColoredLine(GameTooltip, "Cost per Concentration", HIGHLIGHT_FONT_COLOR)
-    GameTooltip_AddNormalLine(GameTooltip, "Set the max. amount of gold you are willing to spend to save one concentration point.")
-    GameTooltip:Show()
-end
-
----@param frame NumericInputSpinner
----@param value number
-function Self:ConcentrationCostSpinnerOnChange(frame, value)
-    Addon:SetConcentrationCost(value * 10000)
-end
-
----@param parent Frame
-function Self:InsertConcentrationCostSpinner(parent, ...)
-    self.concentrationCostSpinner = GUI:InsertNumericSpinner(
-        parent,
-        Util:FnBind(self.ConcentrationCostSpinnerOnEnter, self),
-        Util:FnBind(self.ConcentrationCostSpinnerOnChange, self),
-        ...
-    )
-    self:UpdateConcentrationCostSpinner()
-    self.concentrationCostSpinner:SetWidth(26)
-    self.concentrationCostSpinner:SetMinMaxValues(0, 999)
-    self.concentrationCostSpinner.DecrementButton:SetAlpha(0.7)
-    self.concentrationCostSpinner.IncrementButton:SetAlpha(0.7)
-end
-
-function Self:UpdateConcentrationCostSpinner()
-    self.concentrationCostSpinner:SetShown(
-        not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe()
-        and self.optimizationMethod == Optimization.Method.CostPerConcentration
-        and self.form:GetRecipeOperationInfo().concentrationCost > 0
-    )
-    self.concentrationCostSpinner:SetValue(floor(Addon.DB.Account.concentrationCost / 10000))
-end
-
--- Optimization buttons
-
-function Self:DecreaseQualityButtonOnClick()
-    self:ChangeQualityBy(-1)
-end
-
-function Self:OptimizeQualityButtonOnClick()
-    self:SetQuality()
-end
-
-function Self:IncreaseQualityButtonOnClick()
-    self:ChangeQualityBy(1)
-
-end
-
----@param parent Frame
-function Self:InsertOptimizationButtons(parent, ...)
-    if not Prices:IsSourceInstalled() then return end
-
-    self.decreaseBtn = GUI:InsertButton("<",   	    parent, nil, Util:FnBind(self.DecreaseQualityButtonOnClick, self), ...)
-    self.optimizeBtn = GUI:InsertButton("Optimize", parent, nil, Util:FnBind(self.OptimizeQualityButtonOnClick, self), "LEFT", self.decreaseBtn, "RIGHT")
-    self.increaseBtn = GUI:InsertButton(">",        parent, nil, Util:FnBind(self.IncreaseQualityButtonOnClick, self), "LEFT", self.optimizeBtn, "RIGHT")
-
-    self.decreaseBtn.tooltipText = "Decrease quality"
-    self.optimizeBtn.tooltipText = "Optimize for current quality"
-    self.increaseBtn.tooltipText = "Increase quality"
-
-    self.optimizationMethodBtn = GUI:InsertElement("DropdownButton", parent, "TestFlightOptimizationMethodDropdownButton", nil, "LEFT", self.increaseBtn, "RIGHT", 5, 0) --[[@as GUI.RecipeForm.OptimizationMethodDropdown]]
-    self.optimizationMethodBtn.form = self
-end
-
-function Self:UpdateOptimizationButtons()
-    if not Prices:IsSourceInstalled() then return end
-    if self.isOptimizing then return end
-
-    local recipe, op, tx = self.form.recipeSchematic, self.form:GetRecipeOperationInfo(), self.form.transaction
-    local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
-    local order = self:GetOrder()
-
-    local show = op and op.quality and not isSalvage and not isMinimized
-        and not (order and order.orderState ~= Enum.CraftingOrderState.Claimed)
-
-    self.decreaseBtn:SetShown(show)
-    self.optimizeBtn:SetShown(show)
-    self.increaseBtn:SetShown(show)
-    self.optimizationMethodBtn:SetShown(show)
-
-    if not show then return end
-
-    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
-
-    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
-        recipe,
-        floor(quality),
-        tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
-        order,
-        tx:GetRecraftAllocation()
-    )
-
-    self.decreaseBtn:SetEnabled(canDecrease)
-    self.increaseBtn:SetEnabled(canIncrease)
-end
-
----@param method Optimization.Method
-function Self:SetOptimizationMethod(method)
-    self.optimizationMethod = method
-
-    self:UpdateConcentrationCostSpinner()
-end
 
 ---------------------------------------
 --               Hooks
@@ -462,55 +302,6 @@ function Self:GetQuality()
     if op and op.isQualityCraft then return floor(op.quality) end
 end
 
----@param quality? number
----@param exact? boolean
----@param method? Optimization.Method
-function Self:SetQuality(quality, exact, method)
-    if self.isOptimizing then return end
-
-    local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
-
-    if not quality then quality = floor(tx:IsApplyingConcentration() and op.quality - 1 or op.quality) end
-
-    local recipe = self.form.recipeSchematic
-    local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
-
-    Promise:Create(function ()
-        return Optimization:GetRecipeAllocations(recipe, method or self.optimizationMethod, tx, orderOrRecraftGUID)
-    end):Done(function (operations)
-        local operation = operations and (operations[quality] or not exact and operations[quality + 1])
-        if not operation then return end
-
-        self:AllocateReagents(operation.allocation)
-    end):Start(function ()
-        self.isOptimizing = true
-        self.increaseBtn:SetEnabled(false)
-        self.optimizeBtn:SetEnabled(false)
-        self.decreaseBtn:SetEnabled(false)
-
-        return function ()
-            self.isOptimizing = nil
-            self.optimizeBtn:SetEnabled(true)
-            self:UpdateOptimizationButtons()
-        end
-    end)
-end
-
----@param by number
-function Self:ChangeQualityBy(by)
-    local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
-    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
-
-    self:SetQuality(floor(quality) + by, true)
-end
-
-function Self:IsCraftingRecipe()
-    local recipeInfo = self.form:GetRecipeInfo()
-    if not recipeInfo then return end
-
-    return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
-end
-
 function Self:CanAllocateReagents()
     local recipe = self:GetRecipe()
     if not recipe or not Recipes:IsTracked(recipe) then return false end
@@ -562,12 +353,6 @@ function Self:OnExtraSkillUpdated()
     self.form:UpdateRecraftSlot()
 end
 
-function Self:OnConcentrationCostUpdated()
-    if not self.form or not self.form:IsVisible() then return end
-
-    self:UpdateConcentrationCostSpinner()
-end
-
 function Self:OnAllocationModified()
     self:UpdateTracking()
 end
@@ -575,10 +360,39 @@ end
 function Self:OnAddonLoaded()
     Parent.OnAddonLoaded(self)
 
+    -- Elements
+
+    -- Insert experiment checkbox
+    self:InsertExperimentBox(
+        self.form,
+        "LEFT", self.form.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
+    )
+
+    -- Insert skill points spinner
+    self:InsertSkillSpinner(
+        self.form.Details.StatLines.SkillStatLine,
+        "RIGHT", -50, 1
+    )
+
+    -- Insert concentration cost spinner
+    self:InsertConcentrationCostSpinner(
+        self.form.Details.StatLines.ConcentrationStatLine,
+        "RIGHT", -50, 1
+    )
+
+    -- Hooks
+
+    hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
+    hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))
+    hooksecurefunc(self.form, "UpdateDetailsStats", Util:FnBind(self.UpdateDetailsStats, self))
+
+    hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))
+
+    -- Events
+
     self.form:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.OnAllocationModified, self)
 
     Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
     Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)
     Addon:RegisterCallback(Addon.Event.ExtraSkillUpdated, self.OnExtraSkillUpdated, self)
-    Addon:RegisterCallback(Addon.Event.ConcentrationCostUpdated, self.OnConcentrationCostUpdated, self)
 end

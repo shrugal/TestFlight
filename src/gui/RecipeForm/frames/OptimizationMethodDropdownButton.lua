@@ -7,7 +7,7 @@ local Parent = ButtonStateBehaviorMixin
 
 ---@class GUI.RecipeForm.OptimizationMethodDropdownMixin: DropdownButtonMixin, ButtonStateBehaviorMixin
 ---@field Texture Texture
----@field form GUI.RecipeForm.RecipeCraftingForm
+---@field form GUI.RecipeForm.WithOptimization
 local Self = Mixin(GUI.RecipeForm.OptimizationMethodDropdown, Parent)
 
 ---@class GUI.RecipeForm.OptimizationMethodDropdown: DropdownButton, GUI.RecipeForm.OptimizationMethodDropdownMixin
@@ -55,7 +55,7 @@ end
 
 ---@param method Optimization.Method
 function Self:IsSelected(method)
-	if not self.form then return method == NS.RecipeCraftingForm.optimizationMethod end
+	if not self.form then return method == NS.WithCrafting.optimizationMethod end
 
     return method == self.form.optimizationMethod
 end

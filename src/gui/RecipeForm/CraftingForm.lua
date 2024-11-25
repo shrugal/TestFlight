@@ -3,9 +3,10 @@ local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 local NS = GUI.RecipeForm
 
-local Parent = Util:TblCombineMixins(NS.RecipeCraftingForm, NS.AmountForm)
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithAmount
+local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithAmount)
 
----@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeCraftingForm, GUI.RecipeForm.AmountForm
+---@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithAmount
 ---@field recraftRecipeID number?
 ---@field recraftItemLink string?
 local Self = Mixin(NS.CraftingForm, Parent)
@@ -117,27 +118,9 @@ function Self:OnAddonLoaded(addonName)
 
     -- Elements
 
-    -- Insert experiment checkbox
-    self:InsertExperimentBox(
-        self.form,
-        "LEFT", self.form.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
-    )
-
     -- Insert tracked amount spinner
     self:InsertAmountSpinner(
         "RIGHT", self.form.TrackRecipeCheckbox, "LEFT", -30, 1
-    )
-
-    -- Insert skill points spinner
-    self:InsertSkillSpinner(
-        self.form.Details.StatLines.SkillStatLine,
-        "RIGHT", -50, 1
-    )
-
-    -- Insert concentration cost spinner
-    self:InsertConcentrationCostSpinner(
-        self.form.Details.StatLines.ConcentrationStatLine,
-        "RIGHT", -50, 1
     )
 
     -- Insert optimization buttons
@@ -145,14 +128,6 @@ function Self:OnAddonLoaded(addonName)
         craftingPage,
         "BOTTOMLEFT", craftingPage.RecipeList, "BOTTOMRIGHT", 2, 2
     )
-
-    -- Hooks
-
-    hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
-    hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))
-    hooksecurefunc(self.form, "UpdateDetailsStats", Util:FnBind(self.UpdateDetailsStats, self))
-
-    hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

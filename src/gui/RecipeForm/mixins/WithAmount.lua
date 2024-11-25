@@ -2,10 +2,10 @@
 local Addon = select(2, ...)
 local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
 
----@class GUI.RecipeForm.AmountForm: GUI.RecipeForm.RecipeForm
+---@class GUI.RecipeForm.WithAmount: GUI.RecipeForm.RecipeForm
 ---@field amountSpinner NumericInputSpinner
 ---@field craftingRecipe? CraftingRecipeSchematic
-local Self = GUI.RecipeForm.AmountForm
+local Self = GUI.RecipeForm.WithAmount
 
 -- Amount spinner
 

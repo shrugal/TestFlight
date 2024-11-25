@@ -1,43 +1,11 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Reagents, Recipes, Util = Addon.GUI, Addon.Reagents, Addon.Recipes, Addon.Util
+local GUI, Reagents, Recipes = Addon.GUI, Addon.Reagents, Addon.Recipes
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
----@field experimentBox CheckButton
 ---@field GetTrackRecipeCheckbox fun(self: self): CheckButton
 local Self = GUI.RecipeForm.RecipeForm
-
--- Experiment checkbox
-
----@param frame CheckButton
-function Self:ExperimentBoxOnClick(frame)
-    if frame:GetChecked() ~= Addon.enabled then Addon:Toggle() end
-end
-
----@param frame CheckButton
-function Self:ExperimentBoxOnEnter(frame)
-    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-    GameTooltip_AddNormalLine(GameTooltip, "Experiment with crafting recipes without reagent and spec limits.")
-    GameTooltip:Show()
-end
-
----@param parent Frame
-function Self:InsertExperimentBox(parent, ...)
-    local input = GUI:InsertCheckbox(parent, Util:FnBind(self.ExperimentBoxOnEnter, self), Util:FnBind(self.ExperimentBoxOnClick, self), ...)
-
-    input.text:SetText(LIGHTGRAY_FONT_COLOR:WrapTextInColorCode("Experiment"))
-    input:SetChecked(Addon.enabled)
-
-    self.experimentBox = input
-
-    return input
-end
-
-function Self:UpdateExperimentBox()
-    self.experimentBox:SetShown(not ProfessionsUtil.IsCraftingMinimized())
-    self.experimentBox:SetChecked(Addon.enabled)
-end
 
 ---------------------------------------
 --               Util
@@ -46,6 +14,13 @@ end
 function Self:GetRecipe()
     if not self.form.transaction then return end
     return self.form.transaction:GetRecipeSchematic()
+end
+
+function Self:IsCraftingRecipe()
+    local recipeInfo = self.form:GetRecipeInfo()
+    if not recipeInfo then return end
+
+    return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
 end
 
 ---@return CraftingOrderInfo?
@@ -215,8 +190,6 @@ function Self:OnRefresh()
     elseif self.form.AllocateBestQualityCheckbox:GetChecked() then
         Professions.AllocateAllBasicReagents(self.form.transaction, true)
     end
-
-    self:UpdateExperimentBox()
 end
 
 ---@param recipeID number
@@ -232,5 +205,6 @@ end
 
 function Self:OnAddonLoaded()
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
+
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 end

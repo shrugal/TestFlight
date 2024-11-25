@@ -5,6 +5,7 @@ local Addon = select(2, ...)
 local GUI, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
 local NS = GUI.ObjectiveTracker
 
+---@type GUI.ObjectiveTracker.ProfessionsTrackerModule | ObjectiveTrackerModuleMixin
 local Parent = Util:TblCombineMixins(NS.ProfessionsTrackerModule, ObjectiveTrackerModuleMixin)
 
 local settings = {

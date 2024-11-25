@@ -3,9 +3,10 @@ local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 local NS = GUI.RecipeForm
 
-local Parent = Util:TblCombineMixins(NS.RecipeCraftingForm, NS.OrderForm)
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithAmount
+local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithOrder)
 
----@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeCraftingForm, GUI.RecipeForm.OrderForm
+---@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithOrder
 local Self = Mixin(NS.OrdersForm, Parent)
 
 ---------------------------------------
@@ -29,7 +30,7 @@ function Self:GetOrder()
 end
 
 function Self:GetQuality()
-    local quality = NS.RecipeCraftingForm.GetQuality(self)
+    local quality = NS.WithCrafting.GetQuality(self)
     if not quality then return end
 
     return Parent.GetQuality(self) or quality
@@ -50,27 +51,9 @@ function Self:OnAddonLoaded(addonName)
 
     -- Elements
 
-    -- Insert experiment checkbox
-    self:InsertExperimentBox(
-        self.form,
-        "LEFT", self.form.AllocateBestQualityCheckbox.text, "RIGHT", 20, 0
-    )
-
     -- Insert track order spinner
     self:InsertTrackOrderBox(
         "TOPLEFT", self.form.TrackRecipeCheckbox, "BOTTOMLEFT", 0, 0
-    )
-
-    -- Insert skill points spinner
-    self:InsertSkillSpinner(
-        self.form.Details.StatLines.SkillStatLine,
-        "RIGHT", -50, 1
-    )
-
-    -- Insert concentration cost spinner
-    self:InsertConcentrationCostSpinner(
-        self.form.Details.StatLines.ConcentrationStatLine,
-        "RIGHT", -50, 1
     )
 
     -- Insert optimization buttons
@@ -78,14 +61,6 @@ function Self:OnAddonLoaded(addonName)
         ordersView,
         "TOPLEFT", ordersView.OrderDetails, "BOTTOMLEFT", 0, -4
     )
-
-    -- Hooks
-
-    hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
-    hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))
-    hooksecurefunc(self.form, "UpdateDetailsStats", Util:FnBind(self.UpdateDetailsStats, self))
-
-    hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

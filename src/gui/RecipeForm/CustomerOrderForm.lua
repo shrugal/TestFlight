@@ -3,9 +3,10 @@ local Addon = select(2, ...)
 local GUI, Orders, Prices, Reagents, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Util
 local NS = GUI.RecipeForm
 
-local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.AmountForm, NS.OrderForm)
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithAmount | GUI.RecipeForm.WithOrder
+local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithExperimentation, NS.WithAmount, NS.WithOrder)
 
----@class GUI.RecipeForm.CustomerOrderForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.AmountForm, GUI.RecipeForm.OrderForm
+---@class GUI.RecipeForm.CustomerOrderForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithAmount, GUI.RecipeForm.WithOrder
 ---@field form CustomerOrderForm
 local Self = Mixin(NS.CustomerOrderForm, Parent)
 

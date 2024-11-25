@@ -38,14 +38,20 @@ Addon.GUI = {
 
     ---@class GUI.RecipeForm
     RecipeForm = {
-        ---@type GUI.RecipeForm.AmountForm
-        AmountForm = {},
-        ---@type GUI.RecipeForm.OrderForm
-        OrderForm = {},
         ---@type GUI.RecipeForm.RecipeForm
         RecipeForm = {},
-        ---@type GUI.RecipeForm.RecipeCraftingForm
-        RecipeCraftingForm = {},
+        ---@type GUI.RecipeForm.WithExperimentation
+        WithExperimentation = {},
+        ---@type GUI.RecipeForm.WithSkill
+        WithSkill = {},
+        ---@type GUI.RecipeForm.WithAmount
+        WithAmount = {},
+        ---@type GUI.RecipeForm.WithOptimization
+        WithOptimization = {},
+        ---@type GUI.RecipeForm.WithOrder
+        WithOrder = {},
+        ---@type GUI.RecipeForm.WithCrafting
+        WithCrafting = {},
         ---@type GUI.RecipeForm.CraftingForm
         CraftingForm = {},
         ---@type GUI.RecipeForm.OrdersForm

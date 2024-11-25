@@ -5,10 +5,10 @@ local NS = GUI.RecipeForm
 
 local Parent = NS.RecipeForm
 
----@class GUI.RecipeForm.OrderForm: GUI.RecipeForm.RecipeForm
+---@class GUI.RecipeForm.WithOrder: GUI.RecipeForm.RecipeForm
 ---@field trackOrderBox CheckButton
 ---@field GetTrackRecipeCheckbox fun(self: self): CheckButton
-local Self = NS.OrderForm
+local Self = NS.WithOrder
 
 -- Track order checkbox
 

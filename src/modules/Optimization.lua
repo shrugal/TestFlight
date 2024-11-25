@@ -76,7 +76,7 @@ end
 function Self:GetOrderAllocation(order, tx)
     local quality = tx and tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
     local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
-    local operations = self:GetRecipeAllocations(recipe, self.Method.Cost, tx, order)
+    local operations = self:GetRecipeAllocations(recipe, self.Method.Profit, tx, order)
     return operations and operations[math.max(quality, Util:TblMinKey(operations))]
 end
 
