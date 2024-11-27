@@ -13,49 +13,49 @@ local Self = Mixin(GUI.RecipeForm.OptimizationMethodDropdown, Parent)
 ---@class GUI.RecipeForm.OptimizationMethodDropdown: DropdownButton, GUI.RecipeForm.OptimizationMethodDropdownMixin
 
 function Self:OnLoad()
-	Parent.OnLoad(self)
+    Parent.OnLoad(self)
 
-	self:SetupMenu(function(dropdown, rootDescription)
-		rootDescription:SetTag("MENU_PROFESSIONS_RANK_BAR")
+    self:SetupMenu(function(dropdown, rootDescription)
+        rootDescription:SetTag("MENU_PROFESSIONS_RANK_BAR")
 
-		local title = rootDescription:CreateTitle("Optimization target")
-		title:AddInitializer(function(frame, description, menu)
-			local fontString = frame.fontString
-			fontString:SetPoint("RIGHT")
-			fontString:SetPoint("LEFT")
-			fontString:SetFontObject("GameFontNormal")
-			fontString:SetJustifyH("CENTER")
-		end)
+        local title = rootDescription:CreateTitle("Optimization target")
+        title:AddInitializer(function(frame, description, menu)
+            local fontString = frame.fontString
+            fontString:SetPoint("RIGHT")
+            fontString:SetPoint("LEFT")
+            fontString:SetFontObject("GameFontNormal")
+            fontString:SetJustifyH("CENTER")
+        end)
 
         local IsSelected = Util:FnBind(self.IsSelected, self)
         local SetSelected = Util:FnBind(self.SetSelected, self)
 
         for name,method in pairs(Optimization.Method) do
-			if method == Optimization.Method.CostPerConcentration then
-				name = "Cost per Concentration"
-			elseif method == Optimization.Method.ProfitPerConcentration then
-				name = "Profit per Concentration"
-			end
+            if method == Optimization.Method.CostPerConcentration then
+                name = "Cost per Concentration"
+            elseif method == Optimization.Method.ProfitPerConcentration then
+                name = "Profit per Concentration"
+            end
 
-			local radio = rootDescription:CreateRadio(name, IsSelected, SetSelected, method)
-			radio:AddInitializer(function(frame) frame.fontString:SetFontObject("GameFontHighlightOutline") end)
+            local radio = rootDescription:CreateRadio(name, IsSelected, SetSelected, method)
+            radio:AddInitializer(function(frame) frame.fontString:SetFontObject("GameFontHighlightOutline") end)
         end
 
-		rootDescription:SetMinimumWidth(200)
-	end)
+        rootDescription:SetMinimumWidth(200)
+    end)
 end
 
 function Self:GetAtlas()
-	return GetWowStyle1ArrowButtonState(self)
+    return GetWowStyle1ArrowButtonState(self)
 end
 
 function Self:OnButtonStateChanged()
-	self.Texture:SetAtlas(self:GetAtlas(), TextureKitConstants.UseAtlasSize)
+    self.Texture:SetAtlas(self:GetAtlas(), TextureKitConstants.UseAtlasSize)
 end
 
 ---@param method Optimization.Method
 function Self:IsSelected(method)
-	if not self.form then return method == NS.WithCrafting.optimizationMethod end
+    if not self.form then return method == NS.WithCrafting.optimizationMethod end
 
     return method == self.form.optimizationMethod
 end

@@ -81,8 +81,8 @@ end
 function Self:LayoutContents()
     if Addon.DB and not Addon.DB.Account.reagents then return end
 
-	if self.continuableContainer then self.continuableContainer:Cancel() end
-	self.continuableContainer = ContinuableContainer:Create()
+    if self.continuableContainer then self.continuableContainer:Cancel() end
+    self.continuableContainer = ContinuableContainer:Create()
 
     local reagents, missing, owned, crafted, provided = Reagents:GetTrackedBySource()
     if not next(reagents) and not next(provided) then return end
@@ -96,7 +96,7 @@ function Self:LayoutContents()
 
     -- On load add blocks if items were loaded already, refresh otherwise
     local wasLoaded = true
-	wasLoaded = self.continuableContainer:ContinueOnLoad(function ()
+    wasLoaded = self.continuableContainer:ContinueOnLoad(function ()
         if not wasLoaded then return self:MarkDirty() end
         self:AddBlocks(reagents, missing, owned, crafted, provided)
     end)
@@ -178,10 +178,10 @@ function Self:LineOnClick(btn, mouseButton)
                 if IsModifiedClick("RECIPEWATCHTOGGLE") then
                     C_TradeSkillUI.SetRecipeTracked(recipeID, false, false)
                 elseif C_TradeSkillUI.IsRecipeProfessionLearned(recipeID) then
-					C_TradeSkillUI.OpenRecipe(recipeID)
-				else
-					Professions.InspectRecipe(recipeID);
-				end
+                    C_TradeSkillUI.OpenRecipe(recipeID)
+                else
+                    Professions.InspectRecipe(recipeID);
+                end
 
                 return
             end

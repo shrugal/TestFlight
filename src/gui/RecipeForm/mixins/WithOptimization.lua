@@ -38,7 +38,7 @@ end
 function Self:InsertOptimizationButtons(parent, ...)
     if not Prices:IsSourceInstalled() then return end
 
-    self.decreaseBtn = GUI:InsertButton("<",   	    parent, nil, Util:FnBind(self.DecreaseQualityButtonOnClick, self), ...)
+    self.decreaseBtn = GUI:InsertButton("<",        parent, nil, Util:FnBind(self.DecreaseQualityButtonOnClick, self), ...)
     self.optimizeBtn = GUI:InsertButton("Optimize", parent, nil, Util:FnBind(self.OptimizeQualityButtonOnClick, self), "LEFT", self.decreaseBtn, "RIGHT")
     self.increaseBtn = GUI:InsertButton(">",        parent, nil, Util:FnBind(self.IncreaseQualityButtonOnClick, self), "LEFT", self.optimizeBtn, "RIGHT")
 

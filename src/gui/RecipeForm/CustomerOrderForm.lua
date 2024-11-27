@@ -88,7 +88,7 @@ end
 
 function Self:Init()
     local s = Enum.CraftingOrderState
-	local completed = Util:OneOf(self.form.order.orderState, s.Expired, s.Rejected, s.Canceled, s.Fulfilled)
+    local completed = Util:OneOf(self.form.order.orderState, s.Expired, s.Rejected, s.Canceled, s.Fulfilled)
     self.form.PaymentContainer.PostingFee:ClearAllPoints()
     self.form.PaymentContainer.PostingFee:SetPoint("TOPLEFT", self.form.PaymentContainer.Duration, "BOTTOMLEFT", 0, completed and 46 or 6)
 end

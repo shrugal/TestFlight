@@ -287,7 +287,7 @@ function Self:Then(onDone, onError, ...)
     return self:Chain(onDone, onError, nil, ...)
 end
 
--- Handle resolved promise 
+-- Handle resolved promise
 ---@param onDone function
 ---@vararg any
 function Self:Done(onDone, ...)

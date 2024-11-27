@@ -34,7 +34,7 @@ function Self:LineOnClick(btn, mouseButton)
     end
 end
 
----@param line ObjectiveTrackerLine 
+---@param line ObjectiveTrackerLine
 ---@param itemName string
 function Self:SetReagentLineButton(line, itemName, itemID)
     -- Name

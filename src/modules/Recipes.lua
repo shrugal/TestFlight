@@ -95,7 +95,7 @@ function Self:GetTrackedResultAmounts()
 
         items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
     until true end
-    
+
     return items
 end
 
@@ -333,7 +333,7 @@ end
 ---@field TrackedUpdated "TrackedUpdated"
 ---@field TrackedAmountUpdated "TrackedAmountUpdated"
 ---@field TrackedQualityUpdated "TrackedQualityUpdated"
----@field TrackedAllocationUpdated "TrackedAllocationUpdated" 
+---@field TrackedAllocationUpdated "TrackedAllocationUpdated"
 
 Self:GenerateCallbackEvents({ "TrackedUpdated", "TrackedAmountUpdated", "TrackedQualityUpdated", "TrackedAllocationUpdated" })
 Self:OnLoad()

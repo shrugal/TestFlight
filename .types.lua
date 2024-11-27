@@ -930,19 +930,19 @@ LinearizedTreeDataProviderMixin = nil
 function CreateTreeDataProvider() end
 
 ScrollBoxConstants = {
-	UpdateQueued = false,
-	UpdateImmediately = true,
-	NoScrollInterpolation = true,
-	RetainScrollPosition = true,
-	DiscardScrollPosition = false,
-	AlignBegin = 0,
-	AlignCenter = .5,
-	AlignEnd = 1,
-	AlignNearest = -1,
-	ScrollBegin = MathUtil.Epsilon,
-	ScrollEnd = (1 - MathUtil.Epsilon),
-	StopIteration = true,
-	ContinueIteration = false,
+    UpdateQueued = false,
+    UpdateImmediately = true,
+    NoScrollInterpolation = true,
+    RetainScrollPosition = true,
+    DiscardScrollPosition = false,
+    AlignBegin = 0,
+    AlignCenter = .5,
+    AlignEnd = 1,
+    AlignNearest = -1,
+    ScrollBegin = MathUtil.Epsilon,
+    ScrollEnd = (1 - MathUtil.Epsilon),
+    StopIteration = true,
+    ContinueIteration = false,
 }
 
 ---@class ProfessionsRecipeListRecipeMixin

@@ -63,9 +63,9 @@ function Self:CreateRecipeListFilter()
     -- Set menu generator without skillLine options
     Professions.InitFilterMenu(dropdown, nil, nil, true)
 
-	dropdown:SetDefaultCallback(function()
-		Professions.SetDefaultFilters(false)
-	end)
+    dropdown:SetDefaultCallback(function()
+        Professions.SetDefaultFilters(false)
+    end)
 
     hooksecurefunc(
         dropdown,

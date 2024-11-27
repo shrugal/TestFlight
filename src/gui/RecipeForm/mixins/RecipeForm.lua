@@ -83,14 +83,14 @@ end
 -- Restore slots
 
 function Self:AllocateBasicReagents()
-	local recipe = self:GetRecipe()
+    local recipe = self:GetRecipe()
     if not recipe then return end
 
     for slot in self.form.reagentSlotPool:EnumerateActive() do
         if Reagents:IsBasic(slot:GetReagentSlotSchematic()) then
             self:AllocateBasicReagent(slot)
         end
-	end
+    end
 end
 
 function Self:ResetReagentSlots()
