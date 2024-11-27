@@ -598,7 +598,7 @@ function Self:NumCurrencyString(amount, color, fontHeight)
 
     if amount < 0 then
         str = "-" .. str
-        if color == true or color == nil then color = "00ff0000" end
+        if color == true or color == nil then color = RED_FONT_COLOR end
     end
 
     if type(color) == "table" then color = color:GenerateHexColor() end

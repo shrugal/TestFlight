@@ -99,7 +99,12 @@ function Self:ItemNameCellPopulate(cell, rowData)
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(order.spellID)
     if recipeInfo and not recipeInfo.learned then
         cell.Icon:SetAtlas("Professions_Icon_Warning")
-        cell.Text:SetText(cell.Text:GetText():gsub("|c" .. ("%w"):rep(8), "|cffff0000", 1))
+
+        local text = cell.Text:GetText()
+        if text then
+            text = text:gsub("|c" .. ("%w"):rep(8), YELLOW_FONT_COLOR:GenerateHexColorMarkup(), 1)
+            cell.Text:SetText(text)
+        end
     end
 end
 
@@ -110,34 +115,6 @@ function Self:CommissionCellPopulate(cell, rowData)
     local order = rowData.option
 
     if order.customerGuid == UnitGUID("player") then return end
-
-    -- Rewards
-
-	local rewards = ""
-	if order.npcOrderRewards then
-		for _,r in pairs(order.npcOrderRewards) do repeat
-			if not r.itemLink then break end
-            rewards = rewards .. ("|T%d:0|t%s "):format(
-                C_Item.GetItemIconByID(r.itemLink),
-                r.count > 1 and "x" .. r.count or ""
-            )
-		until true end
-	end
-
-    if not cell.RewardText then
-        cell.RewardIcon:ClearAllPoints()
-        cell.RewardIcon:SetPoint("LEFT")
-
-        ---@diagnostic disable-next-line: inject-field
-        cell.RewardText = cell:CreateFontString(nil, "ARTWORK", "Number14FontWhite")
-        cell.RewardText:SetPoint("LEFT")
-        cell.RewardText:SetMouseMotionEnabled(true)
-        cell.RewardText:SetScript("OnEnter", function (...) cell.RewardIcon:GetScript("OnEnter")(...) end)
-        cell.RewardText:SetScript("OnLeave", function (...) cell.RewardIcon:GetScript("OnLeave")(...) end)
-    end
-
-    cell.RewardText:SetText(rewards)
-    cell.RewardIcon:Hide()
 
     -- Profit
 
@@ -169,12 +146,43 @@ function Self:CommissionCellPopulate(cell, rowData)
 
         if profit < 0 then
             local frame = moneyFrame.GoldDisplay:IsShown() and moneyFrame.GoldDisplay or moneyFrame.SilverDisplay
-            frame.Text:SetText(("|cffff0000-%s|r"):format(frame.Text:GetText()))
+            frame.Text:SetText(RED_FONT_COLOR:WrapTextInColorCode("-" .. frame.Text:GetText()))
         end
     end
 
     moneyFrame:UpdateWidth()
     moneyFrame:UpdateAnchoring()
+
+    -- Rewards
+
+    -- "No Mats; No Make" does the same thing
+    if C_AddOns.IsAddOnLoaded("PublicOrdersReagentsColumn") then return end
+
+    local rewards = ""
+    if order.npcOrderRewards then
+        for _,r in pairs(order.npcOrderRewards) do repeat
+            if not r.itemLink then break end
+            rewards = rewards .. ("|T%d:0|t%s "):format(
+                C_Item.GetItemIconByID(r.itemLink),
+                r.count > 1 and "x" .. r.count or ""
+            )
+        until true end
+    end
+
+    if not cell.RewardText then
+        cell.RewardIcon:ClearAllPoints()
+        cell.RewardIcon:SetPoint("LEFT")
+
+        ---@diagnostic disable-next-line: inject-field
+        cell.RewardText = cell:CreateFontString(nil, "ARTWORK", "Number14FontWhite")
+        cell.RewardText:SetPoint("LEFT")
+        cell.RewardText:SetMouseMotionEnabled(true)
+        cell.RewardText:SetScript("OnEnter", function (...) cell.RewardIcon:GetScript("OnEnter")(...) end)
+        cell.RewardText:SetScript("OnLeave", function (...) cell.RewardIcon:GetScript("OnLeave")(...) end)
+    end
+
+    cell.RewardText:SetText(rewards)
+    cell.RewardIcon:Hide()
 end
 
 ---------------------------------------

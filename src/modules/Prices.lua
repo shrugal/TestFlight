@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local Orders, Recipes, Reagents, Util = Addon.Orders, Addon.Recipes, Addon.Reagents, Addon.Util
+local Orders, Recipes, Reagents = Addon.Orders, Addon.Recipes, Addon.Reagents
 
 
 ---@class Prices
@@ -217,42 +217,6 @@ end
 ---------------------------------------
 --              Stats
 ---------------------------------------
-
----@param recipe CraftingRecipeSchematic
----@param operationInfo CraftingOperationInfo
----@param allocation RecipeAllocation | ItemMixin
----@param recraftMods? CraftingItemSlotModification[]
----@param optionalReagents? CraftingReagentInfo[]
----@param isApplyingConcentration? boolean
----@return number? noConProfit
----@return number? conProfit
----@return number? concentration
-function Self:GetConcentrationValue(recipe, operationInfo, allocation, recraftMods, optionalReagents, isApplyingConcentration)
-    local quality = operationInfo.craftingQualityID
-    if isApplyingConcentration then quality = quality - 1 end
-
-    local noConProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, recraftMods, optionalReagents, quality))
-    local conProfit = select(3, self:GetRecipePrices(recipe, operationInfo, allocation, nil, recraftMods, optionalReagents, quality + 1))
-
-    return noConProfit, conProfit, operationInfo.concentrationCost
-end
-
----@param operations Operation[]
----@param order CraftingOrderInfo
----@return number? noConProfit
----@return number? conProfit
----@return number? concentration
-function Self:GetConcentrationValueForOrder(operations, order)
-    local noConOperation, conOperation = operations[order.minQuality], operations[order.minQuality - 1]
-
-    if not conOperation then return end
-
-    local noConProfit = noConOperation and noConOperation:GetProfit()
-    local conProfit = conOperation:GetProfit()
-    local concentration = conOperation:GetOperationInfo().concentrationCost
-
-    return noConProfit, conProfit, concentration
-end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo

@@ -27,6 +27,24 @@ function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentratio
     return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration) --[[@as Operation]]
 end
 
+---@param tx ProfessionTransaction
+---@param order? CraftingOrderInfo
+function Static:FromTransaction(tx, order)
+    return self:Create(tx:GetRecipeSchematic(), Util:TblCopy(tx.allocationTbls, true), order or tx:GetRecraftAllocation(), tx:IsApplyingConcentration())
+end
+
+---@param form RecipeCraftingForm
+---@param order? CraftingOrderInfo
+function Static:FromCraftingForm(form, order)
+    local op = self:FromTransaction(form.transaction, order)
+
+    if not form.transaction:IsApplyingConcentration() then
+        op.operationInfo = form:GetRecipeOperationInfo()
+    end
+
+    return op
+end
+
 ---@param allocation? RecipeAllocation
 function Self:WithAllocation(allocation)
     return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration)
@@ -73,6 +91,18 @@ end
 ---@param reagents? CraftingReagentInfo[]
 function Self:WithFinishingReagents(reagents)
     return self:WithReagents(Enum.CraftingReagentType.Finishing, reagents)
+end
+
+---@param applyConcentration? boolean
+function Self:WithConcentration(applyConcentration)
+    if self.applyConcentration == applyConcentration then return self end
+
+    local op = Util:TblCopy(self)
+
+    op.applyConcentration = applyConcentration or false
+    op.resultPrice, op.profit = nil, nil
+
+    return op
 end
 
 -- CLASS
@@ -348,9 +378,9 @@ end
 
 ---@param stat "mc" | "rf" | "cc" | "ig"
 ---@return number
-function Self:GetStatValue(stat)
+function Self:GetStatBonus(stat)
     if not self[stat] then
-        self[stat] = Recipes:GetStatValue(self.recipe, stat, self:GetOptionalReagents())
+        self[stat] = Recipes:GetStatBonus(self.recipe, stat, self:GetOptionalReagents())
     end
     return self[stat]
 end
@@ -405,7 +435,19 @@ function Self:GetProfit()
 end
 
 function Self:GetProfitPerConcentration()
-    return self:GetProfit() / self:GetOperationInfo().concentrationCost
+    local op = self:GetOperationInfo()
+
+    if (op.concentrationCost or 0) == 0 then return math.huge, 0 end
+
+    local bonusStat = Util:TblWhere(op.bonusStats, "bonusStatName", ITEM_MOD_INGENUITY_SHORT)
+    local p = bonusStat and bonusStat.ratingPct / 100 or 0
+    local concentration = op.concentrationCost - p * op.ingenuityRefund
+
+    local profit = self:GetProfit()
+    local profitPerConcentration = profit / concentration
+    local ingenuityValue = profitPerConcentration - profit / op.concentrationCost
+
+    return profitPerConcentration, ingenuityValue
 end
 
 function Self:HasProfit()
@@ -440,7 +482,7 @@ Static.Cache = {
             return ("%d;%d;%d;%d"):format(
                 operation.recipe.recipeID,
                 operation:GetQuality(),
-                operation:GetStatValue("cc") * 100,
+                operation:GetStatBonus("cc") * 100,
                 profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill
             )
         end,

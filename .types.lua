@@ -136,8 +136,13 @@ StaticPopup_OnClick = nil
 ---@field IsActive fun(self: self, widget: Frame): boolean
 ---@field EnumerateActive fun(self:self): Enumerator<true, Frame>, Frame[]
 
----@class ReagentSlotFramePool
+---@class ReagentSlotFramePool: FramePool
+---@field Acquire fun(self: self): ReagentSlot
 ---@field EnumerateActive fun(self:self): Enumerator<true, ReagentSlot>, ReagentSlot[]
+
+---@class StatLineFramePool: FramePool
+---@field Acquire fun(self: self): RecipeStatLine
+---@field EnumerateActive fun(self:self): Enumerator<true, RecipeStatLine>, RecipeStatLine[]
 
 ---@class RecipeForm: Frame
 ---@field transaction ProfessionTransaction
@@ -274,7 +279,7 @@ ProfessionsFrame = nil
 ---@field operationInfo CraftingOperationInfo
 ---@field transaction ProfessionTransaction
 ---@field craftingQuality number
----@field statLinePool FramePool
+---@field statLinePool StatLineFramePool
 ---@field StatLines RecipeStatLines
 ---@field ApplyLayout fun()
 ---@field Layout fun(self: self)
@@ -291,6 +296,7 @@ ProfessionsFrame = nil
 ---@field baseValue number
 ---@field bonusValue number
 ---@field displayAsPct boolean
+---@field LeftLabel FontString
 ---@field RightLabel FontString
 ---@field SetLabel fun(self: self, text: string)
 ---@field GetStatFormat fun(self: self): string

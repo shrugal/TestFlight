@@ -172,7 +172,7 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param stat "mc" | "rf" | "cc" | "ig"
 ---@param optionalReagents? CraftingReagentInfo[]
-function Self:GetStatValue(recipe, stat, optionalReagents)
+function Self:GetStatBonus(recipe, stat, optionalReagents)
     local val = 0
 
     local perks = Addon.PERKS.recipes[recipe.recipeID]
@@ -190,7 +190,7 @@ function Self:GetStatValue(recipe, stat, optionalReagents)
 
     if optionalReagents then
         for _,reagent in pairs(optionalReagents) do
-            val = val + Reagents:GetStatValue(reagent, stat)
+            val = val + Reagents:GetStatBonus(reagent, stat)
         end
     end
 
@@ -205,7 +205,7 @@ function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetStatValue(recipe, "rf", optionalReagents)
+    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetStatBonus(recipe, "rf", optionalReagents)
 
     return chance * yield
 end
@@ -219,7 +219,7 @@ function Self:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
 
     local chance = stat.ratingPct / 100
     local baseYield = Addon.MULTICRAFT_YIELD[recipe.quantityMax] or Addon.MULTICRAFT_YIELD[0]
-    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatValue(recipe, "mc", optionalReagents))) / 2
+    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatBonus(recipe, "mc", optionalReagents))) / 2
 
     return chance * yield
 end

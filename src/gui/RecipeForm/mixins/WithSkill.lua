@@ -3,6 +3,7 @@ local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 
 ---@class GUI.RecipeForm.WithSkill: GUI.RecipeForm.RecipeForm
+---@field form RecipeCraftingForm
 local Self = GUI.RecipeForm.WithSkill
 
 ---@param frame NumericInputSpinner
@@ -33,6 +34,13 @@ function Self:InsertSkillSpinner(parent, ...)
 end
 
 function Self:UpdateSkillSpinner()
+    local op = self.form:GetRecipeOperationInfo()
+    if not op or not op.baseDifficulty then return end
+
+    local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill
+    local difficulty = op.baseDifficulty + op.bonusDifficulty
+
+    self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
     self.skillSpinner:SetShown(Addon.enabled and not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe())
     self.skillSpinner:SetValue(Addon.extraSkill)
 end

@@ -72,7 +72,7 @@ function Self:GetRecipeAllocation(recipe, method)
 end
 
 ---@param order CraftingOrderInfo
----@param tx? ProfessionTransaction 
+---@param tx? ProfessionTransaction
 function Self:GetOrderAllocation(order, tx)
     local quality = tx and tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
     local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
@@ -169,13 +169,13 @@ function Self:GetAllocationsForMethod(operation, method)
 
                         if quality and price > 0 and (quality > prevQuality or price < prevPrice) then
                             finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(reagent, j)
-                            
+
                             Util:DebugProfileSegment("WithFinishingReagents")
-                            
+
                             ---@type Operation, number
                             local operation, profit = operation:WithFinishingReagents(finishingReagents), nil
                             local baseWeight = operation:GetWeight()
-                            
+
                             Util:DebugProfileSegment("bonusSkill")
 
                             ---@todo Nothing that modifies skill requirements, for now

@@ -56,7 +56,7 @@ end
 function Self:GetAllocation()
     local form, order = self.form, self:GetOrder()
 
-    if form["GetRecipeOperationInfo"] and order and self:IsClaimableOrder(order) then ---@cast form RecipeCraftingForm
+    if order and self:IsClaimableOrder(order) then
         local operation = Optimization:GetOrderAllocation(order, form.transaction)
         if operation then return operation.allocation end
     end

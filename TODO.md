@@ -4,10 +4,6 @@
 
 ## Features
 
-- Show checkbox for tracked orders in the order list
-- Cost breakdown by reagent in the tooltip
-- Show profit per resourcefulness/multicraft/ingenuity point
-- Include ingenuity in profit/concentration calculation
 - Update concentration cost in experimentation mode and on unclaimed orders
 - Allow enabling concentration with insufficient currency in experimentation mode
 - Set amount when buying missing tracked reagents in the AH

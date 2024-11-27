@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Prices, Reagents, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local GUI, Operation, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 ---@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
@@ -74,18 +74,206 @@ function Self:Refresh()
     self:UpdateOptimizationButtons()
 end
 
+-- Stats
+
 function Self:UpdateDetailsStats()
-    local op = self.form:GetRecipeOperationInfo()
-    if not op or not op.baseDifficulty then return end
-
-    local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill
-    local difficulty = op.baseDifficulty + op.bonusDifficulty
-
-    self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
-
     self:UpdateSkillSpinner()
     self:UpdateConcentrationCostSpinner()
     self:UpdateOptimizationButtons()
+end
+
+---@param line RecipeStatLine
+function Self:CostStatLineOnEnter(line)
+    local op = self.operation
+
+    local label = COSTS_LABEL:gsub(":", "")
+    local reagentPrice = op and Util:NumCurrencyString(op:GetReagentPrice())
+
+    GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+
+    GameTooltip_AddColoredDoubleLine(GameTooltip, label, reagentPrice or "Not craftable", HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, not taking resourcefulness or multicraft into account.")
+
+    if op then
+        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+        GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
+
+        for slotIndex,slot in pairs(op.recipe.reagentSlotSchematics) do
+            local missing = slot.required and slot.quantityRequired or 0
+            local price, itemID = 0, nil
+
+            if op.allocation[slotIndex] then
+                for _, alloc in op.allocation[slotIndex]:Enumerate() do
+                    missing = missing - alloc.quantity
+                    price = price + alloc.quantity * Prices:GetReagentPrice(alloc.reagent)
+                    if not itemID then itemID = alloc.reagent.itemID end
+                end
+            end
+
+            if missing > 0 then
+                price = price + missing * Prices:GetReagentPrice(slot)
+            end
+
+            if price > 0 then
+                if not itemID then itemID = slot.reagents[1].itemID --[[@as number]] end
+
+                local label, _, _, _, _, _, _, _, _, icon = C_Item.GetItemInfo(itemID)
+                if icon then label = ("|T%d:0|t %s"):format(icon, label) end
+
+                GameTooltip_AddColoredDoubleLine(GameTooltip, label, Util:NumCurrencyString(price), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+            end
+        end
+
+        if op:GetRecipeInfo().supportsQualities then
+            local operations = Optimization:GetAllocationsForMethod(op, Optimization.Method.Cost)
+
+            if operations then
+                GameTooltip_AddBlankLineToTooltip(GameTooltip)
+                GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
+
+                for i=1,5 do
+                    local op = operations[i]
+                    if op then
+                        local label = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                        local priceStr = Util:NumCurrencyString(op:GetReagentPrice())
+
+                        GameTooltip_AddHighlightLine(GameTooltip, label .. " " .. priceStr)
+                    end
+                end
+            end
+        end
+    end
+
+    GameTooltip:Show()
+end
+
+---@param line RecipeStatLine
+function Self:ProfitStatLineOnEnter(line)
+    local op = self.operation
+    if not op then return end
+
+    local recipeInfo = op:GetRecipeInfo()
+    local order = op:GetOrder()
+    local reagentPrice = op:GetReagentPrice()
+    local profit, revenue, resourcefulness, multicraft, rewards, traderCut = op:GetProfit()
+
+    GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+
+    GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit", Util:NumCurrencyString(profit), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Based on reagent and result market prices, taking resourcefulness and multicraft into account.")
+
+    GameTooltip_AddBlankLineToTooltip(GameTooltip)
+    GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
+
+    -- Revenue
+    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Commission" or "Sell price", Util:NumCurrencyString(revenue), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    if order and order.npcOrderRewards then
+        GameTooltip_AddColoredDoubleLine(GameTooltip, "Rewards", Util:NumCurrencyString(rewards), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    end
+    if recipeInfo.supportsCraftingStats then
+        GameTooltip_AddColoredDoubleLine(GameTooltip, "Resourcefulness", Util:NumCurrencyString(resourcefulness), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+        if not order then
+            GameTooltip_AddColoredDoubleLine(GameTooltip, "Multicraft", Util:NumCurrencyString(multicraft), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+        end
+    end
+
+    -- Costs
+    GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagents", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+
+    if recipeInfo.supportsQualities then
+        local operations = Optimization:GetAllocationsForMethod(op, Optimization.Method.Profit)
+
+        if operations then
+            GameTooltip_AddBlankLineToTooltip(GameTooltip)
+            GameTooltip_AddNormalLine(GameTooltip, "Optimal profits:")
+
+            for i=1,5 do
+                local op = operations[i]
+                if op then
+                    local label = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                    local profitStr = Util:NumCurrencyString((op:GetProfit()))
+
+                    GameTooltip_AddHighlightLine(GameTooltip, label .. " " .. profitStr)
+                end
+            end
+        end
+    end
+
+    GameTooltip:Show()
+end
+
+---@param line RecipeStatLine
+function Self:ConcentrationStatLineOnEnter(line)
+    if not line.statLineType or not line.professionType or not line.baseValue then return end
+
+    GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+    GameTooltip:ClearLines()
+
+    local statString
+    if line.bonusValue then
+        statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(line.baseValue + line.bonusValue, line.baseValue, line.bonusValue)
+    else
+        statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(line.baseValue)
+    end
+
+    GameTooltip_AddColoredDoubleLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION, statString, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION_DESCRIPTION)
+
+    if self.operation then
+        local profitCon = self.operation:WithConcentration(true):GetProfitPerConcentration()
+        local profitNoCon = self.operation:WithConcentration(false):GetProfitPerConcentration()
+
+        if profitCon and abs(profitCon) ~= math.huge then
+            GameTooltip_AddBlankLineToTooltip(GameTooltip)
+            GameTooltip_AddColoredDoubleLine(GameTooltip, "Final profit per point", Util:NumCurrencyString(profitCon), NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+            GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit change per point", Util:NumCurrencyString(profitCon - profitNoCon), NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+        end
+    end
+
+    GameTooltip:Show()
+end
+
+---@param stat string
+---@param line RecipeStatLine
+function Self:BonusStatLineOnEnter(stat, line)
+    local op = self.operation
+    if not op then return end
+
+    local bonusStat = Util:TblWhere(op:GetOperationInfo().bonusStats, "bonusStatName", stat)
+    if not bonusStat then return end
+
+    local points = bonusStat.bonusStatValue
+
+    GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
+
+    local statStr = line:GetStatFormat():format(math.ceil(line.baseValue))
+    GameTooltip_AddColoredDoubleLine(GameTooltip, stat, statStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, bonusStat.ratingDescription)
+
+    if points > 0 then
+        GameTooltip_AddBlankLineToTooltip(GameTooltip)
+        GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_TT_FMT:format(stat, points, bonusStat.bonusRatingPct))
+
+        ---@type number?
+        local statProfit
+        if ITEM_MOD_RESOURCEFULNESS_SHORT then
+            statProfit = select(3, op:GetProfit()) --[[@as number?]]
+        elseif ITEM_MOD_MULTICRAFT_SHORT then
+            statProfit = select(4, op:GetProfit()) --[[@as number?]]
+        elseif stat == ITEM_MOD_INGENUITY_SHORT then
+            statProfit = select(2, op:WithConcentration(true):GetProfitPerConcentration()) --[[@as number]]
+        end
+
+        if statProfit and statProfit > 0 then
+            local profitStr = Util:NumCurrencyString(statProfit / points)
+
+            GameTooltip_AddBlankLineToTooltip(GameTooltip)
+            GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit change per point", profitStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+        end
+    end
+
+    GameTooltip:Show()
 end
 
 ---@param frame RecipeFormDetails
@@ -93,190 +281,70 @@ end
 ---@param supportsQualities boolean
 ---@param isGatheringRecipe boolean
 function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheringRecipe)
+    self.operation = nil
+
     if isGatheringRecipe then return end
     if not Prices:IsSourceInstalled() then return end
 
-    local recipeInfo, tx, order = frame.recipeInfo, frame.transaction, self:GetOrder()
+    local order = self:GetOrder()
+    local tx = self.form.transaction
     local recipe = tx:GetRecipeSchematic()
-    local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
+
     local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
+    local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
 
-    ---@type (ProfessionAllocations | ItemMixin)?, CraftingReagentInfo[]?, string?, CraftingItemSlotModification[]?
-    local allocation, optionalReagents, recraftGUID, recraftMods
+    ---@type number?, number?, number?
+    local reagentPrice, profit
+
     if isSalvage then
-        allocation = tx:GetSalvageAllocation()
+        local allocation = tx:GetSalvageAllocation()
+
+        if allocation then
+            reagentPrice, _, profit = Prices:GetRecipePrices(recipe, operationInfo, allocation)
+        end
     else
-        allocation = tx.allocationTbls
-        optionalReagents, recraftGUID = tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(), tx:GetRecraftAllocation()
-        recraftMods = Reagents:GetRecraftMods(order, recraftGUID)
-    end
+        if isUnclaimedOrder then ---@cast order -?
+            self.operation = Optimization:GetOrderAllocation(order, self.form.transaction)
+        else
+            self.operation = Operation:FromCraftingForm(self.form, order)
+        end
 
-    local orderOrRecraftGUID = order or recraftGUID
-
-    if isUnclaimedOrder then ---@cast order -?
-        local operation = Optimization:GetOrderAllocation(order, tx)
-        allocation = operation and operation.allocation
-        optionalReagents = operation and operation:GetOptionalReagents()
-    end
-
-    ---@type string?, number?, number?, number?, number?, number?, number?, number?
-    local reagentPriceStr, reagentPrice, profit, revenue, traderCut, resourcefulness, rewards, multicraft
-    if allocation then
-        reagentPrice, _, profit, revenue, resourcefulness, multicraft, rewards, traderCut = Prices:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents)
-        reagentPriceStr = Util:NumCurrencyString(reagentPrice)
+        if self.operation then
+            reagentPrice, profit = self.operation:GetReagentPrice(), self.operation:GetProfit()
+        end
     end
 
     local function applyExtra()
         if frame.recipeInfo == nil or ProfessionsUtil.IsCraftingMinimized() then return end
 
         -- Cost
-        do
-            local label = COSTS_LABEL:gsub(":", "")
-
-            local statLine = frame.statLinePool:Acquire() --[[@as RecipeStatLine]]
-            statLine.layoutIndex = 1000
-            statLine:SetLabel(label)
-            statLine.RightLabel:SetText(reagentPriceStr or "-")
-
-            statLine:SetScript("OnEnter", function(line)
-                GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
-
-                GameTooltip_AddColoredDoubleLine(GameTooltip, label, reagentPriceStr or "Not craftable", HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                GameTooltip_AddNormalLine(GameTooltip, "Based on reagent market prices, not taking resourcefulness or multicraft into account.")
-
-                if supportsQualities and not isSalvage then
-                    local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
-
-                    if operations then
-                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                        GameTooltip_AddNormalLine(GameTooltip, "Optimal costs:")
-
-                        for i=1,5 do
-                            local qualityOperation = operations[i]
-                            if qualityOperation then
-                                local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                                local qualityPrice = qualityOperation:GetReagentPrice()
-                                local qualityPriceStr = Util:NumCurrencyString(qualityPrice)
-
-                                GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityPriceStr)
-                            end
-                        end
-                    end
-                end
-
-                GameTooltip:Show()
-            end)
-
-            statLine:Show()
-        end
+        local statLine = frame.statLinePool:Acquire() --[[@as RecipeStatLine]]
+        statLine.layoutIndex = 1000
+        statLine:SetLabel(COSTS_LABEL:gsub(":", ""))
+        statLine.RightLabel:SetText(reagentPrice and Util:NumCurrencyString(reagentPrice) or "-")
+        statLine:SetScript("OnEnter", Util:FnBind(self.CostStatLineOnEnter, self))
+        statLine:Show()
 
         -- Profit
-        if profit then --[[@cast revenue -?]] --[[@cast rewards -?]] --[[@cast resourcefulness -?]] --[[@cast multicraft -?]]
-            local label = "Profit" -- TODO
-            local profitStr = Util:NumCurrencyString(profit)
+        local statLine = frame.statLinePool:Acquire() --[[@as RecipeStatLine]]
+        statLine.layoutIndex = 1001
+        statLine:SetLabel("Profit") -- TODO
+        statLine.RightLabel:SetText(profit and Util:NumCurrencyString(profit) or "-")
+        statLine:SetScript("OnEnter", Util:FnBind(self.ProfitStatLineOnEnter, self))
+        statLine:Show()
 
-            local statLine = frame.statLinePool:Acquire() --[[@as RecipeStatLine]]
-            statLine.layoutIndex = 1001
-            statLine:SetLabel(label) -- TODO
-            statLine.RightLabel:SetText(profitStr or "-")
+        -- Stats tooltips
+        if self.operation then
+            if frame.StatLines.ConcentrationStatLine:IsShown() then
+                frame.StatLines.ConcentrationStatLine:SetScript("OnEnter", Util:FnBind(self.ConcentrationStatLineOnEnter, self))
+            end
 
-            statLine:SetScript("OnEnter", function(line)
-                GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
-
-                GameTooltip_AddColoredDoubleLine(GameTooltip, label, profitStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                GameTooltip_AddNormalLine(GameTooltip, "Based on reagent and result market prices, taking resourcefulness and multicraft into account.")
-
-                GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                GameTooltip_AddNormalLine(GameTooltip, "Breakdown:")
-
-                -- Revenue
-                GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Commission" or "Sell price", Util:NumCurrencyString(revenue), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                if order and order.npcOrderRewards then
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Rewards", Util:NumCurrencyString(rewards), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
+            for line in frame.statLinePool:EnumerateActive() do
+                local stat = line.LeftLabel:GetText()
+                if Util:OneOf(stat,  ITEM_MOD_RESOURCEFULNESS_SHORT, ITEM_MOD_MULTICRAFT_SHORT, ITEM_MOD_INGENUITY_SHORT) then
+                    line:SetScript("OnEnter", Util:FnBind(self.BonusStatLineOnEnter, self, stat))
                 end
-                if recipeInfo.supportsCraftingStats then
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, "Resourcefulness", Util:NumCurrencyString(resourcefulness), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    if not order then
-                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Multicraft", Util:NumCurrencyString(multicraft), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    end
-                end
-
-                -- Costs
-                GameTooltip_AddColoredDoubleLine(GameTooltip, "Reagents", Util:NumCurrencyString(-reagentPrice), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-
-                if supportsQualities and not isSalvage then
-                    local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
-
-                    if operations then
-                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                        GameTooltip_AddNormalLine(GameTooltip, "Optimal profits:")
-
-                        for i=1,5 do
-                            local qualityOperation = operations[i]
-                            if qualityOperation then
-                                local qualityLabel = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
-                                local qualityProfit = qualityOperation:GetProfit() ---@cast qualityProfit -?
-                                local qualityProfitStr = Util:NumCurrencyString(qualityProfit)
-
-                                GameTooltip_AddHighlightLine(GameTooltip, qualityLabel .. " " .. qualityProfitStr)
-                            end
-                        end
-                    end
-                end
-
-                GameTooltip:Show()
-            end)
-
-            statLine:Show()
-        end
-
-        -- Concentration tooltip
-        if allocation or order then
-            frame.StatLines.ConcentrationStatLine:SetScript(
-                "OnEnter",
-                ---@param self RecipeStatLine
-                ---@diagnostic disable-next-line: redefined-local
-                function (self)
-                    if not self.statLineType or not self.professionType or not self.baseValue then return end
-
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip:ClearLines()
-
-                    local statString
-                    if self.bonusValue then
-                        statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(self.baseValue + self.bonusValue, self.baseValue, self.bonusValue)
-                    else
-                        statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(self.baseValue)
-                    end
-
-                    GameTooltip_AddColoredDoubleLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION, statString, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                    GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_CONCENTRATION_DESCRIPTION)
-
-                    local noConProfit, conProfit, concentration
-                    if order then
-                        local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost, tx, orderOrRecraftGUID)
-                        if operations then
-                            noConProfit, conProfit, concentration = Prices:GetConcentrationValueForOrder(operations, order)
-                        end
-                    elseif allocation then
-                        noConProfit, conProfit, concentration = Prices:GetConcentrationValue(recipe, operationInfo, allocation, recraftMods, optionalReagents, tx:IsApplyingConcentration())
-                    end
-
-                    if conProfit and concentration and concentration > 0 then
-                        local conProfitStr = Util:NumCurrencyString(conProfit / concentration)
-                        GameTooltip_AddBlankLineToTooltip(GameTooltip)
-                        GameTooltip_AddColoredDoubleLine(GameTooltip, "Final profit per point", conProfitStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-
-                        if noConProfit then
-                            local conProfitIncStr = Util:NumCurrencyString((conProfit - noConProfit) / concentration)
-                            GameTooltip_AddColoredDoubleLine(GameTooltip, "Profit change per point", conProfitIncStr, NORMAL_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
-                        end
-                    end
-
-                    GameTooltip:Show()
-                end
-            )
+            end
         end
 
         frame.StatLines:Layout()

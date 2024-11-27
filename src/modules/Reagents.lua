@@ -406,7 +406,7 @@ end
 
 ---@param reagent CraftingReagentInfo | number
 ---@param stat "mc" | "rf" | "cc" | "ig"
-function Self:GetStatValue(reagent, stat)
+function Self:GetStatBonus(reagent, stat)
     if type(reagent) == "table" then reagent = reagent.itemID end
 
     local stats = Addon.FINISHING_REAGENTS[reagent]
