@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Orders, Recipes, Util = Addon.Orders, Addon.Recipes, Addon.Util
+local Orders, Prices, Recipes, Util = Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class Reagents
 local Self = Addon.Reagents
@@ -23,13 +23,18 @@ function Self:GetQuantities(reagent)
 end
 
 ---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
-function Self:GetWeight(reagent)
+---@param weightPerSkill? number
+function Self:GetWeight(reagent, weightPerSkill)
     if type(reagent) == "table" then
         if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
         do reagent = reagent.itemID end
-    end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
+    end ---@cast reagent number
 
-    return Addon.REAGENTS[reagent] or 0
+    if self:HasStatBonus(reagent, "sk") then
+        return Util:NumRound(self:GetStatBonus(reagent, "sk") * weightPerSkill)
+    else
+        return Addon.REAGENTS[reagent] or 0
+    end
 end
 
 ---@param order CraftingOrderInfo
@@ -211,13 +216,21 @@ end
 
 ---@param reagents CraftingReagentInfo[]
 ---@param reagent CraftingReagentSlotSchematic
+---@param i? number
+---@param q? number
+function Self:AddCraftingInfo(reagents, reagent, i, q)
+    if q and q > 0 then tinsert(reagents, self:CreateCraftingInfoFromSchematic(reagent, i, q)) end
+end
+
+---@param reagents CraftingReagentInfo[]
+---@param reagent CraftingReagentSlotSchematic
 ---@param q1? number
 ---@param q2? number
 ---@param q3? number
 function Self:AddCraftingInfos(reagents, reagent, q1, q2, q3)
-    if q1 and q1 > 0 then tinsert(reagents, self:CreateCraftingInfoFromSchematic(reagent, 1, q1)) end
-    if q2 and q2 > 0 then tinsert(reagents, self:CreateCraftingInfoFromSchematic(reagent, 2, q2)) end
-    if q3 and q3 > 0 then tinsert(reagents, self:CreateCraftingInfoFromSchematic(reagent, 3, q3)) end
+    self:AddCraftingInfo(reagents, reagent, 1, q1)
+    self:AddCraftingInfo(reagents, reagent, 2, q2)
+    self:AddCraftingInfo(reagents, reagent, 3, q3)
 end
 
 ---------------------------------------
@@ -302,6 +315,12 @@ end
 ---------------------------------------
 
 ---@param reagent CraftingReagentSlotSchematic
+---@param recipeInfo TradeSkillRecipeInfo
+function Self:IsLocked(reagent, recipeInfo)
+    return Professions.GetReagentSlotStatus(reagent, recipeInfo)
+end
+
+---@param reagent CraftingReagentSlotSchematic
 function Self:IsBasic(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Basic and #reagent.reagents == 1
 end
@@ -331,6 +350,11 @@ end
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsOptional(reagent)
     return reagent.reagentType == Enum.CraftingReagentType.Modifying or reagent.reagentType == Enum.CraftingReagentType.Finishing
+end
+
+---@param reagent CraftingReagentSlotSchematic
+function Self:IsBonusSkill(reagent)
+    return self:IsFinishing(reagent) and Util:TblEvery(reagent.reagents, self.HasStatBonus, false, self, "sk")
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -381,13 +405,16 @@ function Self:GetQualitySlots(recipe, order, recraftMods)
     end)
 end
 
--- Get the non-skill finishing reagent slot
 ---@param recipe CraftingRecipeSchematic
----@return CraftingReagentSlotSchematic[]
-function Self:GetFinishingSlots(recipe)
-    return Util:TblFilter(recipe.reagentSlotSchematics, function (reagent)
-        return reagent.reagentType == Enum.CraftingReagentType.Finishing
-    end)
+---@param recipeInfo? TradeSkillRecipeInfo
+function Self:GetBonusSkillSlot(recipe, recipeInfo)
+    if not recipeInfo then recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID) end ---@cast recipeInfo -?
+
+    for _,slot in pairs(recipe.reagentSlotSchematics) do
+        if self:IsBonusSkill(slot) and not self:IsLocked(slot, recipeInfo) then
+            return slot
+        end
+    end
 end
 
 ---@param order? CraftingOrderInfo
@@ -404,11 +431,29 @@ end
 --              Stats
 ---------------------------------------
 
----@param reagent CraftingReagentInfo | number
----@param stat "mc" | "rf" | "cc" | "ig"
+---@param reagent CraftingReagentInfo | CraftingReagent | number
+---@param stat BonusStat
 function Self:GetStatBonus(reagent, stat)
     if type(reagent) == "table" then reagent = reagent.itemID end
 
     local stats = Addon.FINISHING_REAGENTS[reagent]
-    return stats and stats[stat] / 100 or 0
+    local val = stats and stats[stat] or 0
+
+    return stat == "sk" and val or val / 100
+end
+
+---@param reagent CraftingReagentInfo | CraftingReagent | number
+---@param stat BonusStat
+function Self:HasStatBonus(reagent, stat)
+    return self:GetStatBonus(reagent, stat) > 0
+end
+
+function Self:GetMaxBonusSkill()
+    local maxSkill = 0
+    for itemID, stats in pairs(Addon.FINISHING_REAGENTS) do
+        if (stats.sk or 0) > maxSkill and Prices:HasReagentPrice(itemID) then
+            maxSkill = stats.sk
+        end
+    end
+    return maxSkill
 end

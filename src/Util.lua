@@ -333,6 +333,31 @@ function Self:TblFind(tbl, fn, key, obj, ...)
     end
 end
 
+---@generic T, S: table
+---@param tbl T[] | Enumerator<T>
+---@param fn SearchFn<T, boolean, S>
+---@param key? boolean
+---@param obj? S
+---@param ... any
+---@return boolean
+function Self:TblSome(tbl, fn, key, obj, ...)
+    return self:TblFind(tbl, fn, key, obj, ...) ~= nil
+end
+
+---@generic T, S: table
+---@param tbl T[] | Enumerator<T>
+---@param fn SearchFn<T, boolean, S>
+---@param key? boolean
+---@param obj? S
+---@param ... any
+---@return boolean
+function Self:TblEvery(tbl, fn, key, obj, ...)
+    for k,v in self:Each(tbl) do
+        if not self:FnCall(fn, v, key and k, obj, ...) then return false end
+    end
+    return true
+end
+
 ---@generic T
 ---@param tbl T[] | Enumerator<T>
 ---@param value T
@@ -610,6 +635,25 @@ end
 function Self:NumRound(n, p)
     local f = math.pow(10, p or 0)
     return math.floor(0.5 + n * f) / f
+end
+
+---@vararg number
+function Self:NumMask(...)
+    local n = 0
+    for i=1,select("#", ...) do n = n + 2 ^ select(i, ...) end
+    return n --[[@as number]]
+end
+
+---@param mask number
+---@vararg number
+function Self:NumMaskSome(mask, ...)
+    return bit.band(mask, self:NumMask(...)) > 0
+end
+
+---@param mask number
+---@vararg number
+function Self:NumMaskEvery(mask, ...)
+    return bit.band(mask, self:NumMask(...)) == mask
 end
 
 -- Bool

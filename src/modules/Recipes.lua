@@ -170,7 +170,7 @@ end
 ---------------------------------------
 
 ---@param recipe CraftingRecipeSchematic
----@param stat "mc" | "rf" | "cc" | "ig"
+---@param stat BonusStat
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetStatBonus(recipe, stat, optionalReagents)
     local val = 0

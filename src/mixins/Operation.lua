@@ -50,28 +50,30 @@ function Self:WithAllocation(allocation)
     return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration)
 end
 
----@param reagentType Enum.CraftingReagentType
+---@param reagentTypes number
 ---@param reagents? CraftingReagentInfo[]
-function Self:WithReagents(reagentType, reagents)
+---@param finishingSlotIndex? number
+function Self:WithReagents(reagentTypes, reagents, finishingSlotIndex)
     local order = self:GetOrder()
-
     local allocation = {}
 
-    for _,slot in ipairs(self.recipe.reagentSlotSchematics) do
-        local allocations = self.allocation[slot.slotIndex]
+    for slotIndex,slot in ipairs(self.recipe.reagentSlotSchematics) do
+        local allocate = Util:NumMaskSome(reagentTypes, slot.reagentType)
+            and (not finishingSlotIndex or not Reagents:IsFinishing(slot) or slotIndex == finishingSlotIndex)
+            and (not Reagents:IsProvided(slot, order, self:GetRecraftMods()))
 
-        if slot.reagentType == reagentType and not Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
-            allocation[slot.slotIndex] = Addon:CreateAllocations()
+        if allocate then
+            allocation[slotIndex] = Addon:CreateAllocations()
 
             if reagents then
                 for _,reagent in pairs(reagents) do
                     if reagent.dataSlotIndex == slot.dataSlotIndex then
-                        Reagents:Allocate(allocation[slot.slotIndex], reagent, reagent.quantity)
+                        Reagents:Allocate(allocation[slotIndex], reagent, reagent.quantity)
                     end
                 end
             end
-        elseif allocations then
-            allocation[slot.slotIndex] = Util:TblCopy(allocations, true)
+        elseif self.allocation[slot.slotIndex] then
+            allocation[slotIndex] = Util:TblCopy(self.allocation[slot.slotIndex], true)
         end
     end
 
@@ -80,26 +82,30 @@ end
 
 ---@param reagents? CraftingReagentInfo[]
 function Self:WithQualityReagents(reagents)
-    return self:WithReagents(Enum.CraftingReagentType.Basic, reagents)
+    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Basic), reagents)
 end
 
 ---@param reagents? CraftingReagentInfo[]
-function Self:WithModifyingReagents(reagents)
-    return self:WithReagents(Enum.CraftingReagentType.Modifying, reagents)
+---@param slotIndex? number
+function Self:WithFinishingReagents(reagents, slotIndex)
+    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Finishing), reagents, slotIndex)
 end
 
 ---@param reagents? CraftingReagentInfo[]
-function Self:WithFinishingReagents(reagents)
-    return self:WithReagents(Enum.CraftingReagentType.Finishing, reagents)
+function Self:WithWeightReagents(reagents)
+    local reagentTypes = Util:NumMask(Enum.CraftingReagentType.Basic, Enum.CraftingReagentType.Finishing)
+    local slot = self:GetBonusSkillReagentSlot()
+    return self:WithReagents(reagentTypes, reagents, slot and slot.slotIndex)
 end
 
 ---@param applyConcentration? boolean
 function Self:WithConcentration(applyConcentration)
+    if applyConcentration == nil then applyConcentration = false end
     if self.applyConcentration == applyConcentration then return self end
 
     local op = Util:TblCopy(self)
 
-    op.applyConcentration = applyConcentration or false
+    op.applyConcentration = applyConcentration
     op.resultPrice, op.profit = nil, nil
 
     return op
@@ -182,11 +188,18 @@ function Self:GetQualityReagentSlots()
     return self.qualityReagentSlots
 end
 
-function Self:GetFinishingReagentSlots()
-    if not self.finishingReagentSlots then
-        self.finishingReagentSlots = Reagents:GetFinishingSlots(self.recipe)
+function Self:GetBonusSkillReagentSlot()
+    return Reagents:GetBonusSkillSlot(self.recipe, self:GetRecipeInfo())
+end
+
+function Self:GetWeightReagentSlots()
+    if not self.weightSlots then
+        self.weightSlots = Util:TblCopy(self:GetQualityReagentSlots())
+
+        local bonusSkillSlot = self:GetBonusSkillReagentSlot()
+        if bonusSkillSlot then tinsert(self.weightSlots, bonusSkillSlot) end
     end
-    return self.finishingReagentSlots
+    return self.weightSlots
 end
 
 function Self:GetQualityReagents()
@@ -242,9 +255,10 @@ function Self:GetDifficulty()
     return operationInfo.baseDifficulty + operationInfo.bonusDifficulty
 end
 
+---@param includeBonusSkillReagents? boolean
 ---@return number skillBase
 ---@return number skillBest
-function Self:GetSkillBounds()
+function Self:GetSkillBounds(includeBonusSkillReagents)
     if not self.skillBase or not self.skillBest then
         local cache = Static.Cache.SkillBounds
         local key = cache:Key(self)
@@ -255,7 +269,12 @@ function Self:GetSkillBounds()
 
         self.skillBase, self.skillBest = unpack(cache:Get(key))
     end
-    return self.skillBase, self.skillBest
+
+    if includeBonusSkillReagents and self:GetBonusSkillReagentSlot() then
+        return self.skillBase, self.skillBest + Reagents:GetMaxBonusSkill()
+    else
+        return self.skillBase, self.skillBest
+    end
 end
 
 function Self:GetWeight()
@@ -270,6 +289,10 @@ function Self:GetMaxWeight()
         self.maxWeight = Reagents:GetMaxWeight(self:GetQualityReagentSlots())
     end
     return self.maxWeight
+end
+
+function Self:GetWeightPerSkill()
+    return self:GetMaxWeight() / select(2, self:GetSkillBounds()) --[[@as number]]
 end
 
 ---@param absolute? boolean
@@ -376,7 +399,7 @@ end
 
 -- Stats
 
----@param stat "mc" | "rf" | "cc" | "ig"
+---@param stat BonusStat
 ---@return number
 function Self:GetStatBonus(stat)
     if not self[stat] then

@@ -288,13 +288,13 @@ function Self:UpdateCreatingReagents()
 
     local form = ProfessionsCustomerOrdersFrame.Form
     local order = form.order
-    local tracked = self:IsTracked(order)
+    local tracked = order and self:IsTracked(order)
 
     if tracked then
         for slot in form.reagentSlotPool:EnumerateActive() do
             self:UpdateCreatingReagent(slot, true)
         end
-    elseif Self.creatingProvided[order.isRecraft][order.spellID] then
+    elseif order and Self.creatingProvided[order.isRecraft][order.spellID] then
         Self.creatingProvided[order.isRecraft][order.spellID] = nil
     end
 

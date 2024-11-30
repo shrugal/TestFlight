@@ -269,6 +269,11 @@ function Self:GetReagentPrice(reagent)
     return self:GetItemPrice(reagent)
 end
 
+---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+function Self:HasReagentPrice(reagent)
+    return self:GetReagentPrice(reagent) > 0
+end
+
 ---@param reagent CraftingReagentSlotSchematic
 ---@return number, number?, number?
 function Self:GetReagentPrices(reagent)

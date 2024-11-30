@@ -17,7 +17,10 @@ function Self:GetRecipe()
 end
 
 function Self:IsCraftingRecipe()
-    local recipeInfo = self.form:GetRecipeInfo()
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
     if not recipeInfo then return end
 
     return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe

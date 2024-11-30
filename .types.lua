@@ -17,9 +17,25 @@
 
 ---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 
+-- mc: Multicraft yield
+-- rf: Resourcefulness yield
+-- cc: Concentration cost reduction
+-- ig: Ingenuity refund
+-- sk: Skill
+---@alias BonusStat "mc" | "rf" | "cc" | "ig" | "sk"
+
 -----------------------------------------------------
 ---                   Globals                      --
 -----------------------------------------------------
+
+---[Documentation](https://warcraft.wiki.gg/wiki/API_debugstack)
+---@param coroutine thread
+---@param start? number
+---@param count1? number
+---@param count2? number
+---@return string description
+---@overload fun(start?: number, count1?: number, count2?: number)
+function debugstack(coroutine, start, count1, count2) end
 
 ipairs_reverse = ipairs
 
@@ -149,7 +165,6 @@ StaticPopup_OnClick = nil
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
 ---@field reagentSlotPool ReagentSlotFramePool
 ---@field AllocateBestQualityCheckbox CheckButton
----@field GetRecipeInfo fun(self: self): TradeSkillRecipeInfo
 ---@field TriggerEvent fun(self: self, event: string)
 
 ---@class ProfessionTransaction
@@ -267,6 +282,7 @@ ProfessionsFrame = nil
 ---@field currentRecipeInfo TradeSkillRecipeInfo
 ---@field recraftSlot RecraftSlot
 ---@field UpdateRecraftSlot fun(self: self)
+---@field GetRecipeInfo fun(self: self): TradeSkillRecipeInfo
 ---@field GetCurrentRecipeLevel fun(self: self): number
 ---@field GetTransaction fun(self: self): ProfessionTransaction
 
@@ -422,6 +438,7 @@ C_TradeSkillUI = {}
 ---@field AllocateAllBasicReagents fun(transaction: ProfessionTransaction, useBestQuality?: boolean)
 ---@field InitFilterMenu fun(dropdown: DropdownButton, onUpdate?: function, onDefault?: function, ignoreSkillLine?: boolean)
 ---@field SetDefaultFilters fun(ignoreSkillLine?: boolean)
+---@field GetReagentSlotStatus fun(reagent: CraftingReagentSlotSchematic, recipeInfo, TradeSkillRecipeInfo): boolean, string?
 Professions = {}
 
 ---@class ProfessionsUtil

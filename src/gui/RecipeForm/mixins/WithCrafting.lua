@@ -243,23 +243,22 @@ function Self:BonusStatLineOnEnter(stat, line)
     local bonusStat = Util:TblWhere(op:GetOperationInfo().bonusStats, "bonusStatName", stat)
     if not bonusStat then return end
 
-    local points = bonusStat.bonusStatValue
-
     GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
 
     local statStr = line:GetStatFormat():format(math.ceil(line.baseValue))
     GameTooltip_AddColoredDoubleLine(GameTooltip, stat, statStr, HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
     GameTooltip_AddNormalLine(GameTooltip, bonusStat.ratingDescription)
 
+    local points = bonusStat.bonusStatValue
     if points > 0 then
         GameTooltip_AddBlankLineToTooltip(GameTooltip)
         GameTooltip_AddNormalLine(GameTooltip, PROFESSIONS_CRAFTING_STAT_TT_FMT:format(stat, points, bonusStat.bonusRatingPct))
 
         ---@type number?
         local statProfit
-        if ITEM_MOD_RESOURCEFULNESS_SHORT then
+        if stat == ITEM_MOD_RESOURCEFULNESS_SHORT then
             statProfit = select(3, op:GetProfit()) --[[@as number?]]
-        elseif ITEM_MOD_MULTICRAFT_SHORT then
+        elseif stat == ITEM_MOD_MULTICRAFT_SHORT then
             statProfit = select(4, op:GetProfit()) --[[@as number?]]
         elseif stat == ITEM_MOD_INGENUITY_SHORT then
             statProfit = select(2, op:WithConcentration(true):GetProfitPerConcentration()) --[[@as number]]

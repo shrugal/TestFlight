@@ -1,4 +1,6 @@
 - Optimize unclaimed orders for max. profit instead of min. cost
+- Ignore locked finishing reagent slots when optimizing reagents
+- Include tradable finishing reagents that provide extra skill in optimization
 - Include ingenuity in profit per concentration calculation
 - Show profit change per point for resourcefulness, multicraft and ingenuity in tooltips
 - Show cost breakdown per reagent in cost tooltip
