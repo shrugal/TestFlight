@@ -95,10 +95,6 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     if not order or order.spellID ~= recipeID then return end
 
     self.trackOrderBox:SetShown(tracked)
-
-    if not tracked then return end
-
-    Orders:SetTracked(order)
 end
 
 ---@param updatedOrder CraftingOrderInfo
@@ -115,8 +111,10 @@ function Self:OnTrackedOrderUpdated(updatedOrder, tracked)
 end
 
 function Self:OnTrackRecipeCheckboxClicked()
-    local recipe = self:GetRecipe()
-    if not recipe or not self:GetTrackRecipeCheckbox():GetChecked() then return end
+    local recipe, order = self:GetRecipe(), self:GetOrder()
+    if not recipe or not order or not self:GetTrackRecipeCheckbox():GetChecked() then return end
+
+    Orders:SetTracked(order)
 
     Recipes:SetTrackedAmount(recipe, 0)
 end

@@ -9,4 +9,5 @@
 - Disable NPC order reward icon replacement if "No Mats; No Make" is also installed
 - Fix trying to get price from OribosExchange for BoP items
 - Fix trying to set unlearned order recipe name color when name isn't loaded yet
+- Fix tracking order if customer order form is open when starting to track a recipe
 - Internal: Crafting form code refactoring
