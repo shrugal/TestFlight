@@ -95,7 +95,7 @@ end
 function Self:WithWeightReagents(reagents)
     local reagentTypes = Util:NumMask(Enum.CraftingReagentType.Basic, Enum.CraftingReagentType.Finishing)
     local slot = self:GetBonusSkillReagentSlot()
-    return self:WithReagents(reagentTypes, reagents, slot and slot.slotIndex)
+    return self:WithReagents(reagentTypes, reagents, slot and slot.slotIndex or 0)
 end
 
 ---@param applyConcentration? boolean
@@ -124,15 +124,13 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
     self.applyConcentration = applyConcentration
 
     local order = self:GetOrder()
+
     for slotIndex,alloc in pairs(self.allocation) do
         local slot = self.recipe.reagentSlotSchematics[slotIndex]
 
         if not Reagents:IsModified(slot) then
             -- Remove non-modifying reagents
             self.allocation[slotIndex] = nil
-        elseif Reagents:IsFinishing(slot) and Prices:HasReagentPrice(slot) then
-            -- Clear tradable finishing reagents
-            Reagents:ClearAllocations(alloc)
         elseif Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
             -- Allocate provided order reagents
             Reagents:ClearAllocations(alloc)
@@ -234,6 +232,10 @@ function Self:GetRecraftMods()
         self.recraftMods = Reagents:GetRecraftMods(self:GetOrder(), self:GetRecraftGUID())
     end
     return self.recraftMods
+end
+
+function Self:HasAllocation(slotIndex)
+    return self.allocation[slotIndex] and self.allocation[slotIndex]:HasAnyAllocations()
 end
 
 -- Quality
