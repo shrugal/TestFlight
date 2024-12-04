@@ -123,20 +123,24 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
 
-    -- Remove non-modifying and allocate provided order reagents
     local order = self:GetOrder()
-    for slotIndex,allocations in pairs(self.allocation) do
+    for slotIndex,alloc in pairs(self.allocation) do
         local slot = self.recipe.reagentSlotSchematics[slotIndex]
 
         if not Reagents:IsModified(slot) then
+            -- Remove non-modifying reagents
             self.allocation[slotIndex] = nil
+        elseif Reagents:IsFinishing(slot) and Prices:HasReagentPrice(slot) then
+            -- Clear tradable finishing reagents
+            Reagents:ClearAllocations(alloc)
         elseif Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
-            Reagents:ClearAllocations(allocations)
+            -- Allocate provided order reagents
+            Reagents:ClearAllocations(alloc)
 
             for _,reagent in pairs(Reagents:GetProvided(slot, order, self:GetRecraftMods())) do
                 local quantity = reagent.quantity or 1
-                if allocations:GetQuantityAllocated(reagent) < quantity then
-                    Reagents:Allocate(allocations, reagent, quantity)
+                if alloc:GetQuantityAllocated(reagent) < quantity then
+                    Reagents:Allocate(alloc, reagent, quantity)
                 end
             end
         end
@@ -257,9 +261,9 @@ end
 
 ---@param includeBonusSkillReagents? boolean
 ---@return number skillBase
----@return number skillBest
+---@return number skillRange
 function Self:GetSkillBounds(includeBonusSkillReagents)
-    if not self.skillBase or not self.skillBest then
+    if not self.skillBase or not self.skillRange then
         local cache = Static.Cache.SkillBounds
         local key = cache:Key(self)
 
@@ -267,13 +271,13 @@ function Self:GetSkillBounds(includeBonusSkillReagents)
             cache:Set(key, { Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID) })
         end
 
-        self.skillBase, self.skillBest = unpack(cache:Get(key))
+        self.skillBase, self.skillRange = unpack(cache:Get(key))
     end
 
     if includeBonusSkillReagents and self:GetBonusSkillReagentSlot() then
-        return self.skillBase, self.skillBest + Reagents:GetMaxBonusSkill()
+        return self.skillBase, self.skillRange + Reagents:GetMaxBonusSkill()
     else
-        return self.skillBase, self.skillBest
+        return self.skillBase, self.skillRange
     end
 end
 
@@ -314,8 +318,8 @@ function Self:GetWeightThresholds(absolute)
 
     if absolute then return lower / difficulty, upper / difficulty end
 
-    local _, bestSkill = self:GetSkillBounds()
-    return ceil(lower / bestSkill), min(maxWeight, floor(upper / bestSkill))
+    local _, skillRange = self:GetSkillBounds()
+    return ceil(lower / skillRange), min(maxWeight, floor(upper / skillRange))
 end
 
 function Self:GetConcentrationFactors()
@@ -328,13 +332,13 @@ function Self:GetConcentrationFactors()
             local concentrationFactors = {}
 
             local maxWeight = self:GetMaxWeight()
-            local baseSkill, bestSkill = self:GetSkillBounds()
+            local baseSkill, skillRange = self:GetSkillBounds()
             local lowerSkill, upperSkill = self:GetSkillThresholds(true)
             local prevWeight, prevCon
 
             for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
                 local skill = lowerSkill + v * (upperSkill - lowerSkill)
-                local weight = max(0, maxWeight * (skill - baseSkill) / bestSkill)
+                local weight = max(0, maxWeight * (skill - baseSkill) / skillRange)
 
                 local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
                 local op = self:WithQualityReagents(reagents)
@@ -359,18 +363,14 @@ function Self:GetConcentrationFactors()
 end
 
 function Self:GetConcentrationCost(weight)
-    Util:DebugProfileLevel("GetConcentrationCost")
-
     local concentration = self:GetOperationInfo().concentrationCost
 
     if not weight or weight == self:GetWeight() then
-        Util:DebugProfileLevelStop()
-
         return concentration
     end
 
     local conFactors = self:GetConcentrationFactors()
-    local baseSkill, bestSkill = self:GetSkillBounds()
+    local baseSkill, skillRange = self:GetSkillBounds()
     local lowerSkill, upperSkill = self:GetSkillThresholds(true)
     local maxWeight = self:GetMaxWeight()
     local currCon = concentration
@@ -384,15 +384,13 @@ function Self:GetConcentrationCost(weight)
        local v = Addon.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
        local f = conFactors[d == 1 and i or n-i]
        local targetSkill = lowerSkill + v * (upperSkill - lowerSkill)
-       local targetWeight = bound(weight, maxWeight * (targetSkill - baseSkill) / bestSkill)
+       local targetWeight = bound(weight, maxWeight * (targetSkill - baseSkill) / skillRange)
 
        if targetWeight * d > currWeight * d and targetWeight * d <= weight * d then
           currCon = currCon + (targetWeight - currWeight) * f
           currWeight = targetWeight
        end
     end
-
-    Util:DebugProfileLevelStop()
 
     return currCon
 end

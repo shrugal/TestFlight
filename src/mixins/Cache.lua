@@ -8,7 +8,7 @@ local Util = Addon.Util
 local Static = Addon.Cache
 
 ---@type Cache[]
-Static.caches = {}
+Static.caches = setmetatable({}, { __mode = 'v' })
 
 Static.NIL = {}
 

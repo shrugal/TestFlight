@@ -1,7 +1,12 @@
 - Optimize unclaimed orders for max. profit instead of min. cost
 - Ignore locked finishing reagent slots when optimizing reagents
 - Include tradable finishing reagents that provide extra skill in optimization
+- Don't replace non-tradable finishing reagents when optimizing
+- Always clear tradable finishing reagents before optimizing, regardless of method
 - Include ingenuity in profit per concentration calculation
 - Show profit change per point for resourcefulness, multicraft and ingenuity in tooltips
 - Show cost breakdown per reagent in cost tooltip
+- Disable NPC order reward icon replacement if "No Mats; No Make" is also installed
+- Fix trying to get price from OribosExchange for BoP items
+- Fix trying to set unlearned order recipe name color when name isn't loaded yet
 - Internal: Crafting form code refactoring

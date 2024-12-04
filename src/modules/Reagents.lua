@@ -91,9 +91,9 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
     end
 
     local skillBase = opBase.baseSkill + opBase.bonusSkill
-    local skillBest = opBest.baseSkill + opBest.bonusSkill - skillBase
+    local skillRange = opBest.baseSkill + opBest.bonusSkill - skillBase
 
-    return skillBase, skillBest
+    return skillBase, skillRange
 end
 
 ---@return number[] reagents
@@ -316,8 +316,10 @@ end
 
 ---@param reagent CraftingReagentSlotSchematic
 ---@param recipeInfo TradeSkillRecipeInfo
+---@return boolean
+---@return string?
 function Self:IsLocked(reagent, recipeInfo)
-    return Professions.GetReagentSlotStatus(reagent, recipeInfo)
+    return Util:TblGetHooked(Professions, "GetReagentSlotStatus")(reagent, recipeInfo)
 end
 
 ---@param reagent CraftingReagentSlotSchematic

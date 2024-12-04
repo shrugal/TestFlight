@@ -168,18 +168,10 @@ function Self:UpdateSort(refresh)
         self.frame.RecipeList.NoResultsText:SetShown(false)
 
         self.sortJob = Promise:Async(function ()
-            -- Util:DebugProfileStart("Job")
-
             Promise:GetCurrent():SetPriority(5)
 
-            Util:DebugProfileLevel("Recipe")
-
             for i,recipeID in ipairs(recipeIDs) do
-                Util:DebugProfileSegment()
-
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
-
-                Util:DebugProfileSegment("GetRecipeAllocation")
 
                 local key, time = cache:Key(recipe), Prices:GetRecipeScanTime(recipe)
                 if not cache:Has(key) or cache:Get(key)[1] ~= time then
@@ -188,11 +180,7 @@ function Self:UpdateSort(refresh)
 
                 local operation = cache:Get(key)[2]
                 if operation then
-                    Util:DebugProfileSegment()
-
                     local value = Optimization:GetOperationValue(operation, method)
-
-                    Util:DebugProfileSegment("DataProvider Insert")
 
                     if value and abs(value) ~= math.huge then
                         self.dataProvider:Insert({
@@ -208,18 +196,10 @@ function Self:UpdateSort(refresh)
                 Promise:YieldProgress(i, n)
             end
 
-            Util:DebugProfileLevelStop()
-
-            Util:DebugProfileSegment("NoResultsText")
-
             self.frame.RecipeList.NoResultsText:SetShown(self.dataProvider:IsEmpty())
-
-            Util:DebugProfileSegment("DataProvider Invalidate")
 
             -- Fix last recipe not getting sorted correctly
             self.dataProvider:Invalidate()
-
-            Util:DebugProfileStop()
         end):Start(function ()
             self.progressBar:Start(n)
             return function () self.progressBar:Progress(n, n) end

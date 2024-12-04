@@ -291,11 +291,8 @@ function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     end
 
     local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
-    local id, link = data.itemID, data.hyperlink
 
-    if link and select(14, C_Item.GetItemInfo(link)) == Enum.ItemBind.OnAcquire then return 0 end
-
-    return link or id
+    return data.hyperlink or data.itemID
 end
 
 ---@param recipe CraftingRecipeSchematic
