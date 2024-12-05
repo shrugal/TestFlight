@@ -177,6 +177,8 @@ function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qual
     local item = Recipes:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     if not item then return 0 end
 
+    if select(14, C_Item.GetItemInfo(item)) == Enum.ItemBind.OnAcquire then return 0 end
+
     local price = self:GetItemPrice(item)
     local quantity = (recipe.quantityMin + recipe.quantityMax) / 2 -- TODO
 
