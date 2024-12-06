@@ -78,6 +78,26 @@ function Self:InsertCheckbox(parent, onEnter, onClick, ...)
     return input
 end
 
+---@param parent Frame
+---@param drawLayer? DrawLayer
+---@param templateName? string
+---@param text? string
+---@param onEnter? function
+function Self:InsertFontString(parent, drawLayer, templateName, text, onEnter, ...)
+    local font = parent:CreateFontString(nil, drawLayer or "ARTWORK", templateName or "GameFontNormal")
+
+    if onEnter then
+        font:SetMouseMotionEnabled(true)
+        font:SetScript("OnEnter", onEnter)
+        font:SetScript("OnLeave", GameTooltip_Hide)
+    end
+
+    if text then font:SetText(text) end
+    if ... then font:SetPoint(...) end
+
+    return font
+end
+
 ---------------------------------------
 --              Tooltip
 ---------------------------------------

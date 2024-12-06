@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Util = Addon.GUI, Addon.Util
+local GUI, Optimization, Util = Addon.GUI, Addon.Optimization, Addon.Util
 local NS = GUI.RecipeForm
 
 ---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithAmount
@@ -8,6 +8,8 @@ local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithOrde
 
 ---@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithOrder
 local Self = Mixin(NS.OrdersForm, Parent)
+
+Self.optimizationMethod = Optimization.Method.Profit
 
 ---------------------------------------
 --              Hooks

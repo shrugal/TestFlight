@@ -21,6 +21,34 @@ Addon.MULTICRAFT_YIELD = {
 
 Addon.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
 
+-- Source: https://www.wowhead.com/items/miscellaneous/other/name:Knowledge/quality:3?filter=166;11;0
+---@type number[]
+Addon.KNOWLEDGE_POINTS = {
+    [228724] = 1,
+    [228736] = 1,
+    [228726] = 1,
+    [228730] = 1,
+    [228734] = 1,
+    [228738] = 1,
+    [228728] = 1,
+    [228732] = 1,
+    [228725] = 2,
+    [228735] = 2,
+    [228729] = 2,
+    [228739] = 2,
+    [228727] = 2,
+    [228733] = 2,
+    [228737] = 2,
+    [228731] = 2,
+}
+
+-- Source: https://www.wowhead.com/items/trade-goods/other/name:Artisan
+---@type true[]
+Addon.ARTISAN_CURRENCY = {
+    [210814] = true,
+    [190456] = true,
+}
+
 -- Source: CraftSim
 ---@type table<number, number>
 Addon.REAGENTS = {

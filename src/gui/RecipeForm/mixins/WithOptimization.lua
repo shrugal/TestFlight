@@ -88,7 +88,7 @@ end
 function Self:ConcentrationCostSpinnerOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
     GameTooltip_AddColoredLine(GameTooltip, "Cost per Concentration", HIGHLIGHT_FONT_COLOR)
-    GameTooltip_AddNormalLine(GameTooltip, "Set the max. amount of gold you are willing to spend to save one concentration point.")
+    GameTooltip_AddNormalLine(GameTooltip, "Amount of gold you are willing to spend to save one concentration point.")
     GameTooltip:Show()
 end
 
@@ -106,11 +106,14 @@ function Self:InsertConcentrationCostSpinner(parent, ...)
         Util:FnBind(self.ConcentrationCostSpinnerOnChange, self),
         ...
     )
-    self:UpdateConcentrationCostSpinner()
+
     self.concentrationCostSpinner:SetWidth(26)
+    self.concentrationCostSpinner.DecrementButton:SetAlpha(0.8)
+    self.concentrationCostSpinner.IncrementButton:SetAlpha(0.8)
+
+    self:UpdateConcentrationCostSpinner()
+
     self.concentrationCostSpinner:SetMinMaxValues(0, 999)
-    self.concentrationCostSpinner.DecrementButton:SetAlpha(0.7)
-    self.concentrationCostSpinner.IncrementButton:SetAlpha(0.7)
 end
 
 function Self:UpdateConcentrationCostSpinner()

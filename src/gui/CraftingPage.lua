@@ -36,7 +36,10 @@ function Self:ValidateControls()
     self.frame.CreateButton:SetEnabled(false)
     self.frame.CreateAllButton:SetEnabled(false)
     self.frame.CreateMultipleInputBox:SetEnabled(false)
+
     self.frame:SetCreateButtonTooltipText("Experimentation mode is enabled.")
+    self.frame.CreateButton:SetScript("OnLeave", GameTooltip_Hide)
+    self.frame.CreateAllButton:SetScript("OnLeave", GameTooltip_Hide)
 end
 
 ---------------------------------------

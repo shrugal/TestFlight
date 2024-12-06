@@ -310,6 +310,30 @@ function Self:Enumerate()
     return Util:TblEnum(self.tracked, 3)
 end
 
+---@param order CraftingOrderInfo
+function Self:GetNumKnowledgeReward(order)
+    if order.orderType ~= Enum.CraftingOrderType.Npc then return 0 end
+
+    local n = 0
+    for _,reward in pairs(order.npcOrderRewards) do
+        local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
+        n = n + (Addon.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
+    end
+    return n
+end
+
+---@param order CraftingOrderInfo
+function Self:GetNumCurrencyReward(order)
+    if order.orderType ~= Enum.CraftingOrderType.Npc then return 0 end
+
+    local n = 0
+    for _,reward in pairs(order.npcOrderRewards) do
+        local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
+        n = n + (Addon.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
+    end
+    return n
+end
+
 ---------------------------------------
 --              Events
 ---------------------------------------

@@ -322,20 +322,20 @@ end
 
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
----@param fn SearchFn<T, boolean, S>
+---@param fn? SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
 ---@return any?, T?
 function Self:TblFind(tbl, fn, key, obj, ...)
     for k,v in self:Each(tbl) do
-        if self:FnCall(fn, v, key and k, obj, ...) then return k, v end
+        if self:FnCall(fn or self.FnId, v, key and k, obj, ...) then return k, v end
     end
 end
 
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
----@param fn SearchFn<T, boolean, S>
+---@param fn? SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
@@ -346,14 +346,14 @@ end
 
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
----@param fn SearchFn<T, boolean, S>
+---@param fn? SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
 ---@return boolean
 function Self:TblEvery(tbl, fn, key, obj, ...)
     for k,v in self:Each(tbl) do
-        if not self:FnCall(fn, v, key and k, obj, ...) then return false end
+        if not self:FnCall(fn or self.FnId, v, key and k, obj, ...) then return false end
     end
     return true
 end
@@ -615,6 +615,23 @@ end
 
 -- Num
 
+---@param n number
+---@param p? number
+function Self:NumRound(n, p)
+    local f = math.pow(10, p or 0)
+    return math.floor(0.5 + n * f) / f
+end
+
+---@param n number
+function Self:NumRoundCurrency(n)
+    if abs(n) > 10000 then
+        n = self:NumRound(n, -4)
+    elseif abs(n) > 100 then
+        n = self:NumRound(n, -2)
+    end
+    return n
+end
+
 ---@param amount number
 ---@param color? boolean | string | ColorMixin
 ---@param fontHeight? number
@@ -630,11 +647,6 @@ function Self:NumCurrencyString(amount, color, fontHeight)
     if type(color) == "string" then str = ("|c%s%s|r"):format(color, str) end
 
     return str
-end
-
-function Self:NumRound(n, p)
-    local f = math.pow(10, p or 0)
-    return math.floor(0.5 + n * f) / f
 end
 
 ---@vararg number
@@ -669,6 +681,7 @@ function Self.FnFalse() return false end
 function Self.FnTrue() return true end
 
 function Self.FnId(...) return ... end
+function Self.FnId2(...) return select(2, ...) end
 
 function Self.FnNoop() end
 

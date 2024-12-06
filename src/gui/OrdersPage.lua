@@ -9,6 +9,7 @@ local Self = GUI.OrdersPage
 ---@type Cache<number, fun(self: Cache, order: CraftingOrderInfo): number>
 Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50)
 
+-- Orders list
 
 function Self:AdjustOrdersList()
     local browseFrame = self.frame.BrowseFrame
@@ -39,12 +40,24 @@ end
 
 -- Track all orders checkbox
 
+function Self:TrackAllOrdersBoxOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip_AddColoredLine(GameTooltip, "Track all matching orders", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Track all craftable orders with learned recipes, and that are profitable or give enough knowledge or artisan currency.")
+    GameTooltip:Show()
+end
+
 function Self:TrackAllOrdersBoxOnClick(frame)
     self:SetAllOrdersTracked(frame:GetChecked())
 end
 
 function Self:InsertTrackAllOrdersBox()
-    local input = GUI:InsertCheckbox(self.frame.BrowseFrame, nil, Util:FnBind(self.TrackAllOrdersBoxOnClick, self), "BOTTOMLEFT", self.frame.BrowseFrame.RecipeList, "BOTTOMRIGHT", 3, 0)
+    local input = GUI:InsertCheckbox(
+        self.frame.BrowseFrame,
+        Util:FnBind(self.TrackAllOrdersBoxOnEnter, self),
+        Util:FnBind(self.TrackAllOrdersBoxOnClick, self),
+        "BOTTOMLEFT", self.frame.BrowseFrame.RecipeList, "BOTTOMRIGHT", 3, 0
+    )
 
     input:SetSize(26, 26)
     input.text:SetPoint("LEFT", input, "RIGHT", 0, 1)
@@ -54,12 +67,113 @@ function Self:InsertTrackAllOrdersBox()
 end
 
 function Self:UpdateTrackAllOrdersBox()
-    local enabled = self:HasOrders()
+    local enabled = self:HasNextOrder() or self:HasTrackableOrders()
     local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
 
     self.trackAllOrdersBox:SetEnabled(enabled)
     self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
     self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
+end
+
+-- Track all filters
+
+function Self:TrackAllKnowledgeFiltersOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip_AddColoredLine(GameTooltip, "Cost per Knowledge Point", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Amount of gold you are willing to spend per profession knowledge point.")
+    GameTooltip:Show()
+end
+
+function Self:TrackAllCurrencyFiltersOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip_AddColoredLine(GameTooltip, "Cost per Artisan Currency", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Amount of gold you are willing to spend per artisan currency item.")
+    GameTooltip:Show()
+end
+
+---@param frame NumericInputSpinner
+---@param value number
+function Self:TrackAllKnowledgeFiltersOnChange(frame, value)
+    Addon:SetKnowledgeCost(value * 10000)
+end
+
+---@param frame NumericInputSpinner
+---@param value number
+function Self:TrackAllCurrencyFiltersOnChange(frame, value)
+    Addon:SetCurrencyCost(value * 10000)
+end
+
+function Self:InsertTrackAllFilters()
+    -- Knowledge
+
+    local input = GUI:InsertNumericSpinner(
+        self.frame.BrowseFrame,
+        Util:FnBind(self.TrackAllKnowledgeFiltersOnEnter, self),
+        Util:FnBind(self.TrackAllKnowledgeFiltersOnChange, self),
+        "LEFT", self.trackAllOrdersBox.text, "RIGHT", 50, 0
+    )
+    self.trackAllKnowledgeFilter = input
+
+    input:SetShown(true)
+    input:SetWidth(32)
+    input:SetMaxLetters(4)
+    input.DecrementButton:SetAlpha(0.8)
+    input.IncrementButton:SetAlpha(0.8)
+
+    self.trackAllKnowledgeFilterText = GUI:InsertFontString(
+        self.frame.BrowseFrame,
+        nil, "GameFontHighlight",
+        ("|T%s|t / |T%s|t"):format(
+            "Interface\\MoneyFrame\\UI-GoldIcon:15",
+            "Interface\\Icons\\Inv_cosmicvoid_orb:15:15:0:0:64:64:4:60:4:60"
+        ),
+        Util:FnBind(self.TrackAllKnowledgeFiltersOnEnter, self),
+        "LEFT", input.IncrementButton, "RIGHT", 0, 0
+    )
+
+    -- Artisan currency
+
+    local input = GUI:InsertNumericSpinner(
+        self.frame.BrowseFrame,
+        Util:FnBind(self.TrackAllCurrencyFiltersOnEnter, self),
+        Util:FnBind(self.TrackAllCurrencyFiltersOnChange, self),
+        "LEFT", self.trackAllKnowledgeFilterText, "RIGHT", 45, 0
+    )
+    self.trackAllCurrencyFilter = input
+
+    input:SetShown(true)
+    input:SetWidth(32)
+    input:SetMaxLetters(4)
+    input.DecrementButton:SetAlpha(0.8)
+    input.IncrementButton:SetAlpha(0.8)
+
+    self.trackAllCurrencyFilterText = GUI:InsertFontString(
+        self.frame.BrowseFrame,
+        nil, "GameFontHighlight",
+        ("|T%s|t / |T%s|t"):format(
+            "Interface\\MoneyFrame\\UI-GoldIcon:15",
+            "Interface\\Icons\\Inv_10_gearcraft_artisansmettle_color3:15:15:0:0:64:64:4:60:4:60"
+        ),
+        Util:FnBind(self.TrackAllCurrencyFiltersOnEnter, self),
+        "LEFT", input.IncrementButton, "RIGHT", 0, 0
+    )
+
+    self:UpdateTrackAllFilters()
+
+    self.trackAllKnowledgeFilter:SetMinMaxValues(0, 9999)
+    self.trackAllCurrencyFilter:SetMinMaxValues(0, 9999)
+end
+
+function Self:UpdateTrackAllFilters()
+    local shown = self.frame.orderType == Enum.CraftingOrderType.Npc
+
+    self.trackAllKnowledgeFilter:SetShown(shown)
+    self.trackAllKnowledgeFilterText:SetShown(shown)
+    self.trackAllCurrencyFilter:SetShown(shown)
+    self.trackAllCurrencyFilterText:SetShown(shown)
+
+    self.trackAllKnowledgeFilter:SetValue(floor(Addon.DB.Account.knowledgeCost / 10000))
+    self.trackAllCurrencyFilter:SetValue(floor(Addon.DB.Account.currencyCost / 10000))
 end
 
 ---------------------------------------
@@ -118,15 +232,7 @@ function Self:CommissionCellPopulate(cell, rowData)
 
     -- Profit
 
-    local cache = self.profitCache
-    local key = cache:Key(order)
-
-    if not cache:Has(key) then
-        local operation = Optimization:GetOrderAllocation(order)
-        cache:Set(key, operation and operation:GetProfit())
-    end
-
-    local profit = cache:Get(key)
+    local profit = self:GetOrderProfit(order)
 
     moneyFrame.SilverDisplay:SetShowsZeroAmount(false)
     moneyFrame.CopperDisplay:SetForcedHidden(false)
@@ -136,13 +242,7 @@ function Self:CommissionCellPopulate(cell, rowData)
         moneyFrame:SetAmount(0)
         moneyFrame.CopperDisplay.Text:SetText("-")
     else
-        if abs(profit) > 10000 then
-            profit = Util:NumRound(profit, -4)
-        elseif abs(profit) > 100 then
-            profit = Util:NumRound(profit, -2)
-        end
-
-        moneyFrame:SetAmount(abs(profit))
+        moneyFrame:SetAmount(abs(Util:NumRoundCurrency(profit)))
 
         if profit < 0 then
             local frame = moneyFrame.GoldDisplay:IsShown() and moneyFrame.GoldDisplay or moneyFrame.SilverDisplay
@@ -174,10 +274,13 @@ function Self:CommissionCellPopulate(cell, rowData)
         cell.RewardIcon:SetPoint("LEFT")
 
         ---@diagnostic disable-next-line: inject-field
-        cell.RewardText = cell:CreateFontString(nil, "ARTWORK", "Number14FontWhite")
-        cell.RewardText:SetPoint("LEFT")
-        cell.RewardText:SetMouseMotionEnabled(true)
-        cell.RewardText:SetScript("OnEnter", function (...) cell.RewardIcon:GetScript("OnEnter")(...) end)
+        cell.RewardText = GUI:InsertFontString(
+            cell,
+            "ARTWORK", "Number14FontWhite",
+            nil,
+            function (...) cell.RewardIcon:GetScript("OnEnter")(...) end,
+            "LEFT"
+        )
         cell.RewardText:SetScript("OnLeave", function (...) cell.RewardIcon:GetScript("OnLeave")(...) end)
     end
 
@@ -188,6 +291,42 @@ end
 ---------------------------------------
 --              Util
 ---------------------------------------
+
+---@param order CraftingOrderInfo
+function Self:GetOrderProfit(order)
+    local cache = self.profitCache
+    local key = cache:Key(order)
+
+    if not cache:Has(key) then
+        local operation = Optimization:GetOrderAllocation(order)
+        cache:Set(key, operation and operation:GetProfit())
+    end
+
+    return cache:Get(key)
+end
+
+---@param order CraftingOrderInfo
+function Self:ClaimOrder(order)
+    C_CraftingOrders.ClaimOrder(order.orderID, C_TradeSkillUI.GetChildProfessionInfo().profession)
+    self.frame:ViewOrder(order)
+end
+
+---@param isTracked? boolean
+---@param shouldTrack? boolean
+function Self:EnumerateOrders(isTracked, shouldTrack)
+    local orders, i, order = C_CraftingOrders.GetCrafterOrders(), nil, nil
+    return function ()
+        while true do repeat
+            i, order = next(orders, i)
+            if not order then return end
+            if isTracked ~= nil and isTracked ~= Orders:IsTracked(order) then break end
+            if shouldTrack ~= nil and shouldTrack ~= self:ShouldTrackOrder(order) then break end
+            return order
+        until true end
+    end
+end
+
+-- Tracking
 
 ---@param order CraftingOrderInfo
 ---@param value? boolean
@@ -201,58 +340,51 @@ function Self:SetOrderTracked(order, value)
     Orders:SetTrackedAllocation(order, operation and operation.allocation)
 end
 
-function Self:HasOrders()
-    return next(C_CraftingOrders.GetCrafterOrders()) ~= nil
+---@param order CraftingOrderInfo
+function Self:ShouldTrackOrder(order)
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(order.spellID)
+    if recipeInfo and not recipeInfo.learned then return false end
+
+    local profit = self:GetOrderProfit(order)
+    if not profit then return false end
+
+    local maxCost =
+        -Addon.DB.Account.knowledgeCost * Orders:GetNumKnowledgeReward(order) +
+        -Addon.DB.Account.currencyCost * Orders:GetNumCurrencyReward(order)
+
+    if profit < maxCost then return false end
+
+    return true
 end
 
 function Self:HasNextOrder()
-    for order in self:EnumerateOrders() do
-        if Orders:IsTracked(order) then return true end
-    end
-    return false
+    return Util:TblSome(self:EnumerateOrders(true), Util.FnId2, true)
 end
 
 function Self:GetNextOrder()
     ---@type CraftingOrderInfo?
     local next
-    for order in self:EnumerateOrders() do
-        if Orders:IsTracked(order) and (not next or order.expirationTime < next.expirationTime) then
+    for order in self:EnumerateOrders(true) do
+        if not next or order.expirationTime < next.expirationTime then
             next = order
         end
     end
     return next
 end
 
-function Self:EnumerateOrders()
-    local orders, i, order = C_CraftingOrders.GetCrafterOrders(), nil, nil
-    return function ()
-        while true do
-            i, order = next(orders, i)
-            if not order then return end
-            local recipeInfo = C_TradeSkillUI.GetRecipeInfo(order.spellID)
-            if recipeInfo and recipeInfo.learned then return order end
-        end
-    end
+function Self:HasTrackableOrders()
+    return Util:TblSome(self:EnumerateOrders(nil, true), Util.FnId2, true)
 end
 
 function Self:IsAllOrdersTracked()
-    for order in self:EnumerateOrders() do
-        if not Orders:IsTracked(order) then return false end
-    end
-    return true
+    return not Util:TblSome(self:EnumerateOrders(false, true), Util.FnId2, true)
 end
 
 ---@param value? boolean
 function Self:SetAllOrdersTracked(value)
-    for order in self:EnumerateOrders() do
+    for order in self:EnumerateOrders(not value, value or nil) do
         self:SetOrderTracked(order, value)
     end
-end
-
----@param order CraftingOrderInfo
-function Self:ClaimOrder(order)
-    C_CraftingOrders.ClaimOrder(order.orderID, C_TradeSkillUI.GetChildProfessionInfo().profession)
-    self.frame:ViewOrder(order)
 end
 
 ---------------------------------------
@@ -280,6 +412,15 @@ function Self:OnOrderListUpdated()
     self:UpdateClaimOrderButton()
 end
 
+function Self:OnTrackAllFilterCostUpdated()
+    self:UpdateTrackAllOrdersBox()
+    self:UpdateTrackAllFilters()
+end
+
+function Self:OnOrderTypeChanged()
+    self:UpdateTrackAllFilters()
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
@@ -289,6 +430,7 @@ function Self:OnAddonLoaded(addonName)
     self:AdjustOrdersList()
     self:InsertClaimOrderButton()
     self:InsertTrackAllOrdersBox()
+    self:InsertTrackAllFilters()
 
     ProfessionsTableConstants.Name.Width = ProfessionsTableConstants.Name.Width + 20
     ProfessionsTableConstants.Tip.Width = ProfessionsTableConstants.Tip.Width - 20
@@ -300,8 +442,12 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(ProfessionsCrafterTableCellItemNameMixin, "Populate", Util:FnBind(self.ItemNameCellPopulate, self))
     hooksecurefunc(ProfessionsCrafterTableCellCommissionMixin, "Populate", Util:FnBind(self.CommissionCellPopulate, self))
     hooksecurefunc(self.frame, "OrderRequestCallback", Util:FnBind(self.OnOrderListUpdated, self))
+    hooksecurefunc(self.frame, "SetCraftingOrderType", Util:FnBind(self.OnOrderTypeChanged, self))
 
     Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedOrderUpdated, self)
+
+    Addon:RegisterCallback(Addon.Event.KnowledgeCostUpdated, self.OnTrackAllFilterCostUpdated, self)
+    Addon:RegisterCallback(Addon.Event.CurrencyCostUpdated, self.OnTrackAllFilterCostUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

@@ -10,7 +10,7 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB
 TestFlightDB = {
-    v = 2,
+    v = 3,
     ---@type boolean
     tooltip = false,
     ---@type boolean
@@ -18,7 +18,11 @@ TestFlightDB = {
     ---@type string?
     priceSource = nil,
     ---@type number
-    concentrationCost = 50000
+    concentrationCost = 50000,
+    ---@type number
+    knowledgeCost = 0,
+    ---@type number
+    currencyCost = 0,
 }
 
 ---@class AddonCharDB
@@ -57,6 +61,28 @@ function Self:SetConcentrationCost(value)
     self:TriggerEvent(self.Event.ConcentrationCostUpdated)
 end
 
+---@param value number
+function Self:SetKnowledgeCost(value)
+    value = max(0, value)
+
+    if self.DB.Account.knowledgeCost == value then return end
+
+    self.DB.Account.knowledgeCost = value
+
+    self:TriggerEvent(self.Event.KnowledgeCostUpdated)
+end
+
+---@param value number
+function Self:SetCurrencyCost(value)
+    value = max(0, value)
+
+    if self.DB.Account.currencyCost == value then return end
+
+    self.DB.Account.currencyCost = value
+
+    self:TriggerEvent(self.Event.CurrencyCostUpdated)
+end
+
 ---------------------------------------
 --             Lifecycle
 ---------------------------------------
@@ -79,6 +105,11 @@ function Self:Load()
     if self.DB.Account.v < 2 then
         self.DB.Account.concentrationCost = 50000
         self.DB.Account.v = 2
+    end
+    if self.DB.Account.v < 3 then
+        self.DB.Account.knowledgeCost = 0
+        self.DB.Account.currencyCost = 0
+        self.DB.Account.v = 3
     end
 
     -- Char
@@ -266,8 +297,10 @@ end
 ---@field Toggled "Toggled"
 ---@field ExtraSkillUpdated "ExtraSkillUpdated"
 ---@field ConcentrationCostUpdated "ConcentrationCostUpdated"
+---@field KnowledgeCostUpdated "KnowledgeCostUpdated"
+---@field CurrencyCostUpdated "CurrencyCostUpdated"
 
-Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated" })
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated" })
 Self:OnLoad()
 
 ---@param addonName string

@@ -24,14 +24,8 @@ EventRegistry:RegisterFrameEventAndCallback("ADDON_LOADED", function(_, addonNam
         local value = node:GetData().value
         if not value then self.Value:Hide() return end
 
-        if abs(value) > 10000 then
-            value = Util:NumRound(value, -4)
-        elseif abs(value) > 100 then
-            value = Util:NumRound(value, -2)
-        end
-
         self.Value:Show()
-        self.Value:SetText(Util:NumCurrencyString(value, false))
+        self.Value:SetText(Util(value):RoundCurrency():CurrencyString(false)())
 
         -- Adjust label
         local padding = 10
