@@ -995,7 +995,8 @@ end
 
 local CHAIN_PREFIX = {
     table = "Tbl",
-    string = "Num",
+    string = "Str",
+    number = "Num",
     boolean = "Bool",
     ["function"] = "Fn"
 }

@@ -24,7 +24,6 @@ src/modules/Prices.lua
 src/modules/Optimization.lua
 src/modules/GUI.lua
 
-src/gui/frames/ProfessionsRecipeListRecipe.xml
 src/gui/frames/ProfessionsRecipeListProgressBar.xml
 
 src/gui/ItemFlyout.lua

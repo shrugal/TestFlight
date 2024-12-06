@@ -46,6 +46,48 @@ end
 --            RecipeList
 ---------------------------------------
 
+---@param frame ProfessionsRecipeListRecipeFrame
+---@param node TreeNodeMixin
+function Self:InitRecipeListRecipe(frame, node)
+    local value = node:GetData().value
+
+    if not value then
+        if frame.Value then frame.Value:Hide() end
+        return
+    end
+
+    -- Set value
+    if not frame.Value then
+        ---@diagnostic disable-next-line: inject-field
+        frame.Value = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
+        frame.Value:SetPoint("RIGHT")
+        frame.Value:SetJustifyH("RIGHT")
+        frame.Value:SetHeight(12)
+    end
+
+    frame.Value:Show()
+    frame.Value:SetText(Util(value):RoundCurrency():CurrencyString(false)())
+
+    local r, g, b = frame:GetLabelColor():GetRGB()
+    if value < 0 then g, b = 0, 0 end
+    frame.Value:SetVertexColor(r, g, b)
+
+    -- Adjust label
+    local padding = 10
+    local lockedWith = frame.LockedIcon:IsShown() and frame.LockedIcon:GetWidth() or 0
+    local countWidth = frame.Count:IsShown() and frame.Count:GetStringWidth() or 0
+    local width = frame:GetWidth() - (lockedWith + countWidth + padding + frame.SkillUps:GetWidth() + frame.Value:GetWidth())
+
+    frame.Label:SetWidth(frame:GetWidth())
+    frame.Label:SetWidth(min(width, frame.Label:GetStringWidth()))
+
+    -- Adjust locked icon
+    if frame.LockedIcon:IsShown() then
+        frame.LockedIcon:ClearAllPoints()
+        frame.LockedIcon:SetPoint("RIGHT", frame.Value, "LEFT")
+    end
+end
+
 function Self:CreateRecipeListProgressBar()
     self.progressBar = CreateFrame("Frame", nil, self.frame.RecipeList, "TestFlightProfessionsRecipeListProgressBarTemplate") --[[@as GUI.ProfessionsRecipeListProgressBar]]
 
@@ -60,61 +102,34 @@ function Self:CreateRecipeListProgressBar()
     end)
 end
 
-function Self:CreateRecipeListFilter()
-    local dropdown = self.frame.RecipeList.FilterDropdown
+function Self:ModifyRecipeListFilter()
+    -- Add sort menu
+    local IsSortSelected = Util:FnBind(self.IsSortSelected, self)
+    local SetSortSelected = Util:FnBind(self.SetSortSelected, self)
 
-    -- Set menu generator without skillLine options
-    Professions.InitFilterMenu(dropdown, nil, nil, true)
+    Menu.ModifyMenu("MENU_PROFESSIONS_FILTER", function (_, rootDescription)
+        if ProfessionsFrame:GetTab() ~= ProfessionsFrame.recipesTabID then return end
 
-    dropdown:SetDefaultCallback(function()
-        Professions.SetDefaultFilters(false)
+        local sortSubmenu = rootDescription:Insert(MenuUtil.CreateButton("Sort"), 8) --[[@as ElementMenuDescriptionProxy]]
+        sortSubmenu:CreateRadio(NONE, IsSortSelected, SetSortSelected)
+
+        for name,method in pairs(Optimization.Method) do repeat
+            if method == Optimization.Method.CostPerConcentration then
+                break
+            elseif method == Optimization.Method.ProfitPerConcentration then
+                name = "Profit per Concentration"
+            end
+
+            sortSubmenu:CreateRadio(name, IsSortSelected, SetSortSelected, method)
+        until true end
     end)
 
-    hooksecurefunc(
-        dropdown,
-        "menuGenerator",
-        ---@param rootDescription RootMenuDescriptionMixin
-        function (_, rootDescription)
-            local isNPCCrafting = C_TradeSkillUI.IsNPCCrafting()
-
-            -- Add sort option
-            local IsSortSelected = Util:FnBind(self.IsSortSelected, self)
-            local SetSortSelected = Util:FnBind(self.SetSortSelected, self)
-
-            local sortSubmenu = rootDescription:CreateButton("Sort")
-            sortSubmenu:CreateRadio(NONE, IsSortSelected, SetSortSelected)
-
-            for name,method in pairs(Optimization.Method) do repeat
-                if method == Optimization.Method.CostPerConcentration then
-                    break
-                elseif method == Optimization.Method.ProfitPerConcentration then
-                    name = "Profit per Concentration"
-                end
-
-                sortSubmenu:CreateRadio(name, IsSortSelected, SetSortSelected, method)
-            until true end
-
-            -- Add skillLine options
-            if isNPCCrafting then return end
-
-            local childProfessionInfos = C_TradeSkillUI.GetChildProfessionInfos()
-            if #childProfessionInfos <= 0 then return end
-
-            local function IsExpansionChecked(professionInfo)
-                return C_TradeSkillUI.GetChildProfessionInfo().professionID == professionInfo.professionID
-            end
-
-            local function SetExpansionChecked(professionInfo)
-                EventRegistry:TriggerEvent("Professions.SelectSkillLine", professionInfo)
-            end
-
-            rootDescription:CreateSpacer()
-
-            for _,professionInfo in ipairs(childProfessionInfos) do
-                rootDescription:CreateRadio(professionInfo.expansionName, IsExpansionChecked, SetExpansionChecked, professionInfo)
-            end
-        end
-    )
+    -- Update reset filter button state
+    local dropdown = self.frame.RecipeList.FilterDropdown
+    hooksecurefunc(dropdown, "ValidateResetState", function ()
+        if dropdown.ResetButton:IsShown() or not self.sortMethod then return end
+        dropdown.ResetButton:SetShown(true)
+    end)
 end
 
 function Self:IsSortSelected(method)
@@ -217,24 +232,6 @@ function Self:UpdateSort(refresh)
     self.frame.RecipeList.ScrollBox:SetDataProvider(self.dataProvider, ScrollBoxConstants.RetainScrollPosition)
 end
 
-function Self:HookElementFactory()
-    local view = self.frame.RecipeList.ScrollBox.view
-
-    -- Override recipe list item template
-    Util:TblHook(view, "elementFactory", function (factory, node)
-        Util:TblGetHooked(view, "elementFactory")(
-            function (template, initializer)
-                if template == "ProfessionsRecipeListRecipeTemplate" then
-                    template = "TestFlightProfessionsRecipeListRecipeTemplate"
-                end
-
-                factory(template, initializer)
-            end,
-            node
-        )
-    end)
-end
-
 ---@param ignoreSkillLine? boolean
 function Self:ProfessionsIsUsingDefaultFilters(ignoreSkillLine)
     local res = Util:TblGetHooked(Professions, "IsUsingDefaultFilters")(ignoreSkillLine)
@@ -296,6 +293,12 @@ function Self:OnRefresh()
     if self.frame:IsVisible() then self:ValidateControls() end
 end
 
+---@param frame ProfessionsRecipeListRecipeFrame
+---@param node TreeNodeMixin
+function Self:OnRecipeListRecipeInitialized(frame, node)
+    self:InitRecipeListRecipe(frame, node)
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
@@ -312,18 +315,17 @@ function Self:OnAddonLoaded(addonName)
     if not Prices:IsSourceInstalled() then return end
 
     self:CreateRecipeListProgressBar()
-    self:CreateRecipeListFilter()
-    self:HookElementFactory()
+    self:ModifyRecipeListFilter()
 
     hooksecurefunc(self.frame, "RegisterUnitEvent", Util:FnBind(self.OnRegisterUnitEvent, self))
     hooksecurefunc(self.frame, "UnregisterEvent", Util:FnBind(self.OnUnregisterEvent, self))
 
-    Util:TblHook(Professions, "IsUsingDefaultFilters", Util:FnBind(self.ProfessionsIsUsingDefaultFilters, self))
+    self.frame.RecipeList.ScrollBox.view:RegisterCallback(ScrollBoxListViewMixin.Event.OnInitializedFrame, self.OnRecipeListRecipeInitialized, self)
+
     hooksecurefunc(Professions, "SetDefaultFilters", Util:FnBind(self.OnSetDefaultFilters, self))
     hooksecurefunc(Professions, "OnRecipeListSearchTextChanged", Util:FnBind(self.OnRecipeListSearchTextChanged, self))
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
-
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

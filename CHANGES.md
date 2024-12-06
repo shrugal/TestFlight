@@ -1,2 +1,3 @@
 - Add filter settings for max cost per knowledge and artisan currency to NPC orders page
 - Make "Track All" only track unprofitable orders that give enough knowledge or currency
+- Internal: Dramatically reduce attributed memory usage

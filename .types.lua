@@ -58,6 +58,13 @@ ipairs_reverse = ipairs
 ---@field OrderType ProfessionsTableConstantsColumn
 ProfessionsTableConstants = nil
 
+---[FrameXML](https://www.townlong-yak.com/framexml/go/MenuUtil.CreateButton)
+---@param text string
+---@param callback? MenuResponder
+---@param data any? # stored as element's data
+---@return ElementMenuDescriptionProxy
+function MenuUtil.CreateButton(text, callback, data) end
+
 ---@class ProfessionsTableConstantsColumn
 ---@field Width number
 ---@field Padding number
@@ -134,9 +141,14 @@ StaticPopup_Hide = nil
 StaticPopup_OnClick = nil
 
 ---@class ScrollFrame
----@field view Frame
+---@field view ScrollBoxListView
 ---@field SetDataProvider fun(self: self, dataProvider: TreeDataProviderMixin, retainScrollPosition?: boolean)
 ---@field GetDataProvider fun(self: self): TreeDataProviderMixin
+
+---@class ScrollBoxListView: Frame, CallbackRegistryMixin
+---@field factoryFrame? frame
+---@field factoryFrameIsNew? boolean
+---@field initializers table<Frame, function>
 
 ---@class ButtonFitToText: Button
 ---@field tooltipText? string
@@ -144,7 +156,9 @@ StaticPopup_OnClick = nil
 ---@field FitToText fun(self: self)
 
 ---@class DropdownButton: Button, DropdownButtonMixin
+---@field ResetButton Button
 ---@field SetDefaultCallback fun(self: self, onDefault: function)
+---@field SetIsDefaultCallback fun(self: self, callback: (fun(): boolean))
 
 ---@class FramePool
 ---@field Acquire fun(self: self): Frame
@@ -220,8 +234,12 @@ StaticPopup_OnClick = nil
 ---@class ProfessionAllocations
 
 ---@class ProfessionsFrame: Frame
+---@field recipesTabID number
+---@field specializationsTabID number
+---@field craftingOrdersTabID number
 ---@field CraftingPage CraftingPage
 ---@field OrdersPage OrdersPage
+---@field GetTab fun(self: self): number
 ProfessionsFrame = nil
 
 ---@class CraftingPage: Frame
@@ -439,6 +457,7 @@ C_TradeSkillUI = {}
 ---@field InitFilterMenu fun(dropdown: DropdownButton, onUpdate?: function, onDefault?: function, ignoreSkillLine?: boolean)
 ---@field SetDefaultFilters fun(ignoreSkillLine?: boolean)
 ---@field GetReagentSlotStatus fun(reagent: CraftingReagentSlotSchematic, recipeInfo, TradeSkillRecipeInfo): boolean, string?
+---@field IsUsingDefaultFilters fun(ignoreSkillLine?: boolean): boolean
 Professions = {}
 
 ---@class ProfessionsUtil
@@ -971,13 +990,15 @@ ScrollBoxConstants = {
 ---@field SelectedOverlay Texture
 ---@field HighlightOverlay Texture
 ---@field OnLoad fun(self: self, ...: unknown): unknown
----@field GetLabelColor fun(self: self, ...: unknown): unknown
 ---@field Init fun(self: self, ...: unknown): unknown
+---@field GetLabelColor fun(self: self): ColorMixin
 ---@field SetLabelFontColors fun(self: self, ...: unknown): unknown
 ---@field OnEnter fun(self: self, ...: unknown): unknown
 ---@field OnLeave fun(self: self, ...: unknown): unknown
 ---@field SetSelected fun(self: self, ...: unknown): unknown
 ProfessionsRecipeListRecipeMixin = nil
+
+---@class ProfessionsRecipeListRecipeFrame: Frame, ProfessionsRecipeListRecipeMixin
 
 ---@class SelectionBehaviorMixin: CallbackRegistryMixin
 ---@field Event { OnSelectionChanged: "OnSelectionChanged" }
