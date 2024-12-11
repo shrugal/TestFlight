@@ -17,6 +17,7 @@ function Static:ClearAll()
 end
 
 ---@type Cache
+---@diagnostic disable-next-line: missing-fields
 Static.Mixin = {}
 
 ---@class Cache

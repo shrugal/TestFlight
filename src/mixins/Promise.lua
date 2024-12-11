@@ -8,6 +8,7 @@ local Util = Addon.Util
 local Static = Addon.Promise
 
 ---@type Promise
+---@diagnostic disable-next-line: missing-fields
 Static.Mixin = {}
 
 -- Add stacktrace to error messages
@@ -126,7 +127,9 @@ function Static:Some(promises, n, level)
         end
 
         for i,promise in pairs(promises) do
-            if promise.status == Static.Status.Done then
+            if not self:IsPromise(promise) then
+                if onDone(i, { promise }) then break end
+            elseif promise.status == Static.Status.Done then
                 if onDone(i, promise.statusResult) then break end
             elseif promise:IsFinalized() then
                 if onFail() then break end
@@ -169,7 +172,9 @@ function Static:Race(promises)
         end
 
         for _,promise in pairs(promises) do
-            if promise.status == Static.Status.Canceled then
+            if not self:IsPromise(promise) then
+                resolve(true, promise) break
+            elseif promise.status == Static.Status.Canceled then
                 if onCancel() then break end
             elseif promise:IsFinalized() then
                 resolve(promise.status == Static.Status.Done, unpack(promise.statusResult)) break
@@ -250,6 +255,15 @@ function Static:Async(fn)
     return Static:Create(function (res) res(fn()) end, 2)
 end
 
+-- Make sure only one promise is running for the given location, and prefer an already running promise.
+---@param obj table
+---@param key any
+---@param fn function
+function Static:Singleton(obj, key, fn)
+    if obj[key] then return obj[key] --[[@as Promise]] end
+    return Static:Async(fn):Singleton(obj, key)
+end
+
 ---@param runner? fun(resolve: function, reject: function, cancel: fun()): any
 ---@param level? number Debug info stack level (default: 1)
 ---@param parent? Promise
@@ -284,7 +298,7 @@ end
 ---@param onError? function
 ---@vararg any
 function Self:Then(onDone, onError, ...)
-    return self:Chain(onDone, onError, nil, ...)
+    return self:Chain(onDone, onError, ...)
 end
 
 -- Handle resolved promise
@@ -356,11 +370,14 @@ function Self:Timeout(s)
 end
 
 -- Cancel the promise
-function Self:Cancel()
+---@param depth? number Cancel only some parent promises
+function Self:Cancel(depth)
+    if depth == nil or depth == true then depth = math.huge end
+
     if self:IsFinalized() then return end
 
-    if self.parent and self.parent:IsPending() then
-        self.parent:Cancel()
+    if (depth or 0) > 0 and self.parent and self.parent:IsPending() then
+        self.parent:Cancel(depth - 1)
     else
         self:Finalize(Static.Status.Canceled)
     end
@@ -395,6 +412,11 @@ function Self:Reject(...)
     end
 end
 
+function Self:Result()
+    if self.status ~= Static.Status.Done then return end
+    return unpack(self.statusResult)
+end
+
 -- Check if promise has yet to be finalized
 function Self:IsPending()
     return Util:OneOf(self.status, Static.Status.Created, Static.Status.Started, Static.Status.Running, Static.Status.Suspended)
@@ -419,6 +441,15 @@ end
 ---@param priority number Higher priority means the promise will run longer until suspending
 function Self:SetPriority(priority)
     self.priority = priority
+end
+
+-- Make sure only one promise is running for the given location, by canceling any already running promise.
+---@param obj table
+---@param key any
+function Self:Singleton(obj, key)
+    if obj[key] then obj[key]:Cancel(false) end
+    if not self:IsFinalized() then obj[key] = self:Finally(function () obj[key] = nil end) end
+    return self
 end
 
 ---------------------------------------

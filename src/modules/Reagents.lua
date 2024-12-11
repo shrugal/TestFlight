@@ -85,11 +85,6 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
 
     if not opBase or not opBest then return end
 
-    if Addon.enabled then
-        opBase.baseSkill = opBase.baseSkill + Addon.extraSkill
-        opBest.baseSkill = opBest.baseSkill + Addon.extraSkill
-    end
-
     local skillBase = opBase.baseSkill + opBase.bonusSkill
     local skillRange = opBest.baseSkill + opBest.bonusSkill - skillBase
 

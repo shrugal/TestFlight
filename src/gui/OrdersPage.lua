@@ -1,12 +1,12 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Orders, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Util
+local Cache, GUI, Optimization, Orders, Promise, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Util
 
 ---@class GUI.OrdersPage
 ---@field frame OrdersPage
 local Self = GUI.OrdersPage
 
----@type Cache<number, fun(self: Cache, order: CraftingOrderInfo): number>
+---@type Cache<Promise, fun(self: Cache, order: CraftingOrderInfo): number>
 Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50)
 
 -- Orders list
@@ -63,16 +63,23 @@ function Self:InsertTrackAllOrdersBox()
     input.text:SetPoint("LEFT", input, "RIGHT", 0, 1)
 
     self.trackAllOrdersBox = input
+
+    if not self.frame:IsVisible() then return end
+
     self:UpdateTrackAllOrdersBox()
 end
 
 function Self:UpdateTrackAllOrdersBox()
-    local enabled = self:HasNextOrder() or self:HasTrackableOrders()
-    local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
+    local profits = Util:TblMap(C_CraftingOrders.GetCrafterOrders(), self.GetOrderProfit, false, self)
 
-    self.trackAllOrdersBox:SetEnabled(enabled)
-    self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
-    self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
+    Promise:All(profits):Done(function ()
+        local enabled = self:HasNextOrder() or self:HasTrackableOrders()
+        local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
+
+        self.trackAllOrdersBox:SetEnabled(enabled)
+        self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
+        self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
+    end):Singleton(self, "trackAllOrdersJob"):Start()
 end
 
 -- Track all filters
@@ -188,7 +195,6 @@ function Self:ItemNameCellPopulate(cell, rowData)
     if order.customerGuid == UnitGUID("player") then return end
 
     if not cell.TrackBox then
-        ---@diagnostic disable-next-line: inject-field
         cell.TrackBox = CreateFrame("CheckButton", nil, cell, "UICheckButtonTemplate")
         cell.TrackBox:SetSize(20, 20)
         cell.TrackBox:SetPoint("LEFT", -8, 0)
@@ -232,26 +238,30 @@ function Self:CommissionCellPopulate(cell, rowData)
 
     -- Profit
 
-    local profit = self:GetOrderProfit(order)
-
     moneyFrame.SilverDisplay:SetShowsZeroAmount(false)
     moneyFrame.CopperDisplay:SetForcedHidden(false)
-    moneyFrame.CopperDisplay:SetShowsZeroAmount(not profit or abs(profit) < 100)
 
-    if not profit then
-        moneyFrame:SetAmount(0)
-        moneyFrame.CopperDisplay.Text:SetText("-")
-    else
-        moneyFrame:SetAmount(abs(Util:NumRoundCurrency(profit)))
+    moneyFrame:SetAmount(10000)
+    moneyFrame.GoldDisplay.Text:SetText("?")
 
-        if profit < 0 then
-            local frame = moneyFrame.GoldDisplay:IsShown() and moneyFrame.GoldDisplay or moneyFrame.SilverDisplay
-            frame.Text:SetText(RED_FONT_COLOR:WrapTextInColorCode("-" .. frame.Text:GetText()))
+    self:GetOrderProfit(order):Done(function (profit)
+        moneyFrame.CopperDisplay:SetShowsZeroAmount(not profit or abs(profit) < 100)
+
+        if not profit then
+            moneyFrame:SetAmount(0)
+            moneyFrame.CopperDisplay.Text:SetText("-")
+        else
+            moneyFrame:SetAmount(abs(Util:NumRoundCurrency(profit)))
+
+            if profit < 0 then
+                local frame = moneyFrame.GoldDisplay:IsShown() and moneyFrame.GoldDisplay or moneyFrame.SilverDisplay
+                frame.Text:SetText(RED_FONT_COLOR:WrapTextInColorCode("-" .. frame.Text:GetText()))
+            end
         end
-    end
 
-    moneyFrame:UpdateWidth()
-    moneyFrame:UpdateAnchoring()
+        moneyFrame:UpdateWidth()
+        moneyFrame:UpdateAnchoring()
+    end):Singleton(cell, "job"):Start()
 
     -- Rewards
 
@@ -273,7 +283,6 @@ function Self:CommissionCellPopulate(cell, rowData)
         cell.RewardIcon:ClearAllPoints()
         cell.RewardIcon:SetPoint("LEFT")
 
-        ---@diagnostic disable-next-line: inject-field
         cell.RewardText = GUI:InsertFontString(
             cell,
             "ARTWORK", "Number14FontWhite",
@@ -298,8 +307,10 @@ function Self:GetOrderProfit(order)
     local key = cache:Key(order)
 
     if not cache:Has(key) then
-        local operation = Optimization:GetOrderAllocation(order)
-        cache:Set(key, operation and operation:GetProfit())
+        cache:Set(key, Promise:Create(function ()
+            local operation = Optimization:GetOrderAllocation(order)
+            return operation and operation:GetProfit()
+        end))
     end
 
     return cache:Get(key)
@@ -345,7 +356,7 @@ function Self:ShouldTrackOrder(order)
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(order.spellID)
     if recipeInfo and not recipeInfo.learned then return false end
 
-    local profit = self:GetOrderProfit(order)
+    local profit = self:GetOrderProfit(order):Result() --[[@as number?]]
     if not profit then return false end
 
     local maxCost =

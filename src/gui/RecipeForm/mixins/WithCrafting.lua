@@ -12,41 +12,46 @@ local Self = Mixin(NS.WithCrafting, Parent)
 
 Self.optimizationMethod = Optimization.Method.Cost
 
+---@type Cache<Operation, fun(cache: Cache, self: GUI.RecipeForm.WithCrafting): string>
+Self.operationCache = Addon.Cache:Create(
+    ---@param self GUI.RecipeForm.WithCrafting
+    function (_, self)
+        local tx = self.form.transaction
+        local recipe = tx:GetRecipeSchematic()
+        local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
+        local applyConcentration = tx:IsApplyingConcentration()
+
+        return Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
+    end,
+    1
+)
+
 ---------------------------------------
 --               Hooks
 ---------------------------------------
 
 function Self:GetRecipeOperationInfo()
-    ---@type CraftingOperationInfo
-    local op = Util:TblGetHooks(self.form).GetRecipeOperationInfo(self.form)
-    if not op then return end
+    local op = self:GetOperation()
+    if not op then return Util:TblGetHooks(self.form).GetRecipeOperationInfo(self.form) end
 
-    op.baseSkill = op.baseSkill + Addon.extraSkill
+    local opInfo = op:GetOperationInfo()
+    local maxQuality = self.form:GetRecipeInfo().maxQuality ---@cast maxQuality -?
 
-    if op.isQualityCraft then
-        local skill, difficulty = op.baseSkill + op.bonusSkill, op.baseDifficulty + op.bonusDifficulty
+    -- Forms expect quality and skill values to change when applying concentration
+    if op.applyConcentration and opInfo.craftingQuality < maxQuality then
+        local breakpoints = Addon.QUALITY_BREAKPOINTS[maxQuality]
+        local difficulty = opInfo.baseDifficulty + opInfo.bonusDifficulty
+        local quality = opInfo.craftingQuality + 1
+        local lower, upper = breakpoints[quality], breakpoints[quality + 1] or 1
 
-        local p = skill / difficulty
-        local rank = self.form.currentRecipeInfo.maxQuality
-        local breakpoints = Addon.QUALITY_BREAKPOINTS[rank]
+        opInfo = Util:TblCopy(opInfo)
+        opInfo.craftingQuality = quality
+        opInfo.quality = quality
+        opInfo.lowerSkillThreshold = difficulty * lower
+        opInfo.upperSkillTreshold = difficulty * upper
+    end 
 
-        for i, v in ipairs(breakpoints) do
-            if v > p then rank = i - 1 break end
-        end
-
-        local lower, upper = breakpoints[rank], breakpoints[rank + 1] or 1
-        local quality = rank + (upper == lower and 0 or (p - lower) / (upper - lower))
-        local qualityID = self.form.currentRecipeInfo.qualityIDs[rank]
-
-        op.quality = quality
-        ---@diagnostic disable-next-line: assign-type-mismatch
-        op.craftingQuality = rank
-        op.craftingQualityID = qualityID
-        op.lowerSkillThreshold = difficulty * lower
-        op.upperSkillTreshold = difficulty * upper
-    end
-
-    return op
+    return opInfo
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -85,6 +90,7 @@ end
 ---@param line RecipeStatLine
 function Self:CostStatLineOnEnter(line)
     local op = self.operation
+    if not op then return end
 
     local label = COSTS_LABEL:gsub(":", "")
     local reagentPrice = op and Util:NumCurrencyString(op:GetReagentPrice())
@@ -211,7 +217,9 @@ function Self:ConcentrationStatLineOnEnter(line)
     GameTooltip:ClearLines()
 
     local statString
-    if line.bonusValue then
+    if line.baseValue == -1 then
+        statString = "?"
+    elseif line.bonusValue then
         statString = PROFESSIONS_CRAFTING_STAT_QUANTITY_TT_FMT:format(line.baseValue + line.bonusValue, line.baseValue, line.bonusValue)
     else
         statString = PROFESSIONS_CRAFTING_STAT_NO_BONUS_TT_FMT:format(line.baseValue)
@@ -280,36 +288,26 @@ end
 ---@param supportsQualities boolean
 ---@param isGatheringRecipe boolean
 function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheringRecipe)
-    self.operation = nil
-
-    if isGatheringRecipe then return end
     if not Prices:IsSourceInstalled() then return end
+    if isGatheringRecipe then self.operation = nil return end
 
-    local order = self:GetOrder()
-    local tx = self.form.transaction
-    local recipe = tx:GetRecipeSchematic()
-
-    local isUnclaimedOrder = order and order.orderState ~= Enum.CraftingOrderState.Claimed
-    local isSalvage = recipe.recipeType == Enum.TradeskillRecipeType.Salvage
+    self.operation = self:GetOperation(true)
 
     ---@type number?, number?, number?
     local reagentPrice, profit
 
-    if isSalvage then
-        local allocation = tx:GetSalvageAllocation()
-
-        if allocation then
-            reagentPrice, _, profit = Prices:GetRecipePrices(recipe, operationInfo, allocation)
-        end
+    if self.operation then
+         reagentPrice, profit = self.operation:GetReagentPrice(), self.operation:GetProfit()
     else
-        if isUnclaimedOrder then ---@cast order -?
-            self.operation = Optimization:GetOrderAllocation(order, self.form.transaction)
-        else
-            self.operation = Operation:FromCraftingForm(self.form, order)
-        end
+        local tx = self.form.transaction
+        local recipe = tx:GetRecipeSchematic()
 
-        if self.operation then
-            reagentPrice, profit = self.operation:GetReagentPrice(), self.operation:GetProfit()
+        if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then
+            local allocation = tx:GetSalvageAllocation()
+
+            if allocation then
+                reagentPrice, _, profit = Prices:GetRecipePrices(recipe, operationInfo, allocation)
+            end
         end
     end
 
@@ -332,12 +330,18 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
         statLine:SetScript("OnEnter", Util:FnBind(self.ProfitStatLineOnEnter, self))
         statLine:Show()
 
-        -- Stats tooltips
-        if self.operation then
+        local op = self.operation
+        if op then
+            -- Concentration cost and tooltip
             if frame.StatLines.ConcentrationStatLine:IsShown() then
+                if op:GetOperationInfo().concentrationCost == -1 then
+                    frame.StatLines.ConcentrationStatLine.RightLabel:SetText("?")
+                end
+
                 frame.StatLines.ConcentrationStatLine:SetScript("OnEnter", Util:FnBind(self.ConcentrationStatLineOnEnter, self))
             end
 
+            -- Stats tooltips
             for line in frame.statLinePool:EnumerateActive() do
                 local stat = line.LeftLabel:GetText()
                 if Util:OneOf(stat,  ITEM_MOD_RESOURCEFULNESS_SHORT, ITEM_MOD_MULTICRAFT_SHORT, ITEM_MOD_INGENUITY_SHORT) then
@@ -345,6 +349,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
                 end
             end
         end
+
 
         frame.StatLines:Layout()
         frame:Layout()
@@ -366,10 +371,12 @@ end
 
 function Self:GetQuality()
     local op = self.form:GetRecipeOperationInfo()
-    if op and op.isQualityCraft then return floor(op.quality) end
+    if op and op.isQualityCraft then return op.craftingQuality end
 end
 
 function Self:CanAllocateReagents()
+    if not Professions.InLocalCraftingMode() or C_TradeSkillUI.IsRuneforging() then return false end
+
     local recipe = self:GetRecipe()
     if not recipe or not Recipes:IsTracked(recipe) then return false end
 
@@ -387,6 +394,29 @@ function Self:CanAllocateReagents()
     end
 
     return true
+end
+
+function Self:GetOperation(refresh)
+    local recipe = self:GetRecipe()
+    if  not recipe then return end
+
+    if Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Salvage, Enum.TradeskillRecipeType.Gathering) then return end
+
+    local cache = self.operationCache
+    local key = cache:Key(self)
+
+    if refresh or not cache:Has(key) then
+        local tx = self.form.transaction
+        local order = self:GetOrder()
+
+        if order and order.orderState ~= Enum.CraftingOrderState.Claimed then ---@cast order -?
+            cache:Set(key, Optimization:GetOrderAllocation(order, tx, Addon.enabled))
+        else
+            cache:Set(key, Operation:FromTransaction(tx, order, Addon.enabled))
+        end
+    end
+
+    return cache:Get(key)
 end
 
 ---------------------------------------

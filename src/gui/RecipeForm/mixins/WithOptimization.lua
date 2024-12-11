@@ -55,10 +55,13 @@ function Self:UpdateOptimizationButtons()
     if self.isOptimizing then return end
 
     local recipe, op, tx = self.form.recipeSchematic, self.form:GetRecipeOperationInfo(), self.form.transaction
-    local isSalvage, isMinimized = recipe.recipeType == Enum.TradeskillRecipeType.Salvage, ProfessionsUtil.IsCraftingMinimized()
     local order = self:GetOrder()
 
-    local show = op and op.quality and not isSalvage and not isMinimized
+    local show = op and op.craftingQuality
+        and Professions.InLocalCraftingMode()
+        and not Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Salvage, Enum.TradeskillRecipeType.Gathering)
+        and not ProfessionsUtil.IsCraftingMinimized()
+        and not C_TradeSkillUI.IsRuneforging()
         and not (order and order.orderState ~= Enum.CraftingOrderState.Claimed)
 
     self.decreaseBtn:SetShown(show)
@@ -68,11 +71,9 @@ function Self:UpdateOptimizationButtons()
 
     if not show then return end
 
-    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
-
     local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
         recipe,
-        floor(quality),
+        tx:IsApplyingConcentration() and op.craftingQuality - 1 or op.craftingQuality,
         tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
         order,
         tx:GetRecraftAllocation()
@@ -137,7 +138,7 @@ function Self:SetQuality(quality, exact, method)
 
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
 
-    if not quality then quality = floor(tx:IsApplyingConcentration() and op.quality - 1 or op.quality) end
+    if not quality then quality = tx:IsApplyingConcentration() and op.craftingQuality - 1 or op.craftingQuality end
 
     local recipe = self.form.recipeSchematic
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
@@ -166,9 +167,9 @@ end
 ---@param by number
 function Self:ChangeQualityBy(by)
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
-    local quality = tx:IsApplyingConcentration() and op.quality - 1 or op.quality
+    local quality = tx:IsApplyingConcentration() and op.craftingQuality - 1 or op.craftingQuality
 
-    self:SetQuality(floor(quality) + by, true)
+    self:SetQuality(quality + by, true)
 end
 
 ---------------------------------------

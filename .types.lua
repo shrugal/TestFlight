@@ -458,6 +458,7 @@ C_TradeSkillUI = {}
 ---@field SetDefaultFilters fun(ignoreSkillLine?: boolean)
 ---@field GetReagentSlotStatus fun(reagent: CraftingReagentSlotSchematic, recipeInfo, TradeSkillRecipeInfo): boolean, string?
 ---@field IsUsingDefaultFilters fun(ignoreSkillLine?: boolean): boolean
+---@field InLocalCraftingMode fun(): boolean
 Professions = {}
 
 ---@class ProfessionsUtil

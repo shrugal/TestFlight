@@ -73,10 +73,11 @@ end
 
 ---@param order CraftingOrderInfo
 ---@param tx? ProfessionTransaction
-function Self:GetOrderAllocation(order, tx)
+---@param extraSkill? boolean | number
+function Self:GetOrderAllocation(order, tx, extraSkill)
     local quality = tx and tx:IsApplyingConcentration() and order.minQuality - 1 or order.minQuality
     local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
-    local operations = self:GetRecipeAllocations(recipe, self.Method.Profit, tx, order)
+    local operations = self:GetRecipeAllocations(recipe, self.Method.Profit, tx, order, extraSkill)
 
     return operations and operations[math.max(quality, Util:TblMinKey(operations))]
 end
@@ -86,7 +87,8 @@ end
 ---@param method Optimization.Method
 ---@param tx? ProfessionTransaction
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
-function Self:GetRecipeAllocations(recipe, method, tx, orderOrRecraftGUID)
+---@param extraSkill? boolean | number
+function Self:GetRecipeAllocations(recipe, method, tx, orderOrRecraftGUID, extraSkill)
     local applyConcentration = method == self.Method.ProfitPerConcentration
     local allocation
 
@@ -103,7 +105,7 @@ function Self:GetRecipeAllocations(recipe, method, tx, orderOrRecraftGUID)
         end
     end
 
-    local operation = Operation:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration)
+    local operation = Operation:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
 
     return self:GetAllocationsForMethod(operation, method)
 end
@@ -354,7 +356,12 @@ function Self:CanChangeCraftQuality(recipe, quality, optionalReagents, order, re
     local skillBase, skillRange = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, order or recraftGUID)
     local skillCheapest = self:GetCheapestReagentWeight(qualityReagents) * skillRange / Reagents:GetMaxWeight(qualityReagents)
 
-    if Reagents:GetBonusSkillSlot(recipe) then skillRange = skillRange + Reagents:GetMaxBonusSkill() end
+    if Addon.enabled then
+        skillBase = skillBase + Addon.extraSkill
+    end
+    if Reagents:GetBonusSkillSlot(recipe) then
+        skillRange = skillRange + Reagents:GetMaxBonusSkill()
+    end
 
     local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
     local canIncrease = (breakpoints[quality+1] or math.huge) * difficulty <= skillBase + skillRange
@@ -412,19 +419,19 @@ function Self:GetReagentsForWeight(operation, weight)
     local weights, _, weightPerSkill = self:GetWeightsAndPrices(operation)
     local weightSlots = operation:GetWeightReagentSlots()
 
-    for j=#weightSlots, 1, -1 do
-        local slot, w = weightSlots[j], weights[j][weight]
+    for i=#weightSlots, 1, -1 do
+        local slot, j = weightSlots[i], weights[i][weight]
 
         if not Reagents:IsBonusSkill(slot) then
-            Reagents:AddCraftingInfos(reagents, slot, self:GetReagentQuantitiesForWeight(slot, w))
-        elseif w > 0 then
-            Reagents:AddCraftingInfo(reagents, slot, w, 1)
+            Reagents:AddCraftingInfos(reagents, slot, self:GetReagentQuantitiesForWeight(slot, j))
+            weight = math.max(0, weight - j * Reagents:GetWeight(slot))
+        elseif j > 0 then
+            Reagents:AddCraftingInfo(reagents, slot, j, 1)
+            weight = math.max(0, weight - Reagents:GetWeight(slot.reagents[i], weightPerSkill))
         elseif operation:HasAllocation(slot.slotIndex) then
             local itemID = operation.allocation[slot.slotIndex].allocs[1].reagent.itemID
             Reagents:AddCraftingInfo(reagents, slot, Util:TblFindWhere(slot.reagents, "itemID", itemID), 1)
         end
-
-        weight = math.max(0, weight - w * Reagents:GetWeight(slot, weightPerSkill or 0))
     end
 
     return reagents
@@ -484,7 +491,7 @@ Self.Cache = {
     WeightsAndPrices = Cache:Create(
         ---@param operation Operation
         function (_, operation)
-            return Self:GetRecipeCacheKey(operation)
+            return operation:GetKey()
         end,
         5
     ),
@@ -493,33 +500,12 @@ Self.Cache = {
         ---@param operation Operation
         ---@param method Optimization.Method
         function(_, operation, method)
-            return ("%s;;%s;%d"):format(
+            return ("%s;;%d;%s"):format(
                 method,
-                Self:GetRecipeCacheKey(operation),
-                method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0
+                method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0,
+                operation:GetKey()
             )
         end,
         20
     )
 }
-
----@param operation Operation
-function Self:GetRecipeCacheKey(operation)
-    local order = operation:GetOrder()
-    local profInfo = operation:GetProfessionInfo()
-
-    local key = ("%d;%d;%d;%d;%d;%d;%d"):format(
-        operation.recipe.recipeID,
-        operation.recipe.isRecraft and 1 or 0,
-        profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill,
-        order and order.orderID or 0,
-        operation.applyConcentration and 1 or 0,
-        Prices:GetRecipeScanTime(operation.recipe, nil, order, operation:GetRecraftMods())
-    )
-
-    for _,reagent in pairs(operation:GetOptionalReagents()) do
-        key = key .. (";;%d;%d"):format(reagent.itemID, reagent.quantity)
-    end
-
-    return key
-end

@@ -623,6 +623,11 @@ function Self:NumRound(n, p)
 end
 
 ---@param n number
+function Self:NumIsNaN(n)
+    return type(n) == "number" and tostring(n) == tostring(0/0)
+end
+
+---@param n number
 function Self:NumRoundCurrency(n)
     if abs(n) > 10000 then
         n = self:NumRound(n, -4)
@@ -846,12 +851,12 @@ end
 
 -- DEBUG
 
-function Self:DebugStack(level)
+function Self:DebugStack(level, countTop, countBottom)
     if not Addon.DEBUG then return end
 
     Addon:Debug("---", "Debugstack")
     local i = 0
-    for line in debugstack((level or 1) + 1):gmatch("[^\n]+") do
+    for line in debugstack((level or 1) + 1, countTop, countBottom):gmatch("[^\n]+") do
         i = i + 1
         Addon:Debug(line, i)
     end

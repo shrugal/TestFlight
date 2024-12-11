@@ -3,7 +3,7 @@ local Addon = select(2, ...)
 local GUI, Optimization, Util = Addon.GUI, Addon.Optimization, Addon.Util
 local NS = GUI.RecipeForm
 
----@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithAmount
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithOrder
 local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithOrder)
 
 ---@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithOrder

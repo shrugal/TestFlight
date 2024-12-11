@@ -9,6 +9,48 @@ local Static = Addon.Operation
 ---@diagnostic disable-next-line: missing-fields
 Static.Mixin = {}
 
+---@param recipe CraftingRecipeSchematic
+---@param allocation? RecipeAllocation
+---@param orderOrRecraftGUID? CraftingOrderInfo | string
+---@param applyConcentration? boolean
+---@param extraSkill? boolean | number
+function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
+    local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
+    local recraftGUID = type(orderOrRecraftGUID) == "string" and orderOrRecraftGUID or nil
+    local profInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
+    local recraftMods = Reagents:GetRecraftMods(order, recraftGUID)
+
+    local key = ("%d;%s;%d;%d;%d;%d;%d"):format(
+        recipe.recipeID,
+        recipe.isRecraft and recraftGUID or 0,
+        applyConcentration and 1 or 0,
+        order and order.orderID or 0,
+        profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
+        tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0,
+        Prices:GetRecipeScanTime(recipe, nil, order, recraftMods) or 0
+    )
+
+    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do
+        key = key .. ";"
+
+        local missing = slot.required and slot.quantityRequired or 0
+        local allocs = allocation and allocation[slotIndex]
+
+        if allocs then
+            for _,alloc in allocs:Enumerate() do
+                missing = missing - alloc.quantity
+                key = key .. (";%d;%d"):format(alloc.reagent.itemID, alloc.quantity)
+            end
+        end
+
+        if missing > 0 then
+            key = key .. (";%d;%d"):format(slot.reagents[1].itemID, missing)
+        end
+    end
+
+    return key
+end
+
 -- A crafting operation
 ---@class Operation
 ---@field recipe CraftingRecipeSchematic
@@ -23,31 +65,26 @@ local Self = Static.Mixin
 ---@param allocation? RecipeAllocation
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
-function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration)
-    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration) --[[@as Operation]]
+---@param extraSkill? boolean | number
+function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
+    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill) --[[@as Operation]]
 end
 
 ---@param tx ProfessionTransaction
 ---@param order? CraftingOrderInfo
-function Static:FromTransaction(tx, order)
-    return self:Create(tx:GetRecipeSchematic(), Util:TblCopy(tx.allocationTbls, true), order or tx:GetRecraftAllocation(), tx:IsApplyingConcentration())
-end
+---@param extraSkill? boolean | number
+function Static:FromTransaction(tx, order, extraSkill)
+    local recipe = tx:GetRecipeSchematic()
+    local allocation = Util:TblCopy(tx.allocationTbls, true)
+    local orderOrRecraftGUID = order or tx:GetRecraftAllocation()
+    local applyConcentration = tx:IsApplyingConcentration()
 
----@param form RecipeCraftingForm
----@param order? CraftingOrderInfo
-function Static:FromCraftingForm(form, order)
-    local op = self:FromTransaction(form.transaction, order)
-
-    if not form.transaction:IsApplyingConcentration() then
-        op.operationInfo = form:GetRecipeOperationInfo()
-    end
-
-    return op
+    return self:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
 end
 
 ---@param allocation? RecipeAllocation
 function Self:WithAllocation(allocation)
-    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration)
+    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill)
 end
 
 ---@param reagentTypes number
@@ -101,7 +138,7 @@ end
 ---@param applyConcentration? boolean
 function Self:WithConcentration(applyConcentration)
     if applyConcentration == nil then applyConcentration = false end
-    if self.applyConcentration == applyConcentration then return self end
+    if applyConcentration == self.applyConcentration then return self end
 
     local op = Util:TblCopy(self)
 
@@ -111,17 +148,27 @@ function Self:WithConcentration(applyConcentration)
     return op
 end
 
+---@param extraSkill? boolean | number
+function Self:WithExtraSkill(extraSkill)
+    extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
+    if extraSkill == self.extraSkill then return self end
+
+    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill)
+end
+
 -- CLASS
 
 ---@param recipe CraftingRecipeSchematic
 ---@param allocation? RecipeAllocation
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
-function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
+---@param extraSkill? boolean | number
+function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
     self.recipe = recipe
     self.allocation = allocation or Reagents:CreateAllocationFromSchematics(recipe.reagentSlotSchematics)
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
+    self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
 
     local order = self:GetOrder()
 
@@ -143,6 +190,10 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration)
             end
         end
     end
+end
+
+function Self:GetKey()
+    return Static:GetKey(self.recipe, self.allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill)
 end
 
 function Self:GetRecipeInfo()
@@ -170,6 +221,63 @@ end
 function Self:GetOperationInfo()
     if not self.operationInfo then
         self.operationInfo = Recipes:GetOperationInfo(self.recipe, self:GetReagents(), self.orderOrRecraftGUID)
+
+        -- Extra skill
+        if self.extraSkill > 0 then
+            local op = self.operationInfo
+
+            op.baseSkill = op.baseSkill + self.extraSkill
+
+            if op.isQualityCraft then
+                local recipeInfo = self:GetRecipeInfo()
+                local maxQuality = recipeInfo.maxQuality ---@cast maxQuality -?
+
+                local skill = op.baseSkill + op.bonusSkill
+                local difficulty = op.baseDifficulty + op.bonusDifficulty
+                local p = skill / difficulty
+
+                local quality = maxQuality
+                local breakpoints = Addon.QUALITY_BREAKPOINTS[maxQuality]
+
+                for i, v in ipairs(breakpoints) do
+                    if v > p then quality = i - 1 break end
+                end
+
+                -- Skill, quality
+                local lower, upper = breakpoints[quality], breakpoints[quality + 1] or 1
+                local qualityProgress = upper == lower and 0 or (p - lower) / (upper - lower)
+                local qualityID = recipeInfo.qualityIDs[quality]
+                local qualityChanged = op.craftingQuality ~= quality
+
+                op.quality = quality + qualityProgress
+                op.craftingQuality = quality
+                op.craftingQualityID = qualityID
+                op.lowerSkillThreshold = difficulty * lower
+                op.upperSkillTreshold = difficulty * upper
+
+                -- Concentration cost
+                if (op.concentrationCost or 0) > 0 then
+                    if quality == #breakpoints then
+                        op.concentrationCost = 0
+                    else
+                        local weight = self:GetWeight() + self.extraSkill * self:GetWeightPerSkill()
+                        local base = self:WithExtraSkill()
+
+                        if qualityChanged then
+                            local isLowerBound = qualityProgress < 0.5
+                            local weightReagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
+                            base = base:WithWeightReagents(weightReagents)
+                        end
+
+                        op.concentrationCost = base:GetConcentrationCost(weight)
+
+                        if Util:NumIsNaN(op.concentrationCost) then
+                            op.concentrationCost = -1
+                        end
+                    end
+                end
+            end
+        end
     end
     return self.operationInfo
 end
@@ -241,7 +349,7 @@ end
 -- Quality
 
 function Self:GetQuality()
-    return floor(self:GetOperationInfo().quality)
+    return self:GetOperationInfo().craftingQuality
 end
 
 function Self:GetResultQuality()
@@ -274,6 +382,8 @@ function Self:GetSkillBounds(includeBonusSkillReagents)
         end
 
         self.skillBase, self.skillRange = unpack(cache:Get(key))
+
+        self.skillBase = self.skillBase + self.extraSkill
     end
 
     if includeBonusSkillReagents and self:GetBonusSkillReagentSlot() then
@@ -333,6 +443,7 @@ function Self:GetConcentrationFactors()
             ---@type number[]
             local concentrationFactors = {}
 
+            local n = #Addon.CONCENTRATION_BREAKPOINTS
             local maxWeight = self:GetMaxWeight()
             local baseSkill, skillRange = self:GetSkillBounds()
             local lowerSkill, upperSkill = self:GetSkillThresholds(true)
@@ -342,13 +453,17 @@ function Self:GetConcentrationFactors()
                 local skill = lowerSkill + v * (upperSkill - lowerSkill)
                 local weight = max(0, maxWeight * (skill - baseSkill) / skillRange)
 
-                local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i == 1)
-                local op = self:WithQualityReagents(reagents)
-                local info = op:GetOperationInfo()
-                local opWeight = op:GetWeight()
-                local opCon = info.concentrationCost
+                local opWeight, opCon = prevWeight, prevCon
 
-                if i > 1 and opWeight <= weight then
+                if weight ~= prevWeight then
+                    local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i < n)
+                    local op = self:WithQualityReagents(reagents)
+                    local info = op:GetOperationInfo()
+
+                    opWeight, opCon = op:GetWeight(), info.concentrationCost
+                end
+
+                if i > 1 and opWeight >= prevWeight then
                     concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
                 end
 
@@ -365,6 +480,8 @@ function Self:GetConcentrationFactors()
 end
 
 function Self:GetConcentrationCost(weight)
+    if self:GetQuality() == self:GetRecipeInfo().maxQuality then return 0 end
+
     local concentration = self:GetOperationInfo().concentrationCost
 
     if not weight or weight == self:GetWeight() then
@@ -386,7 +503,7 @@ function Self:GetConcentrationCost(weight)
        local v = Addon.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
        local f = conFactors[d == 1 and i or n-i]
        local targetSkill = lowerSkill + v * (upperSkill - lowerSkill)
-       local targetWeight = bound(weight, maxWeight * (targetSkill - baseSkill) / skillRange)
+       local targetWeight = max(0, bound(weight, maxWeight * (targetSkill - baseSkill) / skillRange))
 
        if targetWeight * d > currWeight * d and targetWeight * d <= weight * d then
           currCon = currCon + (targetWeight - currWeight) * f
@@ -487,11 +604,12 @@ Static.Cache = {
             local order = operation:GetOrder()
             local operationInfo = operation:GetOperationInfo()
 
-            return ("%d;%d;%d;%d"):format(
+            return ("%d;%d;%d;%d;%d"):format(
                 operation.recipe.recipeID,
                 operation:GetQuality(),
                 order and order.orderID or 0,
-                operationInfo.baseSkill + operationInfo.bonusSkill + Addon.extraSkill
+                operationInfo.baseSkill + operationInfo.bonusSkill,
+                operation.extraSkill
             )
         end,
         10
@@ -506,7 +624,7 @@ Static.Cache = {
                 operation.recipe.recipeID,
                 operation:GetQuality(),
                 operation:GetStatBonus("cc") * 100,
-                profInfo and profInfo.skillLevel + profInfo.skillModifier or 0 + Addon.extraSkill
+                profInfo and profInfo.skillLevel + profInfo.skillModifier or 0
             )
         end,
         10

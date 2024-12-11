@@ -97,7 +97,6 @@ function Self:Load()
 
     -- Account
     if not self.DB.Account.v then
-        ---@diagnostic disable-next-line: inject-field
         self.DB.Account.amounts = nil
         self.DB.Account.reagents = true
         self.DB.Account.v = 1

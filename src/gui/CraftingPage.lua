@@ -4,6 +4,7 @@ local Cache, GUI, Optimization, Prices, Promise, Util = Addon.Cache, Addon.GUI, 
 
 ---@class GUI.CraftingPage
 ---@field frame CraftingPage
+---@field sortJob? Promise
 local Self = GUI.CraftingPage
 
 ---@type Optimization.Method?
@@ -58,7 +59,6 @@ function Self:InitRecipeListRecipe(frame, node)
 
     -- Set value
     if not frame.Value then
-        ---@diagnostic disable-next-line: inject-field
         frame.Value = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
         frame.Value:SetPoint("RIGHT")
         frame.Value:SetJustifyH("RIGHT")
@@ -164,8 +164,6 @@ function Self:UpdateSort(refresh)
     self.recipeIDs = recipeIDs
 
     if refresh or professionChanged or filterChanged then
-        if self.sortJob then self.sortJob:Cancel() end
-
         self.dataProvider:GetRootNode():Flush()
 
         if professionChanged then
@@ -185,7 +183,7 @@ function Self:UpdateSort(refresh)
 
         self.frame.RecipeList.NoResultsText:SetShown(false)
 
-        self.sortJob = Promise:Async(function ()
+        Promise:Async(function ()
             Promise:GetCurrent():SetPriority(5)
 
             for i,recipeID in ipairs(recipeIDs) do
@@ -218,26 +216,16 @@ function Self:UpdateSort(refresh)
 
             -- Fix last recipe not getting sorted correctly
             self.dataProvider:Invalidate()
-        end):Start(function ()
+        end):Singleton(self, "sortJob"):Start(function ()
             self.progressBar:Start(n)
             return function () self.progressBar:Progress(n, n) end
         end):Progress(function (i, n)
             if not i or not n then return end
             self.progressBar:Progress(i, n)
-        end):Finally(function ()
-            self.sortJob = nil
         end)
     end
 
     self.frame.RecipeList.ScrollBox:SetDataProvider(self.dataProvider, ScrollBoxConstants.RetainScrollPosition)
-end
-
----@param ignoreSkillLine? boolean
-function Self:ProfessionsIsUsingDefaultFilters(ignoreSkillLine)
-    local res = Util:TblGetHooked(Professions, "IsUsingDefaultFilters")(ignoreSkillLine)
-    if not res or not self.frame:IsVisible() then return res end
-
-    return not self.sortMethod
 end
 
 ---------------------------------------
@@ -308,8 +296,6 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.frame, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.frame, "ValidateControls", Util:FnBind(self.ValidateControls, self))
 
-    self.frame.RecipeList.selectionBehavior:RegisterCallback(SelectionBehaviorMixin.Event.OnSelectionChanged, self.OnSelectionChanged, self)
-
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 
     if not Prices:IsSourceInstalled() then return end
@@ -320,6 +306,7 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.frame, "RegisterUnitEvent", Util:FnBind(self.OnRegisterUnitEvent, self))
     hooksecurefunc(self.frame, "UnregisterEvent", Util:FnBind(self.OnUnregisterEvent, self))
 
+    self.frame.RecipeList.selectionBehavior:RegisterCallback(SelectionBehaviorMixin.Event.OnSelectionChanged, self.OnSelectionChanged, self)
     self.frame.RecipeList.ScrollBox.view:RegisterCallback(ScrollBoxListViewMixin.Event.OnInitializedFrame, self.OnRecipeListRecipeInitialized, self)
 
     hooksecurefunc(Professions, "SetDefaultFilters", Util:FnBind(self.OnSetDefaultFilters, self))
