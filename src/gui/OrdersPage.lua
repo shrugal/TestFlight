@@ -72,7 +72,7 @@ end
 function Self:UpdateTrackAllOrdersBox()
     local profits = Util:TblMap(C_CraftingOrders.GetCrafterOrders(), self.GetOrderProfit, false, self)
 
-    Promise:All(profits):Done(function ()
+    Promise:All(profits):Finally(function ()
         local enabled = self:HasNextOrder() or self:HasTrackableOrders()
         local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
 
@@ -261,7 +261,7 @@ function Self:CommissionCellPopulate(cell, rowData)
 
         moneyFrame:UpdateWidth()
         moneyFrame:UpdateAnchoring()
-    end):Singleton(cell, "job"):Start()
+    end):Singleton(cell, "profitJob"):Start()
 
     -- Rewards
 

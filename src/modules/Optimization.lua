@@ -286,6 +286,7 @@ function Self:GetWeightsAndPrices(operation)
             if operation:HasAllocation(slot.slotIndex) then break end
 
             if not weightPerSkill then weightPerSkill = operation:GetWeightPerSkill() end
+            if weightPerSkill == 0 or weightPerSkill == math.huge then break end
 
             for j,reagent in pairs(slot.reagents) do repeat
                 local price = Prices:GetReagentPrice(reagent)

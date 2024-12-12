@@ -447,6 +447,7 @@ end
 ---@param obj table
 ---@param key any
 function Self:Singleton(obj, key)
+    if obj[key] == self then return self end
     if obj[key] then obj[key]:Cancel(false) end
     if not self:IsFinalized() then obj[key] = self:Finally(function () obj[key] = nil end) end
     return self
