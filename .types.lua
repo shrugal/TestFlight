@@ -203,6 +203,7 @@ StaticPopup_OnClick = nil
 ---@field Enumerate fun(self: self): Enumerator<ProfessionTransationReagent, number>, ProfessionTransationReagent[], number
 ---@field EnumerateAllocations fun(self: self, slotIndex: number): Enumerator<ProfessionTransactionAllocation, number>, ProfessionTransactionAllocation[], number
 ---@field IsApplyingConcentration fun(self: self): boolean
+---@field SetApplyConcentration fun(self: self, applyConcentration: boolean)
 ---@field ShouldUseCharacterInventoryOnly fun(self: self): boolean
 
 ---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
@@ -290,6 +291,7 @@ ProfessionsFrame = nil
 
 ---@class RecipeCraftingForm: RecipeForm, CallbackRegistryMixin
 ---@field recipeSchematic CraftingRecipeSchematic
+---@field Concentrate ConcentrateContainer
 ---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
 ---@field OutputIcon OutputSlot
@@ -315,6 +317,7 @@ ProfessionsFrame = nil
 ---@field craftingQuality number
 ---@field statLinePool StatLineFramePool
 ---@field StatLines RecipeStatLines
+---@field CraftingChoicesContainer CraftingChoicesContainer
 ---@field ApplyLayout fun()
 ---@field Layout fun(self: self)
 
@@ -334,6 +337,16 @@ ProfessionsFrame = nil
 ---@field RightLabel FontString
 ---@field SetLabel fun(self: self, text: string)
 ---@field GetStatFormat fun(self: self): string
+
+---@class CraftingChoicesContainer: Frame
+---@field ConcentrateContainer ConcentrateContainer
+
+---@class ConcentrateContainer: Frame
+---@field ConcentrateToggleButton ConcentrateToggleButton
+
+---@class ConcentrateToggleButton: Frame
+---@field HasEnoughConcentration fun(self: self): boolean
+---@field UpdateState fun(self: self)
 
 ---@class Flyout: Frame
 ---@field OnElementEnabledImplementation fun(): boolean

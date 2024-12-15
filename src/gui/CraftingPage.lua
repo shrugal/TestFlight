@@ -201,7 +201,7 @@ function Self:UpdateSort(refresh)
                     if value and abs(value) ~= math.huge then
                         self.dataProvider:Insert({
                             recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
-                            allocation = operation.allocation,
+                            operation = operation,
                             value = value,
                             method = method,
                             quality = operation:GetQuality()
@@ -239,8 +239,8 @@ function Self:OnSelectionChanged(node, selected)
 
     local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
 
-    if data.allocation then
-        form:AllocateReagents(data.allocation)
+    if data.operation then
+        form:SetOperation(data.operation)
     elseif data.method and data.quality then
         form:SetOptimizationMethod(data.method)
         form:SetQuality(data.quality)

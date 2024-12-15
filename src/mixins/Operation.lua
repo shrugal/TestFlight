@@ -14,7 +14,8 @@ Static.Mixin = {}
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
-function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
+---@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
+function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, reagentsFilter)
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
     local recraftGUID = type(orderOrRecraftGUID) == "string" and orderOrRecraftGUID or nil
     local profInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
@@ -30,11 +31,13 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
         Prices:GetRecipeScanTime(recipe, nil, order, recraftMods) or 0
     )
 
-    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do
+    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat
         key = key .. ";"
 
         local missing = slot.required and slot.quantityRequired or 0
         local allocs = allocation and allocation[slotIndex]
+
+        if reagentsFilter and not reagentsFilter(slot, allocs) then break end
 
         if allocs then
             for _,alloc in allocs:Enumerate() do
@@ -46,7 +49,7 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
         if missing > 0 then
             key = key .. (";%d;%d"):format(slot.reagents[1].itemID, missing)
         end
-    end
+    until true end
 
     return key
 end
@@ -192,8 +195,10 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
     end
 end
 
-function Self:GetKey()
-    return Static:GetKey(self.recipe, self.allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill)
+---@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
+function Self:GetKey(applyConcentration, reagentsFilter)
+    if applyConcentration == nil then applyConcentration = self.applyConcentration end
+    return Static:GetKey(self.recipe, self.allocation, self.orderOrRecraftGUID, applyConcentration, self.extraSkill, reagentsFilter)
 end
 
 function Self:GetRecipeInfo()
@@ -378,7 +383,8 @@ function Self:GetSkillBounds(includeBonusSkillReagents)
         local key = cache:Key(self)
 
         if not cache:Has(key) then
-            cache:Set(key, { Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID) })
+            local skillBase, skillRange = Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID)
+            cache:Set(key, { skillBase, skillRange })
         end
 
         self.skillBase, self.skillRange = unpack(cache:Get(key))
@@ -393,10 +399,19 @@ function Self:GetSkillBounds(includeBonusSkillReagents)
     end
 end
 
-function Self:GetWeight()
+function Self:GetWeight(includeBonusSkillReagents)
     if not self.weight then
         self.weight = Reagents:GetAllocationWeight(self:GetQualityReagentSlots(), self.allocation)
     end
+
+    if includeBonusSkillReagents then
+        local slot = self:GetBonusSkillReagentSlot()
+        local alloc = slot and self.allocation[slot.slotIndex]
+        if alloc and alloc:HasAnyAllocations() then
+            return self.weight + Reagents:GetWeight(alloc.allocs[1].reagent, self:GetWeightPerSkill())
+        end
+    end
+
     return self.weight
 end
 
@@ -425,12 +440,17 @@ end
 ---@param absolute? boolean
 function Self:GetWeightThresholds(absolute)
     local lowerSkill, upperSkill = self:GetSkillThresholds(absolute)
-    local maxWeight, difficulty = self:GetMaxWeight(), self:GetDifficulty()
+    local maxWeight = self:GetMaxWeight()
+
     local lower, upper = maxWeight * lowerSkill, maxWeight * upperSkill
 
-    if absolute then return lower / difficulty, upper / difficulty end
+    if absolute then
+        local difficulty = self:GetDifficulty()
+        return lower / difficulty, upper / difficulty
+    end
 
     local _, skillRange = self:GetSkillBounds()
+
     return ceil(lower / skillRange), min(maxWeight, floor(upper / skillRange))
 end
 
@@ -484,7 +504,7 @@ function Self:GetConcentrationCost(weight)
 
     local concentration = self:GetOperationInfo().concentrationCost
 
-    if not weight or weight == self:GetWeight() then
+    if not weight or weight == self:GetWeight(true) then
         return concentration
     end
 
@@ -493,7 +513,7 @@ function Self:GetConcentrationCost(weight)
     local lowerSkill, upperSkill = self:GetSkillThresholds(true)
     local maxWeight = self:GetMaxWeight()
     local currCon = concentration
-    local currWeight = self:GetWeight()
+    local currWeight = self:GetWeight(true)
 
     local n = #Addon.CONCENTRATION_BREAKPOINTS
     local d = currWeight <= weight and 1 or -1
@@ -603,13 +623,15 @@ Static.Cache = {
         function (_, operation)
             local order = operation:GetOrder()
             local operationInfo = operation:GetOperationInfo()
+            local _, reagent = Util:TblFind(operation:GetOptionalReagents(), Reagents.IsUntradableBonusSkill, false, Reagents)
 
-            return ("%d;%d;%d;%d;%d"):format(
+            return ("%d;%d;%d;%d;%d;%d"):format(
                 operation.recipe.recipeID,
                 operation:GetQuality(),
                 order and order.orderID or 0,
-                operationInfo.baseSkill + operationInfo.bonusSkill,
-                operation.extraSkill
+                operationInfo.baseSkill,
+                operation.extraSkill,
+                reagent and reagent.itemID or 0
             )
         end,
         10

@@ -132,8 +132,7 @@ end
 
 ---@param quality? number
 ---@param exact? boolean
----@param method? Optimization.Method
-function Self:SetQuality(quality, exact, method)
+function Self:SetQuality(quality, exact)
     if self.isOptimizing then return end
 
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
@@ -144,12 +143,14 @@ function Self:SetQuality(quality, exact, method)
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
 
     Promise:Create(function ()
-        return Optimization:GetRecipeAllocations(recipe, method or self.optimizationMethod, tx, orderOrRecraftGUID)
+        return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID)
     end):Done(function (operations)
-        local operation = operations and (operations[quality] or not exact and operations[quality + 1])
+        if not operations then return end
+
+        local operation = (operations[quality] or not exact and operations[quality + 1])
         if not operation then return end
 
-        self:AllocateReagents(operation.allocation)
+        self:SetOperation(operation)
     end):Start(function ()
         self.isOptimizing = true
         self.increaseBtn:SetEnabled(false)
@@ -167,6 +168,7 @@ end
 ---@param by number
 function Self:ChangeQualityBy(by)
     local tx, op = self.form.transaction, self.form:GetRecipeOperationInfo()
+
     local quality = tx:IsApplyingConcentration() and op.craftingQuality - 1 or op.craftingQuality
 
     self:SetQuality(quality + by, true)

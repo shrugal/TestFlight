@@ -12,20 +12,6 @@ local Self = Mixin(NS.WithCrafting, Parent)
 
 Self.optimizationMethod = Optimization.Method.Cost
 
----@type Cache<Operation, fun(cache: Cache, self: GUI.RecipeForm.WithCrafting): string>
-Self.operationCache = Addon.Cache:Create(
-    ---@param self GUI.RecipeForm.WithCrafting
-    function (_, self)
-        local tx = self.form.transaction
-        local recipe = tx:GetRecipeSchematic()
-        local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
-        local applyConcentration = tx:IsApplyingConcentration()
-
-        return Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
-    end,
-    1
-)
-
 ---------------------------------------
 --               Hooks
 ---------------------------------------
@@ -46,10 +32,12 @@ function Self:GetRecipeOperationInfo()
 
         opInfo = Util:TblCopy(opInfo)
         opInfo.craftingQuality = quality
+        opInfo.craftingQualityID = op:GetRecipeInfo().qualityIDs[quality]
         opInfo.quality = quality
+        opInfo.bonusSkill = opInfo.upperSkillTreshold - opInfo.baseSkill
         opInfo.lowerSkillThreshold = difficulty * lower
         opInfo.upperSkillTreshold = difficulty * upper
-    end 
+    end
 
     return opInfo
 end
@@ -63,13 +51,17 @@ function Self:Init(_, recipe)
     if not self:CanAllocateReagents() then return end
 
     -- Set or update tracked allocation
-    local Service, model = self:GetTracking()
-    local allocation = model and Service:GetTrackedAllocation(model)
-    if allocation then
-        self:AllocateReagents(allocation)
-    else
-        self:UpdateTracking()
+    if not self.isRefreshing then
+        local Service, model = self:GetTracking()
+        local operation = model and Service:GetTrackedAllocation(model)
+
+        if operation then
+            self:SetOperation(operation)
+            return
+        end
     end
+
+    self:UpdateTracking()
 end
 
 function Self:Refresh()
@@ -131,7 +123,7 @@ function Self:CostStatLineOnEnter(line)
         end
 
         if op:GetRecipeInfo().supportsQualities then
-            local operations = Optimization:GetAllocationsForMethod(op, Optimization.Method.Cost)
+            local operations = Optimization:GetRecipeAllocations(op.recipe, Optimization.Method.Cost, self.form.transaction)
 
             if operations then
                 GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -188,7 +180,7 @@ function Self:ProfitStatLineOnEnter(line)
     GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
     if recipeInfo.supportsQualities then
-        local operations = Optimization:GetAllocationsForMethod(op, Optimization.Method.Profit)
+        local operations = Optimization:GetRecipeAllocations(op.recipe, Optimization.Method.Profit, self.form.transaction)
 
         if operations then
             GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -371,7 +363,7 @@ end
 
 function Self:GetQuality()
     local op = self.form:GetRecipeOperationInfo()
-    if op and op.isQualityCraft then return op.craftingQuality end
+    if op then return op.craftingQuality end
 end
 
 function Self:CanAllocateReagents()
@@ -427,12 +419,24 @@ function Self:OnEnabled()
     if not self.form then return end
 
     Util:TblHook(self.form, "GetRecipeOperationInfo", self.GetRecipeOperationInfo, self)
+
+    Util:TblHook(self.form.Concentrate.ConcentrateToggleButton, "HasEnoughConcentration", Util.FnTrue)
+    Util:TblHook(self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton, "HasEnoughConcentration", Util.FnTrue)
+
+    self.form.Concentrate.ConcentrateToggleButton:UpdateState()
+    self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton:UpdateState()
 end
 
 function Self:OnDisabled()
     if not self.form then return end
 
     Util:TblUnhook(self.form, "GetRecipeOperationInfo")
+
+    Util:TblUnhook(self.form.Concentrate.ConcentrateToggleButton, "HasEnoughConcentration")
+    Util:TblUnhook(self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton, "HasEnoughConcentration")
+
+    self.form.Concentrate.ConcentrateToggleButton:UpdateState()
+    self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton:UpdateState()
 end
 
 function Self:OnRefresh()
@@ -440,7 +444,9 @@ function Self:OnRefresh()
 
     if not self.form or not self.form:IsVisible() then return end
 
+    self.isRefreshing = true
     self.form:Refresh()
+    self.isRefreshing = nil
 end
 
 function Self:OnExtraSkillUpdated()
@@ -451,6 +457,10 @@ function Self:OnExtraSkillUpdated()
 end
 
 function Self:OnAllocationModified()
+    self:UpdateTracking()
+end
+
+function Self:OnTransactionUpdated()
     self:UpdateTracking()
 end
 
@@ -488,6 +498,7 @@ function Self:OnAddonLoaded()
     -- Events
 
     self.form:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.OnAllocationModified, self)
+    EventRegistry:RegisterCallback("Professions.TransactionUpdated", self.OnTransactionUpdated, self)
 
     Addon:RegisterCallback(Addon.Event.Enabled, self.OnEnabled, self)
     Addon:RegisterCallback(Addon.Event.Disabled, self.OnDisabled, self)

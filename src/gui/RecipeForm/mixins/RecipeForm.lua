@@ -1,11 +1,25 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Reagents, Recipes = Addon.GUI, Addon.Reagents, Addon.Recipes
+local GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
 ---@field GetTrackRecipeCheckbox fun(self: self): CheckButton
 local Self = GUI.RecipeForm.RecipeForm
+
+---@type Cache<Operation, fun(cache: Cache, self: GUI.RecipeForm.RecipeForm): string>
+Self.operationCache = Addon.Cache:Create(
+    ---@param self GUI.RecipeForm.RecipeForm
+    function (_, self)
+        local tx = self.form.transaction
+        local recipe = tx:GetRecipeSchematic()
+        local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
+        local applyConcentration = tx:IsApplyingConcentration()
+
+        return Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
+    end,
+    1
+)
 
 ---------------------------------------
 --               Util
@@ -32,8 +46,43 @@ function Self:GetOrder() end
 ---@return number?
 function Self:GetQuality() end
 
-function Self:GetAllocation()
-    return self.form.transaction.allocationTbls
+function Self:GetOperation(refresh)
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    if Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Salvage, Enum.TradeskillRecipeType.Gathering) then return end
+
+    local cache = self.operationCache
+    local key = cache:Key(self)
+
+    if refresh or not cache:Has(key) then
+        local tx = self.form.transaction
+        local order = self:GetOrder()
+
+        if order and Orders:IsClaimable(order) then ---@cast order -?
+            cache:Set(key, Optimization:GetOrderAllocation(order, tx, Addon.enabled))
+        else
+            cache:Set(key, Operation:FromTransaction(tx, order, Addon.enabled))
+        end
+    end
+
+    return cache:Get(key)
+end
+
+---@param operation Operation
+function Self:SetOperation(operation)
+    self:AllocateBasicReagents()
+
+    for slot in self.form.reagentSlotPool:EnumerateActive() do
+        local allocs = operation.allocation[slot:GetSlotIndex()]
+        if allocs then
+            self:AllocateReagent(slot, allocs, true)
+        end
+    end
+
+    self.form.transaction:SetApplyConcentration(operation.applyConcentration)
+
+    self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
 -- Set allocation
@@ -46,7 +95,9 @@ function Self:AllocateReagent(slot, allocations, silent)
 
     if not Addon.enabled then
         for _,reagent in allocations:Enumerate() do
-            if reagent.quantity > Reagents:GetQuantity(reagent) then Addon:Enable() break end
+            if reagent.quantity > Reagents:GetQuantity(reagent) then
+                Addon:Enable() break
+            end
         end
     end
 
@@ -65,20 +116,6 @@ function Self:AllocateReagent(slot, allocations, silent)
     end
 
     if silent then return end
-
-    self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
-end
-
----@param allocation RecipeAllocation
-function Self:AllocateReagents(allocation)
-    self:AllocateBasicReagents()
-
-    for slot in self.form.reagentSlotPool:EnumerateActive() do
-        local allocations = allocation[slot:GetSlotIndex()]
-        if allocations then
-            self:AllocateReagent(slot, allocations, true)
-        end
-    end
 
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
@@ -172,13 +209,13 @@ function Self:UpdateTracking()
     local recipe = self:GetRecipe()
     if not recipe then return end
 
-    local quality, allocation
+    local quality, operation
     if Recipes:IsTracked(recipe) then
-        quality, allocation = self:GetQuality(), self:GetAllocation()
+        quality, operation = self:GetQuality(), self:GetOperation()
     end
 
     Recipes:SetTrackedQuality(recipe, quality)
-    Recipes:SetTrackedAllocation(recipe, allocation)
+    Recipes:SetTrackedAllocation(recipe, operation)
 end
 
 ---------------------------------------

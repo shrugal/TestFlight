@@ -6,7 +6,7 @@ local Operation, Optimization, Promise, Reagents, Util = Addon.Operation, Addon.
 ---@field Event Recipes.Event
 local Self = Mixin(Addon.Recipes, CallbackRegistryMixin)
 
----@type table<boolean, RecipeAllocation[]>
+---@type table<boolean, Operation[]>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
 
 ---------------------------------------
@@ -44,6 +44,7 @@ end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
+---@return Operation?
 function Self:GetTrackedAllocation(recipeOrOrder, isRecraft)
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
     return self.trackedAllocations[isRecraft][recipeID]
@@ -57,14 +58,14 @@ function Self:GetTrackedReagentAmounts()
         local amount = self:GetTrackedAmount(recipe)
         if amount <= 0 then break end
 
-        local allocation = self:GetTrackedAllocation(recipe)
+        local operation = self:GetTrackedAllocation(recipe)
 
         for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
             local required = reagent.required and reagent.quantityRequired or 0
             local missing = amount * required
 
-            if allocation and allocation[slotIndex] then
-                for _, alloc in allocation[slotIndex]:Enumerate() do repeat
+            if operation and operation.allocation[slotIndex] then
+                for _, alloc in operation.allocation[slotIndex]:Enumerate() do repeat
                     missing = missing - amount * alloc.quantity
 
                     local itemID = alloc.reagent.itemID ---@cast itemID -?
@@ -142,13 +143,13 @@ function Self:SetTrackedQuality(recipeOrOrder, quality, isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
----@param allocation? RecipeAllocation
+---@param operation? Operation
 ---@param isRecraft? boolean
-function Self:SetTrackedAllocation(recipeOrOrder, allocation, isRecraft)
+function Self:SetTrackedAllocation(recipeOrOrder, operation, isRecraft)
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    self.trackedAllocations[isRecraft][recipeID] = allocation
+    self.trackedAllocations[isRecraft][recipeID] = operation
 
-    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, allocation)
+    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, operation)
 end
 
 -- Clear
@@ -299,10 +300,10 @@ end
 function Self:LoadAllocation(recipe)
     local quality = self:GetTrackedQuality(recipe) or 1
     local allocations = Optimization:GetMinCostAllocations(Operation:Create(recipe))
-    local allocation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
-    if not allocation then return end
+    local operation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
+    if not operation then return end
 
-    self:SetTrackedAllocation(recipe, allocation)
+    self:SetTrackedAllocation(recipe, operation)
 end
 
 ---@todo Recraft allocations

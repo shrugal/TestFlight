@@ -28,7 +28,14 @@ end
 ---------------------------------------
 
 function Self:GetOrder()
-    return GUI.OrdersView.frame and GUI.OrdersView.frame.order
+    local order = GUI.OrdersView.frame and GUI.OrdersView.frame.order
+
+    -- Fulfillable state is sometimes not updated correctly
+    if order and order.orderState == Enum.CraftingOrderState.Claimed and not order.isFulfillable then
+        order = C_CraftingOrders.GetClaimedOrder() or order
+    end
+
+    return order
 end
 
 function Self:GetQuality()

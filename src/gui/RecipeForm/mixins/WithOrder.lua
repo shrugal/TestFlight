@@ -46,27 +46,11 @@ end
 
 function Self:GetQuality()
     local order = self:GetOrder()
-    if order and self:IsClaimableOrder(order) then
+    if order and Orders:IsClaimable(order) then
         return floor(order.minQuality)
     end
 
     return Parent.GetQuality(self)
-end
-
-function Self:GetAllocation()
-    local form, order = self.form, self:GetOrder()
-
-    if order and self:IsClaimableOrder(order) then
-        local operation = Optimization:GetOrderAllocation(order, form.transaction)
-        if operation then return operation.allocation end
-    end
-
-    return Parent.GetAllocation(self)
-end
-
----@param order CraftingOrderInfo
-function Self:IsClaimableOrder(order)
-    return order.orderID and order.orderState == Enum.CraftingOrderState.Created
 end
 
 -- Tracking service
@@ -79,7 +63,7 @@ function Self:UpdateTracking()
     local order = self:GetOrder()
     if not order or not Orders:IsTracked(order) then return end
 
-    Orders:SetTrackedAllocation(order, self:GetAllocation())
+    Orders:SetTrackedAllocation(order, self:GetOperation())
 end
 
 ---------------------------------------

@@ -10,7 +10,7 @@ local Self = Mixin(Addon.Orders, CallbackRegistryMixin)
 Self.tracked = { [false] = {}, [true] = {} }
 ---@type number[]
 Self.trackedAmounts = {}
----@type table<boolean, RecipeAllocation[]>
+---@type table<boolean, Operation[][]>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
 ---@type table<boolean, (true | number)[][]>
 Self.creatingProvided = { [false] = {}, [true] = {} }
@@ -65,6 +65,7 @@ end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
+---@return Operation?
 function Self:GetTrackedAllocation(recipeOrOrder, isRecraft)
     local recipeID, isRecraft = Recipes:GetRecipeInfo(recipeOrOrder, isRecraft)
 
@@ -82,7 +83,7 @@ function Self:GetTrackedReagentAmounts()
         if amount <= 0 then break end
 
         local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
-        local allocation = self:GetTrackedAllocation(order)
+        local operation = self:GetTrackedAllocation(order)
         local recraftMods = Reagents:GetRecraftMods(order)
 
         -- Provided by customer
@@ -108,8 +109,8 @@ function Self:GetTrackedReagentAmounts()
                 -- Provided by customer: Already accounted for
             else
                 -- Allocated
-                if allocation and allocation[slotIndex] then
-                    for _, alloc in allocation[slotIndex]:Enumerate() do
+                if operation and operation.allocation[slotIndex] then
+                    for _, alloc in operation.allocation[slotIndex]:Enumerate() do
                         missing = max(0, missing - amount * alloc.quantity)
 
                         local itemID = alloc.reagent.itemID ---@cast itemID -?
@@ -199,24 +200,24 @@ function Self:SetTrackedAmount(recipeOrOrder, amount)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
----@param allocation? RecipeAllocation
+---@param operation? Operation
 ---@param isRecraft? boolean
-function Self:SetTrackedAllocation(recipeOrOrder, allocation, isRecraft)
+function Self:SetTrackedAllocation(recipeOrOrder, operation, isRecraft)
     local recipeID, isRecraft = Recipes:GetRecipeInfo(recipeOrOrder, isRecraft)
     local orderID = type(recipeOrOrder) == "table" and recipeOrOrder.orderID or 0
 
     if not self.trackedAllocations[isRecraft][recipeID] then
-        if not allocation then return end
+        if not operation then return end
         self.trackedAllocations[isRecraft][recipeID] = {}
     end
 
-    self.trackedAllocations[isRecraft][recipeID][orderID] = allocation
+    self.trackedAllocations[isRecraft][recipeID][orderID] = operation
 
-    if not allocation and not next(self.trackedAllocations[isRecraft][recipeID]) then
+    if not operation and not next(self.trackedAllocations[isRecraft][recipeID]) then
         self.trackedAllocations[isRecraft][recipeID] = nil
     end
 
-    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, orderID, allocation)
+    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, orderID, operation)
 end
 
 ---------------------------------------
@@ -308,6 +309,11 @@ end
 ---@return fun(): CraftingOrderInfo?
 function Self:Enumerate()
     return Util:TblEnum(self.tracked, 3)
+end
+
+---@param order CraftingOrderInfo
+function Self:IsClaimable(order)
+    return order.orderID and order.orderState == Enum.CraftingOrderState.Created
 end
 
 ---@param order CraftingOrderInfo

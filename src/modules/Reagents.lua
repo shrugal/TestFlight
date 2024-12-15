@@ -31,7 +31,7 @@ function Self:GetWeight(reagent, weightPerSkill)
     end ---@cast reagent number
 
     if self:HasStatBonus(reagent, "sk") then
-        return Util:NumRound(self:GetStatBonus(reagent, "sk") * weightPerSkill)
+        return floor(self:GetStatBonus(reagent, "sk") * weightPerSkill)
     else
         return Addon.REAGENTS[reagent] or 0
     end
@@ -64,6 +64,8 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
 
     if not qualitySlots then qualitySlots = self:GetQualitySlots(recipe) end
+
+    optionalReagents = optionalReagents and Util:TblFilter(optionalReagents, self.IsUntradableBonusSkill, false, self)
 
     -- Create crafting infos
     local reagents = self:CreateCraftingInfosFromSchematics(qualitySlots, optionalReagents)
@@ -352,6 +354,11 @@ end
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsBonusSkill(reagent)
     return self:IsFinishing(reagent) and Util:TblEvery(reagent.reagents, self.HasStatBonus, false, self, "sk")
+end
+
+---@param reagent CraftingReagentInfo | CraftingReagent | number
+function Self:IsUntradableBonusSkill(reagent)
+    return self:HasStatBonus(reagent, "sk") and not Prices:HasReagentPrice(reagent)
 end
 
 ---@param reagent CraftingReagentSlotSchematic

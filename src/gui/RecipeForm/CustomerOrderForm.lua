@@ -69,7 +69,7 @@ function Self:UpdateReagentPrice()
     local order = self:GetOrder()
     local recraftMods = Reagents:GetRecraftMods(order, self.form.transaction:GetRecraftAllocation())
 
-    local price = Prices:GetRecipeAllocationPrice(recipe, self:GetAllocation(), order, recraftMods)
+    local price = self:GetOperation():GetReagentPrice()
 
     self.costValue:SetAmount(price)
 end

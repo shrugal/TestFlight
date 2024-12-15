@@ -72,14 +72,17 @@ end
 function Self:UpdateTrackAllOrdersBox()
     local profits = Util:TblMap(C_CraftingOrders.GetCrafterOrders(), self.GetOrderProfit, false, self)
 
-    Promise:All(profits):Finally(function ()
-        local enabled = self:HasNextOrder() or self:HasTrackableOrders()
-        local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
+    Promise:All(profits)
+        :Singleton(self, "trackAllOrdersJob")
+        :Start(function () self.trackAllOrdersBox:Disable() end)
+        :Finally(function ()
+            local enabled = self:HasNextOrder() or self:HasTrackableOrders()
+            local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
 
-        self.trackAllOrdersBox:SetEnabled(enabled)
-        self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
-        self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
-    end):Singleton(self, "trackAllOrdersJob"):Start()
+            self.trackAllOrdersBox:SetEnabled(enabled)
+            self.trackAllOrdersBox:SetChecked(enabled and self:IsAllOrdersTracked())
+            self.trackAllOrdersBox.text:SetText(color:WrapTextInColorCode("Track All"))
+        end)
 end
 
 -- Track all filters
@@ -348,7 +351,7 @@ function Self:SetOrderTracked(order, value)
 
     local operation = Optimization:GetOrderAllocation(order)
 
-    Orders:SetTrackedAllocation(order, operation and operation.allocation)
+    Orders:SetTrackedAllocation(order, operation)
 end
 
 ---@param order CraftingOrderInfo

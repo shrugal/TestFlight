@@ -129,10 +129,10 @@ function Self:TooltipPostCall(tooltip)
     if not recipe then return end
 
     local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
-    local _, maxSkill = Reagents:GetSkillBounds(recipe)
-    if not maxSkill or maxSkill == 0 then return end
+    local _, skillRange = Reagents:GetSkillBounds(recipe)
+    if not skillRange or skillRange == 0 then return end
 
-    local skill = Util:NumRound(maxSkill * itemWeight / totalWeight, 1)
+    local skill = Util:NumRound(skillRange * itemWeight / totalWeight, 1)
 
     tooltip:AddDoubleLine("Craft skill", skill, nil, nil, nil, WHITE_FONT_COLOR.r, WHITE_FONT_COLOR.g, WHITE_FONT_COLOR.b)
 end

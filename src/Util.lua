@@ -856,7 +856,7 @@ function Self:DebugStack(level, countTop, countBottom)
 
     Addon:Debug("---", "Debugstack")
     local i = 0
-    for line in debugstack((level or 1) + 1, countTop, countBottom):gmatch("[^\n]+") do
+    for line in debugstack((level or 1) + 1, countTop or 12, countBottom or 10):gmatch("[^\n]+") do
         i = i + 1
         Addon:Debug(line, i)
     end
@@ -1014,10 +1014,10 @@ local chainFn = function (self, ...)
 end
 
 local Chain = setmetatable({}, {
-      __index = function (_, key) chainKey = key return chainFn end,
-      __call = function () return chainVal end
+    __index = function (_, key) chainKey = key return chainFn end,
+    __call = function () return chainVal end
 })
 
 setmetatable(Self, {
-      __call = function (_, val) chainVal = val return Chain end
+    __call = function (_, val) chainVal = val return Chain end
 })
