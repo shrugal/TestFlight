@@ -143,11 +143,11 @@ function Self:SetQuality(quality, exact)
     local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
 
     Promise:Create(function ()
-        return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID)
+        return Optimization:GetRecipeAllocations(recipe, self.optimizationMethod, tx, orderOrRecraftGUID, true)
     end):Done(function (operations)
         if not operations then return end
 
-        local operation = (operations[quality] or not exact and operations[quality + 1])
+        local operation = operations[quality] or not exact and operations[quality + 1]
         if not operation then return end
 
         self:SetOperation(operation)

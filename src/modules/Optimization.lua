@@ -129,15 +129,16 @@ end
 ---@param operation Operation
 ---@param method Optimization.Method
 function Self:GetAllocationsForMethod(operation, method)
-    local optimizeProfit = Util:OneOf(method, Self.Method.Profit, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
-    local optimizeConcentration = Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
-
     local cache = self.Cache.Allocations
     local key = cache:Key(operation, method)
 
     if cache:Has(key) then return cache:Get(key) end
 
     Promise:YieldFirst()
+
+    local isQualityCraft = operation:GetOperationInfo().isQualityCraft
+    local optimizeProfit = isQualityCraft and Util:OneOf(method, Self.Method.Profit, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
+    local optimizeConcentration = isQualityCraft and Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
 
     local operations = self:GetMinCostAllocations(operation)
 
@@ -156,7 +157,8 @@ function Self:GetAllocationsForMethod(operation, method)
             local lowerWeight, upperWeight = operation:GetWeightThresholds()
 
             if optimizeConcentration then
-                operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, quality, method, lowerWeight, upperWeight)
+                ---@diagnostic disable-next-line: cast-local-type
+                operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
             end
 
             if optimizeProfit then
@@ -187,7 +189,8 @@ function Self:GetAllocationsForMethod(operation, method)
                         if operation:GetOperationInfo().bonusSkill ~= bonusSkill then break end
 
                         if optimizeConcentration and (not name or name ~= prevName) then
-                            operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, quality, method, lowerWeight, upperWeight)
+                            ---@diagnostic disable-next-line: cast-local-type
+                            operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
 
                             if operation:GetWeight(true) == baseWeight then
                                 prevName = name
@@ -243,7 +246,7 @@ function Self:GetMinCostAllocations(operation)
 
     ---@type Operation[]
     local operations = {}
-    local prevPrice, upperWeight = math.huge, operation:GetMaxWeight()
+    local prevPrice, upperWeight = math.huge, operation:GetMaxWeight(true)
 
     for quality=#breakpoints, 1, -1 do
         local breakpointSkill = max(0, breakpoints[quality] * difficulty - skillBase)
@@ -251,14 +254,16 @@ function Self:GetMinCostAllocations(operation)
         if breakpointSkill <= skillRange then
             local lowerWeight = ceil(breakpointSkill * weightPerSkill)
 
-            local operation, weight = self:GetAllocationForQuality(operation, quality, Self.Method.Cost, lowerWeight, upperWeight)
+            local operation, lowerWeight = self:GetAllocationForQuality(operation, quality, Self.Method.Cost, lowerWeight, upperWeight)
 
-            local price = prices[weight]
-            if price > prevPrice then break end
+            if operation then
+                local price = prices[operation:GetWeight(true)]
+                if price > prevPrice then break end
 
-            operations[quality] = operation
+                operations[quality] = operation
 
-            prevPrice, upperWeight = price, weight - 1
+                prevPrice, upperWeight = price, lowerWeight - 1
+            end
         end
 
         if breakpointSkill == 0 then break end
@@ -454,13 +459,9 @@ end
 
 ---@param operation Operation
 ---@param method Optimization.Method
----@param lowerWeight? number
----@param upperWeight? number
+---@param lowerWeight number
+---@param upperWeight number
 function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
-    if not lowerWeight or not upperWeight then
-        lowerWeight, upperWeight = operation:GetWeightThresholds()
-    end
-
     if Util:OneOf(method, self.Method.Cost, self.Method.Profit) then
         return lowerWeight
     end
@@ -504,18 +505,17 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
 end
 
 ---@param operation Operation
----@param quality number
+---@param quality? number
 ---@param method Optimization.Method
 ---@param lowerWeight number
 ---@param upperWeight number
 function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, upperWeight)
-    local weight = quality == operation:GetQuality() and operation:GetWeight(true)
+    if not quality then quality = operation:GetQuality() end
 
     while lowerWeight <= upperWeight do
-        local newWeight = self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
-        if newWeight == weight then break end
+        local weight = self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
 
-        local reagents = self:GetReagentsForWeight(operation, newWeight)
+        local reagents = self:GetReagentsForWeight(operation, weight)
         local newOperation = operation:WithWeightReagents(reagents)
         local newQuality = newOperation:GetQuality()
 
@@ -527,6 +527,8 @@ function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, u
             upperWeight = upperWeight - 1
         end
     end
+
+    local operation = operation:GetQuality() == quality and operation or nil
 
     return operation, lowerWeight, upperWeight
 end

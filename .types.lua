@@ -217,7 +217,7 @@ StaticPopup_OnClick = nil
 ---@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification): number
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
----@field HasAllAllocations fun(quantityRequired: number): boolean
+---@field HasAllAllocations fun(self: self, quantityRequired: number): boolean
 ---@field Allocate fun(self: self, reagent: CraftingReagent, quality: number)
 ---@field Overwrite fun(self: self, allocations: ProfessionTransationAllocations[])
 ---@field OnChanged fun(self: self)
