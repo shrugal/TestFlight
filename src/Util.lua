@@ -223,7 +223,7 @@ function Self:TblGroupBy(tbl, by, key, obj, ...)
     local t, l = {}, self:TblIsList(tbl)
     for k,v in self:Each(tbl) do
         local g
-        if type(by) == "string" then
+        if type(by) == "string" then ---@cast v table
             g = self:TblGet(v, by)
         else
             g = self:FnCall(by, v, key and k, obj, ...)

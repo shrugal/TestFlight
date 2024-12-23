@@ -260,8 +260,6 @@ function Self:GetRecipeInfo(recipeOrOrder, isRecraft)
     end
 end
 
-local n = 0
-
 ---@param recipe CraftingRecipeSchematic
 ---@param reagents CraftingReagentInfo[]
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
@@ -277,27 +275,6 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
 
     local res
     if type(orderOrRecraftGUID) == "table" then
-        ---@todo DEBUG Some player orders cause freezes
-        -- if orderOrRecraftGUID.orderType ~= Enum.CraftingOrderType.Npc then
-        --     n = n + 1
-        --     local i = n
-        --     local form = Addon.GUI.RecipeForm.OrdersForm.form
-
-        --     local origReagents = reagents
-        --     local formReagents = form and form.transaction and form:IsVisible() and form.transaction:CreateCraftingReagentInfoTbl()
-
-        --     Addon:Debug(origReagents, "reagents " .. i .. " (orig)")
-        --     Addon:Debug(formReagents, "reagents " .. i .. " (form)")
-
-        --     reagents = formReagents or {}
-
-        --     C_Timer.After(0, function ()
-        --         Addon:Debug(true, "> " .. i)
-        --         local op = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, origReagents, orderOrRecraftGUID.orderID, applyConcentration)
-        --         Addon:Debug(op, "> op " .. i)
-        --     end)
-        -- end
-
         res = C_TradeSkillUI.GetCraftingOperationInfoForOrder(recipe.recipeID, reagents, orderOrRecraftGUID.orderID, applyConcentration)
     else ---@cast orderOrRecraftGUID string?
         res = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
