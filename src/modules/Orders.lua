@@ -313,7 +313,7 @@ end
 
 ---@param order CraftingOrderInfo
 function Self:IsClaimable(order)
-    return order.orderID and order.orderState == Enum.CraftingOrderState.Created
+    return order.orderID and order.orderState == Enum.CraftingOrderState.Created and order.customerGuid ~= UnitGUID("player")
 end
 
 ---@param order CraftingOrderInfo

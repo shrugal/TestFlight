@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
+local Cache, GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.Cache, Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
@@ -8,7 +8,7 @@ local GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.GUI,
 local Self = GUI.RecipeForm.RecipeForm
 
 ---@type Cache<Operation, fun(cache: Cache, self: GUI.RecipeForm.RecipeForm): string>
-Self.operationCache = Addon.Cache:Create(
+Self.operationCache = Cache:Create(
     ---@param self GUI.RecipeForm.RecipeForm
     function (_, self)
         local tx = self.form.transaction
@@ -18,7 +18,8 @@ Self.operationCache = Addon.Cache:Create(
 
         return Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
     end,
-    1
+    10,
+    true
 )
 
 ---------------------------------------
@@ -55,18 +56,27 @@ function Self:GetOperation(refresh)
     local cache = self.operationCache
     local key = cache:Key(self)
 
-    if refresh or not cache:Has(key) then
-        local tx = self.form.transaction
-        local order = self:GetOrder()
+    if not refresh and cache:Has(key) then return cache:Get(key) end
 
-        if order and Orders:IsClaimable(order) then ---@cast order -?
-            cache:Set(key, Optimization:GetOrderAllocation(order, tx, Addon.enabled))
-        else
-            cache:Set(key, Operation:FromTransaction(tx, order, Addon.enabled))
-        end
+    local tx = self.form.transaction
+    local order = self:GetOrder()
+
+    local op
+    if order and Orders:IsClaimable(order) then ---@cast order -?
+        op = Optimization:GetOrderAllocation(order, tx, Addon.enabled)
+    else
+        op = Operation:FromTransaction(tx, order, Addon.enabled)
     end
 
-    return cache:Get(key)
+    cache:Set(key, op)
+
+    -- Don't cache operations without proper bonus stats
+    local stats = op and op:GetOperationInfo().bonusStats ---@cast stats -?
+    if not op or Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT) or Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT) then
+        cache:Set(key, op)
+    end
+
+    return op
 end
 
 ---@param operation Operation
@@ -243,8 +253,15 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     self:UpdateTracking()
 end
 
+function Self:OnProfessionChanged()
+    self.operationCache:Clear()
+end
+
 function Self:OnAddonLoaded()
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRecipeUpdated, self)
 
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
+
+    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionChanged, Self)
+    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionChanged, Self)
 end

@@ -129,7 +129,9 @@ end
 ---@param operation Operation
 ---@param method Optimization.Method
 function Self:GetAllocationsForMethod(operation, method)
-    local cache = self.Cache.Allocations
+    if method == self.Method.Cost then return self:GetMinCostAllocations(operation) end
+
+    local cache = self.Cache.ProfitAllocations
     local key = cache:Key(operation, method)
 
     if cache:Has(key) then return cache:Get(key) end
@@ -224,8 +226,8 @@ end
 -- Recipe allocations that minimize cost
 ---@param operation Operation
 function Self:GetMinCostAllocations(operation)
-    local cache = self.Cache.Allocations
-    local key = cache:Key(operation, Self.Method.Cost)
+    local cache = self.Cache.CostAllocations
+    local key = cache:Key(operation)
 
     if cache:Has(key) then return cache:Get(key) end
 
@@ -356,39 +358,6 @@ function Self:GetWeightsAndPrices(operation)
     return weights, prices[1]
 end
 
----@todo Migrate to Operations
----@param recipe CraftingRecipeSchematic
----@param quality number
----@param optionalReagents? CraftingReagentInfo[]
----@param order? CraftingOrderInfo
----@param recraftGUID? string
-function Self:CanChangeCraftQuality(recipe, quality, optionalReagents, order, recraftGUID)
-    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID) ---@cast recipeInfo -?
-    if recipeInfo.maxQuality == 0 then return false, false end
-
-    local qualityReagents = Reagents:GetQualitySlots(recipe, order, Reagents:GetRecraftMods(order, recraftGUID))
-    local reagents = Reagents:CreateCraftingInfosFromSchematics(qualityReagents, optionalReagents)
-    local operationInfo = Recipes:GetOperationInfo(recipe, reagents, order or recraftGUID)
-
-    local breakpoints = Addon.QUALITY_BREAKPOINTS[recipeInfo.maxQuality]
-    local difficulty = operationInfo.baseDifficulty + operationInfo.bonusDifficulty
-
-    local skillBase, skillRange = Reagents:GetSkillBounds(recipe, qualityReagents, optionalReagents, order or recraftGUID)
-    local skillCheapest = self:GetCheapestReagentWeight(qualityReagents) * skillRange / Reagents:GetMaxWeight(qualityReagents)
-
-    if Addon.enabled then
-        skillBase = skillBase + Addon.extraSkill
-    end
-    if Reagents:GetBonusSkillSlot(recipe) and not (optionalReagents and Util:TblFind(optionalReagents, Reagents.IsUntradableBonusSkill, false, Reagents)) then
-        skillRange = skillRange + Reagents:GetMaxBonusSkill()
-    end
-
-    local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
-    local canIncrease = (breakpoints[quality+1] or math.huge) * difficulty <= skillBase + skillRange
-
-    return canDecrease or false, canIncrease or false
-end
-
 ---------------------------------------
 --             Reagents
 ---------------------------------------
@@ -512,25 +481,31 @@ end
 function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, upperWeight)
     if not quality then quality = operation:GetQuality() end
 
+    local n, l, u = 0, nil, nil
+
     while lowerWeight <= upperWeight do
-        local weight = self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
+        local weight = self:GetWeightForMethod(operation, method, l or lowerWeight, u or upperWeight)
 
         local reagents = self:GetReagentsForWeight(operation, weight)
         local newOperation = operation:WithWeightReagents(reagents)
         local newQuality = newOperation:GetQuality()
 
-        if newQuality == quality then
-            operation = newOperation break
-        elseif newQuality < quality then
-            lowerWeight = lowerWeight + 1
+        if newQuality < quality then
+            n = max( 1, min(n * 2, upperWeight - lowerWeight - 1))
+            lowerWeight = lowerWeight + n
+        elseif newQuality > quality then
+            n = min(-1, max(n * 2, lowerWeight - upperWeight + 1))
+            upperWeight = upperWeight + n
+        elseif n >  1 then
+            lowerWeight, u, n = lowerWeight - n + 1, weight,  1
+        elseif n < -1 then
+            upperWeight, l, n = upperWeight - n - 1, weight, -1
         else
-            upperWeight = upperWeight - 1
+            return newOperation, lowerWeight, upperWeight
         end
     end
 
-    local operation = operation:GetQuality() == quality and operation or nil
-
-    return operation, lowerWeight, upperWeight
+    return nil, lowerWeight, upperWeight
 end
 
 ---------------------------------------
@@ -550,10 +525,18 @@ Self.Cache = {
         function (_, operation)
             return operation:GetKey(false, cacheKeyReagentsFilter)
         end,
-        5
+        5,
+        true
+    ),
+    ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string>
+    CostAllocations = Cache:Create(
+        ---@param operation Operation
+        function(_, operation) return operation:GetKey(nil, cacheKeyReagentsFilter) end,
+        10,
+        true
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation, method: Optimization.Method): string>
-    Allocations = Cache:Create(
+    ProfitAllocations = Cache:Create(
         ---@param operation Operation
         ---@param method Optimization.Method
         function(_, operation, method)
@@ -564,6 +547,22 @@ Self.Cache = {
                 operation:GetKey(applyConcentration, cacheKeyReagentsFilter)
             )
         end,
-        20
+        10,
+        true
     )
 }
+
+---------------------------------------
+--               Events
+---------------------------------------
+
+function Self:OnProfessionBuffChanged()
+    self.Cache.ProfitAllocations:Clear()
+end
+
+function Self:OnProfessionTraitChanged()
+    for _,cache in pairs(self.Cache) do cache:Clear() end
+end
+
+Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionBuffChanged, Self)
+Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionTraitChanged, Self)

@@ -54,7 +54,7 @@ function Self:UpdateOptimizationButtons()
     if not Prices:IsSourceInstalled() then return end
     if self.isOptimizing then return end
 
-    local recipe, op, tx = self.form.recipeSchematic, self.form:GetRecipeOperationInfo(), self.form.transaction
+    local recipe, op = self.form.recipeSchematic, self.form:GetRecipeOperationInfo()
     local order = self:GetOrder()
 
     local show = op and op.craftingQuality
@@ -71,13 +71,7 @@ function Self:UpdateOptimizationButtons()
 
     if not show then return end
 
-    local canDecrease, canIncrease = Optimization:CanChangeCraftQuality(
-        recipe,
-        tx:IsApplyingConcentration() and op.craftingQuality - 1 or op.craftingQuality,
-        tx:CreateOptionalOrFinishingCraftingReagentInfoTbl(),
-        order,
-        tx:GetRecraftAllocation()
-    )
+    local canDecrease, canIncrease = self:GetOperation():CanChangeQuality()
 
     self.decreaseBtn:SetEnabled(canDecrease)
     self.increaseBtn:SetEnabled(canIncrease)

@@ -283,7 +283,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
     if not Prices:IsSourceInstalled() then return end
     if isGatheringRecipe then self.operation = nil return end
 
-    self.operation = self:GetOperation(true)
+    self.operation = self:GetOperation()
 
     ---@type number?, number?, number?
     local reagentPrice, profit
@@ -386,29 +386,6 @@ function Self:CanAllocateReagents()
     end
 
     return true
-end
-
-function Self:GetOperation(refresh)
-    local recipe = self:GetRecipe()
-    if  not recipe then return end
-
-    if Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Salvage, Enum.TradeskillRecipeType.Gathering) then return end
-
-    local cache = self.operationCache
-    local key = cache:Key(self)
-
-    if refresh or not cache:Has(key) then
-        local tx = self.form.transaction
-        local order = self:GetOrder()
-
-        if order and order.orderState ~= Enum.CraftingOrderState.Claimed then ---@cast order -?
-            cache:Set(key, Optimization:GetOrderAllocation(order, tx, Addon.enabled))
-        else
-            cache:Set(key, Operation:FromTransaction(tx, order, Addon.enabled))
-        end
-    end
-
-    return cache:Get(key)
 end
 
 ---------------------------------------

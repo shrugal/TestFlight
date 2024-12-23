@@ -7,7 +7,7 @@ local Cache, GUI, Optimization, Orders, Promise, Util = Addon.Cache, Addon.GUI, 
 local Self = GUI.OrdersPage
 
 ---@type Cache<Promise, fun(self: Cache, order: CraftingOrderInfo): number>
-Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50)
+Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50, true)
 
 -- Orders list
 
@@ -74,7 +74,10 @@ function Self:UpdateTrackAllOrdersBox()
 
     Promise:All(profits)
         :Singleton(self, "trackAllOrdersJob")
-        :Start(function () self.trackAllOrdersBox:Disable() end)
+        :Start(function ()
+            self.trackAllOrdersBox:Disable()
+            self.trackAllOrdersBox.text:SetText(LIGHTGRAY_FONT_COLOR:WrapTextInColorCode("Loading ..."))
+        end)
         :Finally(function ()
             local enabled = self:HasNextOrder() or self:HasTrackableOrders()
             local color = enabled and WHITE_FONT_COLOR or LIGHTGRAY_FONT_COLOR
@@ -120,7 +123,7 @@ function Self:InsertTrackAllFilters()
         self.frame.BrowseFrame,
         Util:FnBind(self.TrackAllKnowledgeFiltersOnEnter, self),
         Util:FnBind(self.TrackAllKnowledgeFiltersOnChange, self),
-        "LEFT", self.trackAllOrdersBox.text, "RIGHT", 50, 0
+        "BOTTOMLEFT", self.frame.BrowseFrame.RecipeList, "BOTTOMRIGHT", 125, 3
     )
     self.trackAllKnowledgeFilter = input
 
@@ -435,6 +438,10 @@ function Self:OnOrderTypeChanged()
     self:UpdateTrackAllFilters()
 end
 
+function Self:OnProfessionChanged()
+    self.profitCache:Clear()
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
@@ -462,6 +469,8 @@ function Self:OnAddonLoaded(addonName)
 
     Addon:RegisterCallback(Addon.Event.KnowledgeCostUpdated, self.OnTrackAllFilterCostUpdated, self)
     Addon:RegisterCallback(Addon.Event.CurrencyCostUpdated, self.OnTrackAllFilterCostUpdated, self)
+    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionChanged, self)
+    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionChanged, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

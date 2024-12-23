@@ -115,6 +115,8 @@ end
 ---@return Promise promise resolves with a table of promise results
 function Static:Some(promises, n, level)
     return self:Create(function (resolve, reject)
+        if n == 0 then resolve({}) end
+
         local done, failed, results = 0, #promises, {}
         local function onDone(i, result)
             results[i] = result
@@ -164,6 +166,8 @@ end
 function Static:Race(promises)
     return self:Create(function (resolve, reject)
         local n = #promises
+        if n == 0 then resolve(true) end
+
         local function onDone(...) resolve(true, ...) end
         local function onError(...) resolve(false, ...) end
         local function onCancel()

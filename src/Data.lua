@@ -49,6 +49,20 @@ Addon.ARTISAN_CURRENCY = {
     [190456] = true,
 }
 
+-- Source https://www.wowhead.com/spells?filter=16:109:29;11:6:511;0:0:0
+---@type boolean[]
+Addon.BUFFS = {
+    [432286] = true,
+    [432304] = true,
+    [432306] = true,
+    [453734] = true,
+    [445798] = true,
+    [433187] = true,
+    [433188] = true,
+    [433230] = true,
+    [452519] = true,
+}
+
 -- Source: CraftSim
 ---@type table<number, number>
 Addon.REAGENTS = {

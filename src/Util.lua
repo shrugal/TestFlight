@@ -33,20 +33,6 @@ function Self:GetCVarBool(name)
     return GetCVar(name) == "1"
 end
 
--- Tbl
-
----@param tbl table
----@param path string | any
-function Self:TblGet(tbl, path)
-    if type(path) ~= "string" then return tbl[path] end ---@cast path string
-    while true do
-        if not tbl then return end
-        local i = path:find(".", nil, true)
-        if not i then return tbl[path] end
-        tbl, path = tbl[path:sub(1, i-1)], path:sub(i+1)
-    end
-end
-
 ---@generic K, T
 ---@param a Enumerator<T, K> | table<K, T> | T
 ---@param b? table<K, T> | T
@@ -77,6 +63,45 @@ function Self:IEach(a, b, c, ...)
         return ipairs(a)
     else
         return self:Each(a, b, c, ...)
+    end
+end
+
+function Self:Serialize(val)
+    if type(val) ~= "table" then return tostring(val) end
+    if self:TblCount(val) == 0 then return "{}" end
+
+    local t = {}
+
+    if self:TblIsList(val) then
+        for _,v in ipairs(val) do
+            tinsert(t, self:Serialize(v))
+        end
+    else
+        for k,v in pairs(val) do
+            if type(k) ~= "string" then
+                k = "[" .. self:Serialize(k) .. "]"
+            elseif not k:match("^[a-zA-Z][a-zA-Z0-9]*$") then
+                k = "[\"" .. self:Serialize(k) .. "\"]"
+            end
+
+            tinsert(t, k .. " = " .. self:Serialize(v))
+        end
+    end
+
+    return "{ " .. table.concat(t, ", ") .. " }"
+end
+
+-- Tbl
+
+---@param tbl table
+---@param path string | any
+function Self:TblGet(tbl, path)
+    if type(path) ~= "string" then return tbl[path] end ---@cast path string
+    while true do
+        if not tbl then return end
+        local i = path:find(".", nil, true)
+        if not i then return tbl[path] end
+        tbl, path = tbl[path:sub(1, i-1)], path:sub(i+1)
     end
 end
 
@@ -211,23 +236,6 @@ function Self:TblGroupBy(tbl, by, key, obj, ...)
     return t
 end
 
----@generic T, S: table
----@param tbl T[] | Enumerator<T>
----@param fn SearchFn<T, boolean, S>
----@param key? boolean
----@param obj? S
----@param ... any
----@return T[]
-function Self:TblFilter(tbl, fn, key, obj, ...)
-    local t, l = {}, self:TblIsList(tbl)
-    for k,v in self:Each(tbl) do
-        if self:FnCall(fn, v, key and k, obj) then
-            if l then tinsert(t, v) else t[k] = v end
-        end
-    end
-    return t
-end
-
 ---@param tbl table
 ---@param ... any
 function Self:TblMatch(tbl, ...)
@@ -243,19 +251,22 @@ end
 ---@param ... any
 ---@return T?
 function Self:TblWhere(tbl, ...)
-    for _,v in self:Each(tbl) do
-        if self:TblMatch(v, ...) then return v end
-    end
+    return select(2, self:TblFind(tbl, self.TblMatch, false, self, ...))
 end
 
----@generic T
+---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
+---@param fn SearchFn<T, boolean, S>
+---@param key? boolean
+---@param obj? S
 ---@param ... any
 ---@return T[]
-function Self:TblFilterWhere(tbl, ...)
-    local t = {}
-    for _,v in self:Each(tbl) do
-        if self:TblMatch(v, ...) then tinsert(t, v) end
+function Self:TblFilter(tbl, fn, key, obj, ...)
+    local t, l = {}, self:TblIsList(tbl)
+    for k,v in self:Each(tbl) do
+        if self:FnCall(fn, v, key and k, obj, ...) then
+            if l then tinsert(t, v) else t[k] = v end
+        end
     end
     return t
 end
@@ -263,11 +274,9 @@ end
 ---@generic T
 ---@param tbl T[] | Enumerator<T>
 ---@param ... any
----@return any?, T?
-function Self:TblFindWhere(tbl, ...)
-    for k,v in self:IEach(tbl) do
-        if self:TblMatch(v, ...) then return k, v end
-    end
+---@return T[]
+function Self:TblFilterWhere(tbl, ...)
+    return self:TblFilter(tbl, self.TblMatch, false, self, ...)
 end
 
 ---@param tbl table
@@ -333,6 +342,14 @@ function Self:TblFind(tbl, fn, key, obj, ...)
     end
 end
 
+---@generic T
+---@param tbl T[] | Enumerator<T>
+---@param ... any
+---@return any?, T?
+function Self:TblFindWhere(tbl, ...)
+    return self:TblFind(tbl, self.TblMatch, false, self, ...)
+end
+
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
 ---@param fn? SearchFn<T, boolean, S>
@@ -342,6 +359,14 @@ end
 ---@return boolean
 function Self:TblSome(tbl, fn, key, obj, ...)
     return self:TblFind(tbl, fn, key, obj, ...) ~= nil
+end
+
+---@generic T
+---@param tbl T[] | Enumerator<T>
+---@param ... any
+---@return boolean
+function Self:TblSomeWhere(tbl, ...)
+    return self:TblSome(tbl, self.TblMatch, false, self, ...)
 end
 
 ---@generic T, S: table
@@ -356,6 +381,14 @@ function Self:TblEvery(tbl, fn, key, obj, ...)
         if not self:FnCall(fn or self.FnId, v, key and k, obj, ...) then return false end
     end
     return true
+end
+
+---@generic T
+---@param tbl T[] | Enumerator<T>
+---@param ... any
+---@return boolean
+function Self:TblEveryWhere(tbl, ...)
+    return self:TblEvery(tbl, self.TblMatch, false, self, ...)
 end
 
 ---@generic T
@@ -467,22 +500,18 @@ end
 function Self:TblCount(tbl, fn, key, obj, ...)
     local c, k = 0, next(tbl)
     while k do
-        if not fn or self:FnCall(fn, tbl[k], k, obj, ...) then c = c + 1 end
+        if not fn or self:FnCall(fn, tbl[k], key and k, obj, ...) then c = c + 1 end
         k = next(tbl, k)
     end
     return c
 end
 
 ---@generic T
----@param tbl T[] | Enumerator<T>
+---@param tbl T[]
 ---@param ... any
 ---@return number
 function Self:TblCountWhere(tbl, ...)
-    local c = 0
-    for _,v in self:Each(tbl) do
-        if self:TblMatch(v, ...) then c = c + 1 end
-    end
-    return c
+    return self:TblCount(tbl, self.TblMatch, false, self, ...)
 end
 
 ---@param tbl table
@@ -697,6 +726,13 @@ function Self.FnSub(a, b) return a - b end
 function Self.FnMul(a, b) return a * b end
 
 function Self.FnDiv(a, b) return a / b end
+
+---@generic T
+---@param val T
+---@return fun(): T
+function Self:FnVal(val)
+    return function () return val end
+end
 
 ---@generic T, R, S: table
 ---@param fn SearchFn<T, R, S>
@@ -1009,7 +1045,7 @@ local CHAIN_PREFIX = {
 local chainKey, chainVal
 local chainFn = function (self, ...)
     local prefix = CHAIN_PREFIX[type(chainVal)]
-    local fn = Self[(prefix or "") .. chainKey]
+    local fn = prefix and Self[prefix .. chainKey] or Self[chainKey]
     return Self(fn(Self, chainVal, ...))
 end
 

@@ -287,6 +287,10 @@ function Self:OnRecipeListRecipeInitialized(frame, node)
     self:InitRecipeListRecipe(frame, node)
 end
 
+function Self:OnProfessionChanged()
+    for _,cache in pairs(self.sortCaches) do cache:Clear() end
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
@@ -313,6 +317,9 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(Professions, "OnRecipeListSearchTextChanged", Util:FnBind(self.OnRecipeListSearchTextChanged, self))
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
+
+    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionChanged, self)
+    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionChanged, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

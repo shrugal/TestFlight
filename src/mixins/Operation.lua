@@ -168,21 +168,27 @@ end
 ---@param extraSkill? boolean | number
 function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
     self.recipe = recipe
-    self.allocation = allocation or Reagents:CreateAllocationFromSchematics(recipe.reagentSlotSchematics)
+    self.allocation = allocation or {}
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
     self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
 
     local order = self:GetOrder()
 
-    for slotIndex,alloc in pairs(self.allocation) do
-        local slot = self.recipe.reagentSlotSchematics[slotIndex]
+    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat        
+        -- Remove non-modifying reagents
+        if not Reagents:IsModified(slot) then self.allocation[slotIndex] = nil break end
 
-        if not Reagents:IsModified(slot) then
-            -- Remove non-modifying reagents
-            self.allocation[slotIndex] = nil
-        elseif Reagents:IsProvided(slot, order, self:GetRecraftMods()) then
-            -- Allocate provided order reagents
+        -- Allocate provided or min. required reagents
+        local provided = Reagents:IsProvided(slot, order, self:GetRecraftMods())
+        local alloc = self.allocation[slotIndex]
+
+        if not alloc and (provided or slot.required) then
+            alloc = Addon:CreateAllocations()
+            self.allocation[slotIndex] = alloc
+        end
+
+        if provided then
             Reagents:ClearAllocations(alloc)
 
             for _,reagent in pairs(Reagents:GetProvided(slot, order, self:GetRecraftMods())) do
@@ -192,10 +198,9 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
                 end
             end
         elseif slot.required and not alloc:HasAllAllocations(slot.quantityRequired) then
-            -- Allocate min. required reagents
             Reagents:Allocate(alloc, slot.reagents[1], slot.quantityRequired - alloc:Accumulate())
         end
-    end
+    until true end
 end
 
 ---@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
@@ -276,8 +281,12 @@ function Self:GetOperationInfo()
                             local weightReagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
                             base = base:WithWeightReagents(weightReagents)
                         end
-
-                        op.concentrationCost = base:GetConcentrationCost(weight)
+                        
+                        if base:GetQuality() ~= op.craftingQuality then
+                            op.concentrationCost = 0/0
+                        else
+                            op.concentrationCost = base:GetConcentrationCost(weight)
+                        end
 
                         if Util:NumIsNaN(op.concentrationCost) then
                             op.concentrationCost = -1
@@ -368,6 +377,25 @@ end
 
 function Self:GetQualityBreakpoints()
     return Addon.QUALITY_BREAKPOINTS[self:GetRecipeInfo().maxQuality]
+end
+
+---@return boolean canIncrease
+---@return boolean canDecrease
+function Self:CanChangeQuality()
+    local recipeInfo = self:GetRecipeInfo()
+    if not recipeInfo.supportsQualities or recipeInfo.maxQuality == 0 then return false, false end
+
+    local breakpoints = self:GetQualityBreakpoints()
+    local quality = self:GetQuality()
+    local qualityReagents = self:GetQualityReagentSlots()
+    local difficulty = self:GetDifficulty()
+    local skillBase, skillRange = self:GetSkillBounds(true)
+    local skillCheapest = Reagents:GetCheapestWeight(qualityReagents) / self:GetWeightPerSkill()
+
+    local canDecrease = (breakpoints[quality] or 0) * difficulty > skillBase + skillCheapest
+    local canIncrease = (breakpoints[quality+1] or math.huge) * difficulty <= skillBase + skillRange
+
+    return canDecrease or false, canIncrease or false
 end
 
 -- Difficulty, Skill, Weight, Concentration
@@ -641,7 +669,8 @@ Static.Cache = {
                 reagent and reagent.itemID or 0
             )
         end,
-        10
+        10,
+        true
     ),
     ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
     ConcentrationFactors = Cache:Create(
@@ -656,6 +685,7 @@ Static.Cache = {
                 profInfo and profInfo.skillLevel + profInfo.skillModifier or 0
             )
         end,
-        10
+        10,
+        true
     )
 }

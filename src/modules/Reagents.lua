@@ -56,6 +56,17 @@ function Self:GetMaxWeight(qualityReagents)
     return weight
 end
 
+---@param qualityReagents CraftingReagentSlotSchematic[]
+function Self:GetCheapestWeight(qualityReagents)
+    local cheapestWeight = 0
+    for _,reagent in pairs(qualityReagents) do
+        local p1, p2, p3 = Prices:GetReagentPrices(reagent)
+        local w = p3 <= p1 and p3 <= p2 and 2 or p2 <= p1 and p2 <= p3 and 1 or 0
+        cheapestWeight = cheapestWeight + reagent.quantityRequired * w * self:GetWeight(reagent)
+    end
+    return cheapestWeight
+end
+
 ---@param recipe CraftingRecipeSchematic
 ---@param qualitySlots? CraftingReagentSlotSchematic[]
 ---@param optionalReagents? CraftingReagentInfo[]
@@ -171,10 +182,10 @@ function Self:CreateCraftingInfosFromAllocation(recipe, allocation, predicate)
     local infos = {}
 
     -- Add allocation reagents
-    for slotIndex,allocations in pairs(allocation) do
+    for slotIndex,allocs in pairs(allocation) do
         local reagent = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", slotIndex)
         if reagent and self:IsModified(reagent) and (not predicate or predicate(reagent)) then
-            for _,alloc in pairs(allocations.allocs) do
+            for _,alloc in pairs(allocs.allocs) do
                 tinsert(infos, Professions.CreateCraftingReagentInfo(alloc.reagent.itemID, reagent.dataSlotIndex, alloc.quantity))
             end
         end
@@ -233,36 +244,6 @@ end
 ---------------------------------------
 --            Allocation
 ---------------------------------------
-
----@param reagent CraftingReagentSlotSchematic
----@vararg number
----@return ProfessionTransationAllocations
-function Self:CreateAllocations(reagent, ...)
-    local reagentAllocations = Addon:CreateAllocations()
-    local q = reagent.quantityRequired
-
-    for i=max(1, select("#", ...)), 1, -1 do
-        local qi = select(i, ...)
-        if not qi and i == 1 then qi = q end
-        if qi and qi > 0 then
-            self:Allocate(reagentAllocations, reagent.reagents[i], qi)
-            q = q - qi
-        end
-    end
-
-    return reagentAllocations
-end
-
----@param reagents CraftingReagentSlotSchematic[]
-function Self:CreateAllocationFromSchematics(reagents)
-    local allocation = {}
-    for _,reagent in pairs(reagents) do
-        if reagent.required then
-            allocation[reagent.slotIndex] = self:CreateAllocations(reagent)
-        end
-    end
-    return allocation
-end
 
 ---@param allocations ProfessionTransationAllocations
 ---@param reagent CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification | number

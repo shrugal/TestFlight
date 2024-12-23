@@ -72,8 +72,16 @@ function MenuUtil.CreateButton(text, callback, data) end
 ---@field RightCellPadding number
 
 ---@class DevTool
+---@field MainWindow DevToolMainWindow
+---@field list table
 ---@field AddData fun(self: DevTool, data: any, name?: string | number)
 DevTool = nil
+
+---@class DevToolMainWindow: Frame
+---@field scrollFrame HybridScrollFrame
+
+---@class HybridScrollFrame: ScrollFrame
+---@field buttonHeight number
 
 ---@class TSMAPI
 ---@field GetCustomPriceValue fun(customPriceStr: string, itemStr: string)
