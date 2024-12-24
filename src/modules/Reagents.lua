@@ -72,6 +72,11 @@ end
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecraftGUID)
+    local cache = self.Cache.SkillBounds
+    local key = cache:Key(recipe, optionalReagents, orderOrRecraftGUID)
+
+    if cache:Has(key) then return unpack(cache:Get(key)) end
+
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
 
     if not qualitySlots then qualitySlots = self:GetQualitySlots(recipe) end
@@ -101,7 +106,26 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
     local skillBase = opBase.baseSkill + opBase.bonusSkill
     local skillRange = opBest.baseSkill + opBest.bonusSkill - skillBase
 
+    cache:Set(key, { skillBase, skillRange })
+
     return skillBase, skillRange
+end
+
+---@param recipe CraftingRecipeSchematic
+function Self:GetWeightPerSkill(recipe)
+    local cache = self.Cache.WeightPerSkill
+    local key = cache:Key(recipe)
+
+    if cache:Has(key) then return cache:Get(key) end
+
+    local qualitySlots = self:GetQualitySlots(recipe)
+    local maxWeight = self:GetMaxWeight(qualitySlots)
+    local _, skillRange = self:GetSkillBounds(recipe, qualitySlots)
+    local weightPerSkill = maxWeight / skillRange
+
+    cache:Set(key, weightPerSkill)
+
+    return weightPerSkill
 end
 
 ---@return number[] reagents
@@ -350,6 +374,7 @@ function Self:IsProvided(reagent, order, recraftMods)
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer then return order.orderID ~= nil end
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter then return order.orderID == nil end
 
+    if Orders:IsCreatingProvided(order, reagent.slotIndex) then return true end
     if Util:TblWhere(order.reagents, "slotIndex", reagent.slotIndex) then return true end
 
     if order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
@@ -365,7 +390,7 @@ end
 ---@param recraftMods? CraftingItemSlotModification[]
 ---@return CraftingReagentInfo[] | CraftingItemSlotModification[]
 function Self:GetProvided(reagent, order, recraftMods)
-    if not order then return {} end
+    if not order or Orders:IsCreating(order) then return {} end ---@todo
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer and order.orderID == nil then return {} end
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return {} end
 
@@ -442,3 +467,52 @@ function Self:GetMaxBonusSkill()
     end
     return maxSkill
 end
+
+---------------------------------------
+--              Cache
+---------------------------------------
+
+Self.Cache = {
+    ---@type Cache<number[], fun(self: Cache, recipe: CraftingRecipeSchematic, optionalReagents?: CraftingReagentInfo[], orderOrRecraftGUID?: CraftingOrderInfo | string): string>
+    SkillBounds = Addon.Cache:Create(
+        ---@param recipe CraftingRecipeSchematic
+        ---@param optionalReagents? CraftingReagentInfo[]
+        ---@param orderOrRecraftGUID? CraftingOrderInfo | string
+        function (_, recipe, optionalReagents, orderOrRecraftGUID)
+            local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
+            local recraftGUID = type(orderOrRecraftGUID) == "string" and orderOrRecraftGUID or nil
+            local profInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
+            local reagent = optionalReagents and select(2, Util:TblFind(optionalReagents, Self.IsUntradableBonusSkill, false, Self))
+
+            local key = ("%d;%d;%s;%d;%d"):format(
+                recipe.recipeID,
+                order and order.orderID or 0,
+                recipe.isRecraft and recraftGUID or 0,
+                profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
+                reagent and reagent.itemID or 0
+            )
+
+            return key
+        end,
+        10,
+        true
+    ),
+    ---@type Cache<number, fun (self: Cache, recipe: CraftingRecipeSchematic): string>
+    WeightPerSkill = Addon.Cache:Create(
+        ---@param recipe CraftingRecipeSchematic
+        function (_, recipe)
+            return ("%d;%d"):format(recipe.recipeID, recipe.isRecraft and 1 or 0)
+        end
+    )
+}
+
+---------------------------------------
+--              Events
+---------------------------------------
+
+function Self:OnProfessionChanged()
+    self.Cache.SkillBounds:Clear()
+end
+
+Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionChanged, Self)
+Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionChanged, Self)

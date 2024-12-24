@@ -1,12 +1,12 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Operation, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local GUI, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
----@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
-local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.WithOptimization)
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
+local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithExperimentation, NS.WithSkill, NS.WithOptimization)
 
----@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization
+---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization
 ---@field form RecipeCraftingForm
 local Self = Mixin(NS.WithCrafting, Parent)
 
@@ -386,6 +386,22 @@ function Self:CanAllocateReagents()
     end
 
     return true
+end
+
+function Self:GetOperation(refresh)
+    local op = Parent.GetOperation(self, refresh)
+    if not op then return end
+
+    -- Don't cache operations without proper bonus stats
+    local stats = op:GetOperationInfo().bonusStats ---@cast stats -?
+    local hasResourcefulness = Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
+    local hasMulticraft = Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
+
+    if not hasResourcefulness and not hasMulticraft then
+        self.operationCache:Unset(self.operationCache:Key(self))
+    end
+
+    return op
 end
 
 ---------------------------------------

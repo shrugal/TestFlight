@@ -473,39 +473,26 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
     return maxValueWeight
 end
 
+local GetReagents = Util:FnBind(Self.GetReagentsForWeight, Self)
+local GetWeight = Util(Self.Method):Flip():Map(function (_, method)
+    return function (operation, lowerWeight, upperWeight)
+        return Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
+    end
+end, true)()
+
 ---@param operation Operation
 ---@param quality? number
 ---@param method Optimization.Method
 ---@param lowerWeight number
 ---@param upperWeight number
 function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, upperWeight)
-    if not quality then quality = operation:GetQuality() end
-
-    local n, l, u = 0, nil, nil
-
-    while lowerWeight <= upperWeight do
-        local weight = self:GetWeightForMethod(operation, method, l or lowerWeight, u or upperWeight)
-
-        local reagents = self:GetReagentsForWeight(operation, weight)
-        local newOperation = operation:WithWeightReagents(reagents)
-        local newQuality = newOperation:GetQuality()
-
-        if newQuality < quality then
-            n = max( 1, min(n * 2, upperWeight - lowerWeight - 1))
-            lowerWeight = lowerWeight + n
-        elseif newQuality > quality then
-            n = min(-1, max(n * 2, lowerWeight - upperWeight + 1))
-            upperWeight = upperWeight + n
-        elseif n >  1 then
-            lowerWeight, u, n = lowerWeight - n + 1, weight,  1
-        elseif n < -1 then
-            upperWeight, l, n = upperWeight - n - 1, weight, -1
-        else
-            return newOperation, lowerWeight, upperWeight
-        end
-    end
-
-    return nil, lowerWeight, upperWeight
+    return operation:WithQuality(
+        quality or operation:GetQuality(),
+        lowerWeight,
+        upperWeight,
+        GetWeight[method],
+        GetReagents
+    )
 end
 
 ---------------------------------------

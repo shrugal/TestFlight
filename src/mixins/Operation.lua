@@ -159,6 +159,50 @@ function Self:WithExtraSkill(extraSkill)
     return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill)
 end
 
+---@param quality number
+---@param lowerWeight number
+---@param upperWeight number
+---@param getWeight? number | fun(operation: Operation, lowerWeight: number, upperWeight: number): number
+---@param getReagents? fun(operation: Operation, weight: number, isLowerBound: boolean): CraftingReagentInfo[]
+function Self:WithQuality(quality, lowerWeight, upperWeight, getWeight, getReagents)
+    assert(not Util:NumIsNaN(lowerWeight) and not Util:NumIsNaN(upperWeight), "Lower or upper weight is NaN")
+
+    local n, l, u = 0, nil, nil
+
+    while lowerWeight <= upperWeight do
+        local weight = max(lowerWeight, min(upperWeight, Util:GetVal(getWeight, self, l or lowerWeight, u or upperWeight) or lowerWeight))
+        local isLowerBound = weight - lowerWeight >= upperWeight - weight
+        local reagents = Util:GetVal(getReagents, self, weight, isLowerBound) or Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
+
+        local operation = self:WithWeightReagents(reagents)
+        local newQuality = operation:GetQuality()
+
+        if newQuality < quality then
+            n = max( 1, min(n * 2, upperWeight - lowerWeight - 1))
+            lowerWeight = lowerWeight + n
+        elseif newQuality > quality then
+            n = min(-1, max(n * 2, lowerWeight - upperWeight + 1))
+            upperWeight = upperWeight + n
+        elseif n >  1 then
+            lowerWeight, u, n = lowerWeight - n + 1, weight,  1
+        elseif n < -1 then
+            upperWeight, l, n = upperWeight - n - 1, weight, -1
+        else
+            return operation, lowerWeight, upperWeight
+        end
+    end
+
+    return nil, lowerWeight, upperWeight
+end
+
+---@param weight number
+---@param lowerWeight number
+---@param upperWeight number
+---@param getReagents? fun(operation: Operation, weight: number, isLowerBound: boolean): CraftingReagentInfo[]
+function Self:WithWeight(weight, lowerWeight, upperWeight, getReagents)
+    return self:WithQuality(self:GetQuality(), lowerWeight, upperWeight, weight, getReagents)
+end
+
 -- CLASS
 
 ---@param recipe CraftingRecipeSchematic
@@ -281,7 +325,7 @@ function Self:GetOperationInfo()
                             local weightReagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
                             base = base:WithWeightReagents(weightReagents)
                         end
-                        
+
                         if base:GetQuality() ~= op.craftingQuality then
                             op.concentrationCost = 0/0
                         else
@@ -410,15 +454,7 @@ end
 ---@return number skillRange
 function Self:GetSkillBounds(includeBonusSkillReagents)
     if not self.skillBase or not self.skillRange then
-        local cache = Static.Cache.SkillBounds
-        local key = cache:Key(self)
-
-        if not cache:Has(key) then
-            local skillBase, skillRange = Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID)
-            cache:Set(key, { skillBase, skillRange })
-        end
-
-        self.skillBase, self.skillRange = unpack(cache:Get(key))
+        self.skillBase, self.skillRange = Reagents:GetSkillBounds(self.recipe, self:GetQualityReagentSlots(), self:GetOptionalReagents(), self.orderOrRecraftGUID)
 
         self.skillBase = self.skillBase + self.extraSkill
     end
@@ -457,7 +493,7 @@ function Self:GetMaxWeight(includeBonusSkillReagents)
         local slot = self:GetBonusSkillReagentSlot()
         local alloc = slot and self.allocation[slot.slotIndex]
         if slot and not (alloc and alloc:HasAnyAllocations() and Reagents:IsUntradableBonusSkill(alloc.allocs[1].reagent)) then
-            return self.maxWeight + Reagents:GetMaxBonusSkill() * self:GetWeightPerSkill()
+            return self.maxWeight + floor(Reagents:GetMaxBonusSkill() * self:GetWeightPerSkill())
         end
     end
 
@@ -465,7 +501,7 @@ function Self:GetMaxWeight(includeBonusSkillReagents)
 end
 
 function Self:GetWeightPerSkill()
-    return self:GetMaxWeight() / select(2, self:GetSkillBounds()) --[[@as number]]
+    return Reagents:GetWeightPerSkill(self.recipe)
 end
 
 ---@param absolute? boolean
@@ -502,8 +538,10 @@ function Self:GetConcentrationFactors()
             local n = #Addon.CONCENTRATION_BREAKPOINTS
             local baseSkill = self:GetSkillBounds()
             local lowerSkill, upperSkill = self:GetSkillThresholds(true)
+            local lowerWeight, upperWeight = self:GetWeightThresholds()
             local weightPerSkill = self:GetWeightPerSkill()
             local prevWeight, prevCon
+            local operation
 
             for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
                 local skill = lowerSkill + v * (upperSkill - lowerSkill) - baseSkill
@@ -512,11 +550,11 @@ function Self:GetConcentrationFactors()
                 local opWeight, opCon = prevWeight, prevCon
 
                 if weight ~= prevWeight then
-                    local reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, i < n)
-                    local op = self:WithQualityReagents(reagents)
-                    local info = op:GetOperationInfo()
-
-                    opWeight, opCon = op:GetWeight(), info.concentrationCost
+                    operation, lowerWeight, upperWeight = self:WithWeight(weight, lowerWeight, upperWeight)
+                    if operation then
+                        opWeight = operation:GetWeight()
+                        opCon = operation:GetOperationInfo().concentrationCost
+                    end
                 end
 
                 if i > 1 and opWeight >= prevWeight then
@@ -653,25 +691,6 @@ end
 -- CACHE
 
 Static.Cache = {
-    ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
-    SkillBounds = Cache:Create(
-        ---@param operation Operation
-        function (_, operation)
-            local order = operation:GetOrder()
-            local operationInfo = operation:GetOperationInfo()
-            local _, reagent = Util:TblFind(operation:GetOptionalReagents(), Reagents.IsUntradableBonusSkill, false, Reagents)
-
-            return ("%d;%d;%d;%d;%d"):format(
-                operation.recipe.recipeID,
-                operation:GetQuality(),
-                order and order.orderID or 0,
-                operationInfo.baseSkill,
-                reagent and reagent.itemID or 0
-            )
-        end,
-        10,
-        true
-    ),
     ---@type Cache<number[], fun(self: Cache, operation: Operation): string>
     ConcentrationFactors = Cache:Create(
         ---@param operation Operation

@@ -232,7 +232,7 @@ end
 ---@param slot ReagentSlot
 function Self:IsCreatingSlotProvided(slot)
     if slot:GetReagentType() == Enum.CraftingReagentType.Modifying then
-        return slot:GetTransaction():GetRecipeSchematic().isRecraft and  slot:IsOriginalItemSet()
+        return slot:GetTransaction():GetRecipeSchematic().isRecraft and slot:IsOriginalItemSet()
     else
         return slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
     end

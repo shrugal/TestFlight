@@ -128,7 +128,8 @@ function Self:TooltipPostCall(tooltip)
     local recipe = form:GetRecipe()
     if not recipe then return end
 
-    local totalWeight = Reagents:GetMaxWeight(recipe.reagentSlotSchematics)
+    local qualityReagents = Reagents:GetQualitySlots(recipe)
+    local totalWeight = Reagents:GetMaxWeight(qualityReagents)
     local _, skillRange = Reagents:GetSkillBounds(recipe)
     if not skillRange or skillRange == 0 then return end
 

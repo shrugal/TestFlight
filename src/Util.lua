@@ -91,6 +91,11 @@ function Self:Serialize(val)
     return "{ " .. table.concat(t, ", ") .. " }"
 end
 
+function Self:GetVal(val, ...)
+    if type(val) ~= "function" then return val end
+    return val(...)
+end
+
 -- Tbl
 
 ---@param tbl table
@@ -155,6 +160,12 @@ function Self:TblCopy(tbl, recursive)
     return t
 end
 
+---@param tbl table
+function Self:TblFlip(tbl)
+    local t = {}
+    for k,v in pairs(tbl) do t[v] = k end
+    return t
+end
 
 ---@generic T
 ---@param tbl T[]

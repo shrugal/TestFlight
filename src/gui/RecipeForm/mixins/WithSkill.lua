@@ -34,7 +34,10 @@ function Self:InsertSkillSpinner(parent, ...)
 end
 
 function Self:UpdateSkillSpinner()
-    local op = self.form:GetRecipeOperationInfo()
+    local operation = self:GetOperation()
+    if not operation then return end
+
+    local op = operation:GetOperationInfo()
     if not op or not op.baseDifficulty then return end
 
     local skillNoExtra = op.baseSkill + op.bonusSkill - Addon.extraSkill

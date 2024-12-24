@@ -13,10 +13,14 @@ Self.operationCache = Cache:Create(
     function (_, self)
         local tx = self.form.transaction
         local recipe = tx:GetRecipeSchematic()
-        local orderOrRecraftGUID = self:GetOrder() or tx:GetRecraftAllocation()
+        local order = self:GetOrder()
+        local orderOrRecraftGUID = order or tx:GetRecraftAllocation()
         local applyConcentration = tx:IsApplyingConcentration()
 
-        return Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
+        return ("%d;%s"):format(
+            order and order.orderState or 0,
+            Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
+        )
     end,
     10,
     true
@@ -69,12 +73,6 @@ function Self:GetOperation(refresh)
     end
 
     cache:Set(key, op)
-
-    -- Don't cache operations without proper bonus stats
-    local stats = op and op:GetOperationInfo().bonusStats ---@cast stats -?
-    if not op or Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT) or Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT) then
-        cache:Set(key, op)
-    end
 
     return op
 end

@@ -1,14 +1,6 @@
-- Add filter settings for max cost per knowledge and artisan currency to NPC orders page
-- Make "Track All" only track unprofitable orders if they give enough knowledge or currency
-- Update concentration cost when adding extra skill in experimentation mode
-- Allow enabling concentration without required currency in experimentation mode
-- Show correct concentration cost for optimized unclaimed orders
-- Track concentration state and reapply it when opening the recipe again
-- Hide optimization buttons in linked profession windows
-- Fix not updating UIs when profession traits or buff charges change in experimentation mode
-- Fix not updating UIs when adding extra skill in experimentation mode
-- Fix error when optmizing recipe with bonus skill slot unlocked
-- Fix result quality sometimes being off by one when optimizing
-- Fix recipes without crafting operation infos
-- Internal: Optimize orders in order list asynchronously
-- Internal: Improve optimization and operation caching throughout
+- Update ToC version for patch 11.0.7
+- Fix game freeze when generating min cost allocations for some orders
+- Fix concentration cost increasing when adding extra skill
+- Fix extra skill spinner not working when applying concentration
+- Fix error when creating new order
+- Fix weight/skill tooltip
