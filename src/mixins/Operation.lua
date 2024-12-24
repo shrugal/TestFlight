@@ -501,6 +501,7 @@ function Self:GetMaxWeight(includeBonusSkillReagents)
 end
 
 function Self:GetWeightPerSkill()
+    if not self:GetRecipeInfo().supportsQualities then return 0 end
     return Reagents:GetWeightPerSkill(self.recipe)
 end
 

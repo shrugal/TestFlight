@@ -473,8 +473,8 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
     return maxValueWeight
 end
 
-local GetReagents = Util:FnBind(Self.GetReagentsForWeight, Self)
-local GetWeight = Util(Self.Method):Flip():Map(function (_, method)
+local getReagents = Util:FnBind(Self.GetReagentsForWeight, Self)
+local getWeight = Util(Self.Method):Flip():Map(function (_, method)
     return function (operation, lowerWeight, upperWeight)
         return Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
     end
@@ -490,8 +490,8 @@ function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, u
         quality or operation:GetQuality(),
         lowerWeight,
         upperWeight,
-        GetWeight[method],
-        GetReagents
+        getWeight[method],
+        getReagents
     )
 end
 

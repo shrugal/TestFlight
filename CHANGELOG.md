@@ -1,3 +1,12 @@
+Version 4.11
+
+- Update ToC version for patch 11.0.7
+- Fix game freeze when generating min cost allocations for some orders
+- Fix concentration cost increasing when adding extra skill
+- Fix extra skill spinner not working when applying concentration
+- Fix error when creating new order
+- Fix weight/skill tooltip
+
 Version 4.10
 
 - Add filter settings for max cost per knowledge and artisan currency to NPC orders page
