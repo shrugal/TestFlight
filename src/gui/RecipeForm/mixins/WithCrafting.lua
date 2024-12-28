@@ -3,8 +3,8 @@ local Addon = select(2, ...)
 local GUI, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
----@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
-local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithExperimentation, NS.WithSkill, NS.WithOptimization)
+---@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
+local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.WithOptimization)
 
 ---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization
 ---@field form RecipeCraftingForm
@@ -47,6 +47,7 @@ function Self:Init(_, recipe)
     if not recipe then return end
 
     self:Refresh()
+    self:UpdateOutputIcon()
 
     if not self:CanAllocateReagents() then return end
 
@@ -69,6 +70,23 @@ function Self:Refresh()
     self:UpdateSkillSpinner()
     self:UpdateConcentrationCostSpinner()
     self:UpdateOptimizationButtons()
+end
+
+function Self:UpdateOutputIcon()
+    local origOnEnter = self.form.OutputIcon:GetScript("OnEnter")
+
+    self.form.OutputIcon:SetScript("OnEnter", function (...)
+        local item = self.form.transaction:GetEnchantAllocation()
+        if not item or not item:IsStackable() then return origOnEnter(...) end
+
+        local op = self:GetOperation():GetOperationInfo()
+        if not op or not op.craftingDataID or not Addon.ENCHANTS[op.craftingDataID] then return origOnEnter(...) end
+
+        local itemID = Addon.ENCHANTS[op.craftingDataID][op.craftingQuality]
+
+		GameTooltip:SetOwner(self.form.OutputIcon, "ANCHOR_RIGHT")
+        GameTooltip:SetItemByID(itemID)
+    end)
 end
 
 -- Stats
@@ -389,7 +407,7 @@ function Self:CanAllocateReagents()
 end
 
 function Self:GetOperation(refresh)
-    local op = Parent.GetOperation(self, refresh)
+    local op = NS.RecipeForm.GetOperation(self, refresh)
     if not op then return end
 
     -- Don't cache operations without proper bonus stats

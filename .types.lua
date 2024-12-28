@@ -186,6 +186,7 @@ StaticPopup_OnClick = nil
 ---@field transaction ProfessionTransaction
 ---@field reagentSlots table<Enum.CraftingReagentType, ReagentSlot[]>
 ---@field reagentSlotPool ReagentSlotFramePool
+---@field OutputIcon OutputSlot
 ---@field AllocateBestQualityCheckbox CheckButton
 ---@field TriggerEvent fun(self: self, event: string)
 
@@ -213,6 +214,7 @@ StaticPopup_OnClick = nil
 ---@field IsApplyingConcentration fun(self: self): boolean
 ---@field SetApplyConcentration fun(self: self, applyConcentration: boolean)
 ---@field ShouldUseCharacterInventoryOnly fun(self: self): boolean
+---@field GetEnchantAllocation fun(self: self): ItemMixin?
 
 ---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
 
@@ -302,7 +304,6 @@ ProfessionsFrame = nil
 ---@field Concentrate ConcentrateContainer
 ---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
----@field OutputIcon OutputSlot
 ---@field GetRecipeOperationInfo fun(self: self): CraftingOperationInfo
 ---@field Init fun(self: self, recipe: CraftingRecipeSchematic)
 ---@field Refresh fun(self: self)
@@ -512,6 +513,9 @@ ProfessionsRecipeSchematicFormMixin = {
 -----------------------------------------------------
 ---            WoW Templates & Mixins              --
 -----------------------------------------------------
+
+---@class ItemMixin
+---@field IsStackable fun(self: self): boolean
 
 ---@class MenuMixin
 ---@field Init fun(self: self, ...: unknown): unknown

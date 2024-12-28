@@ -4,13 +4,12 @@
 
 ## Features
 
-- Update concentration cost in experimentation mode and on unclaimed orders
-- Allow enabling concentration with insufficient currency in experimentation mode
+- One button solution to craft all tracked recipes
+- Restocking
 - Set amount when buying missing tracked reagents in the AH
 - Set crafting queue amount for tracked recipes
 
 ## Maybe
 
-- Handle finishing reagents that change skill
 - Profession gear optimization
 - Reagent costs override

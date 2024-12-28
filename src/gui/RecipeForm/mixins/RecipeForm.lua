@@ -27,6 +27,29 @@ Self.operationCache = Cache:Create(
 )
 
 ---------------------------------------
+--             Tracking
+---------------------------------------
+
+---@return Recipes | Orders
+---@return (CraftingRecipeSchematic | CraftingOrderInfo)?
+function Self:GetTracking()
+    return Recipes, self:GetRecipe()
+end
+
+function Self:UpdateTracking()
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    local quality, operation
+    if Recipes:IsTracked(recipe) then
+        quality, operation = self:GetQuality(), self:GetOperation()
+    end
+
+    Recipes:SetTrackedQuality(recipe, quality)
+    Recipes:SetTrackedAllocation(recipe, operation)
+end
+
+---------------------------------------
 --               Util
 ---------------------------------------
 
@@ -203,27 +226,6 @@ function Self:RestoreOriginalSlotItem(slot)
     slot:RestoreOriginalItem()
 
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
-end
-
--- Tracking service
-
----@return Recipes | Orders
----@return (CraftingRecipeSchematic | CraftingOrderInfo)?
-function Self:GetTracking()
-    return Recipes, self:GetRecipe()
-end
-
-function Self:UpdateTracking()
-    local recipe = self:GetRecipe()
-    if not recipe then return end
-
-    local quality, operation
-    if Recipes:IsTracked(recipe) then
-        quality, operation = self:GetQuality(), self:GetOperation()
-    end
-
-    Recipes:SetTrackedQuality(recipe, quality)
-    Recipes:SetTrackedAllocation(recipe, operation)
 end
 
 ---------------------------------------

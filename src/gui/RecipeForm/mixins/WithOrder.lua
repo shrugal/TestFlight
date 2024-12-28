@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Recipes, Addon.Util
+local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = NS.RecipeForm

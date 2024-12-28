@@ -1,3 +1,7 @@
+Version 4.12
+
+- Fix optimizing recipes without quality
+
 Version 4.11
 
 - Update ToC version for patch 11.0.7

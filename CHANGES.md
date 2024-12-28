@@ -1,1 +1,2 @@
-- Fix optimizing recipes without quality
+- Show enchanting scrolls as output item tooltip when enchanting a vellum
+- Fix executing some event handlers twice
