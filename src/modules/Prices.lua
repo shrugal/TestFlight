@@ -119,8 +119,9 @@ end
 ---@param allocation? RecipeAllocation | ItemMixin
 ---@param order? CraftingOrderInfo
 ---@param recraftMods? CraftingItemSlotModification[]
+---@param requiredOnly? boolean
 ---@return number
-function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
+function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, requiredOnly)
     if recipe.recipeType == Enum.TradeskillRecipeType.Salvage then ---@cast allocation ItemMixin
         return recipe.quantityMin * self:GetReagentPrice(allocation:GetItemID())
     end  ---@cast allocation RecipeAllocation
@@ -128,6 +129,8 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
     local price = 0
 
     for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
+        if requiredOnly and not reagent.required then break end
+
         local missing = reagent.required and reagent.quantityRequired or 0
 
         -- Reagents provided by crafter
@@ -200,7 +203,7 @@ end
 ---@return number traderCut
 function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
     local revenue = order and order.tipAmount or resultPrice
-    local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
+    local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, optionalReagents)
     local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
     local traderCut = order and order.consortiumCut or self.CUT_AUCTION_HOUSE * resultPrice
 
@@ -223,18 +226,13 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
 ---@param allocation RecipeAllocation | ItemMixin
----@param reagentPrice number
----@param order? CraftingOrderInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@return number value
-function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, reagentPrice, order, optionalReagents)
+function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, optionalReagents)
     local factor = Recipes:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if factor == 0 then return 0 end
 
-    if order and order.reagentState ~= Enum.CraftingOrderReagentsType.None then
-        -- Not passing order here on purpose
-        reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation)
-    end
+    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, nil, nil, true)
 
     return reagentPrice * factor
 end
@@ -256,7 +254,7 @@ end
 --             Reagents
 ---------------------------------------
 
----@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+---@param reagent? number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
 function Self:GetReagentPrice(reagent)
     if not self:IsSourceAvailable() then return 0 end
 
@@ -271,7 +269,7 @@ function Self:GetReagentPrice(reagent)
     return self:GetItemPrice(reagent)
 end
 
----@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+---@param reagent? number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
 function Self:HasReagentPrice(reagent)
     return self:GetReagentPrice(reagent) > 0
 end

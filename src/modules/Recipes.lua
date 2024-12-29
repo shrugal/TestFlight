@@ -206,7 +206,7 @@ function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = Addon.RESOURCEFULNESS_YIELD + self:GetStatBonus(recipe, "rf", optionalReagents)
+    local yield = Addon.RESOURCEFULNESS_YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
 
     return chance * yield
 end

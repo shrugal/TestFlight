@@ -427,6 +427,26 @@ function Self:GetReagentsForWeight(operation, weight)
 end
 
 ---@param operation Operation
+---@param weight number 
+---@param weights? table<number, table<number, number>>
+---@param prices? table<number, number>
+function Self:GetReagentPriceForWeight(operation, weight, weights, prices)
+    if not weights or not prices then weights, prices = self:GetWeightsAndPrices(operation) end
+
+    local resFactor = 1 - operation:GetResourcefulnessFactor()
+    local price = prices[weight] * resFactor
+
+    local bonusSkillSlot = operation:GetBonusSkillReagentSlot()
+    local bonusSkillReagent = bonusSkillSlot and bonusSkillSlot.reagents[weights[#weights]]
+
+    if bonusSkillReagent then
+        price = price + Prices:GetReagentPrice(bonusSkillReagent) * (1 - resFactor)
+    end
+
+    return price
+end
+
+---@param operation Operation
 ---@param method Optimization.Method
 ---@param lowerWeight number
 ---@param upperWeight number
@@ -435,25 +455,27 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
         return lowerWeight
     end
 
-    local _, prices = self:GetWeightsAndPrices(operation)
+    local weights, prices = self:GetWeightsAndPrices(operation)
 
     local optimizeProfit = method == Self.Method.ProfitPerConcentration
 
     local profit = operation:GetProfit()
-    local qualityReagentsPrice = Prices:GetReagentsPrice(operation:GetQualityReagents())
-    local resFactor = operation:GetResourcefulnessFactor()
-    local lowerProfit = profit + (qualityReagentsPrice - prices[lowerWeight]) * (1 - resFactor)
+    local resFactor = 1 - operation:GetResourcefulnessFactor()
+    local qualityReagentsPrice = Prices:GetReagentsPrice(operation:GetQualityReagents()) * resFactor
+    local bonusSkillReagentPrice = Prices:GetReagentPrice(operation:GetBonusSkillReagent())
+    local weightReagentsPrice = qualityReagentsPrice + bonusSkillReagentPrice
 
+    local lowerProfit = profit + weightReagentsPrice - self:GetReagentPriceForWeight(operation, lowerWeight, weights, prices)
     local lowerCon = operation:GetConcentrationCost(lowerWeight)
 
     local maxValue, maxValueWeight = optimizeProfit and lowerProfit / lowerCon or -Addon.DB.Account.concentrationCost, lowerWeight
 
     for weight = lowerWeight + 1, upperWeight do repeat
-        local weightPrice = prices[weight]
+        local weightPrice = self:GetReagentPriceForWeight(operation, weight, weights, prices)
 
         if weight < upperWeight and weightPrice >= (prices[weight + 1] or math.huge) then break end
 
-        local profit = profit + (qualityReagentsPrice - weightPrice) * (1 - resFactor)
+        local profit = profit + weightReagentsPrice - weightPrice
         if profit < 0 and maxValue >= 0 then break end
 
         local concentration = operation:GetConcentrationCost(weight)

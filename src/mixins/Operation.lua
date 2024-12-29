@@ -360,7 +360,10 @@ function Self:GetQualityReagentSlots()
 end
 
 function Self:GetBonusSkillReagentSlot()
-    return Reagents:GetBonusSkillSlot(self.recipe, self:GetRecipeInfo())
+    if self.bonusSkillSlot == nil then
+        self.bonusSkillSlot = Reagents:GetBonusSkillSlot(self.recipe, self:GetRecipeInfo()) or false
+    end
+    return self.bonusSkillSlot or nil
 end
 
 function Self:GetWeightReagentSlots()
@@ -387,6 +390,13 @@ function Self:GetOptionalReagents()
         self.optionalReagents = Reagents:CreateCraftingInfosFromAllocation(self.recipe, self.allocation, predicate)
     end
     return self.optionalReagents
+end
+
+function Self:GetBonusSkillReagent()
+    local slot = self:GetBonusSkillReagentSlot()
+    if not slot or not self.allocation[slot.slotIndex] or not self.allocation[slot.slotIndex]:HasAnyAllocations() then return end
+
+    return self.allocation[slot.slotIndex].allocs[1].reagent
 end
 
 function Self:GetReagents()
