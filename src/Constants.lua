@@ -1,29 +1,34 @@
 ---@class Addon
 local Addon = select(2, ...)
 
+---@class Constants
+local Self = Addon.Constants
+
+Self.AUCTION_HOUSE_CUT = 0.05
+
 -- Source: CraftSim
-Addon.QUALITY_BREAKPOINTS = {
+Self.QUALITY_BREAKPOINTS = {
     [0] = { 0 },
     [3] = { 0, 0.5, 1 },
     [5] = { 0, 0.2, 0.5, 0.8, 1 }
 }
 
 -- Source: CraftSim
-Addon.RESOURCEFULNESS_YIELD = 0.3
+Self.RESOURCEFULNESS_YIELD = 0.3
 
 -- Source: CraftSim
-Addon.MULTICRAFT_YIELD = {
+Self.MULTICRAFT_YIELD = {
     [0] = 2.5,
     [1] = 2.1,
     [2] = 1.83,
     [5] = 1.875,
 }
 
-Addon.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
+Self.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
 
 -- Source: https://www.wowhead.com/items/miscellaneous/other/name:Knowledge/quality:3?filter=166;11;0
 ---@type number[]
-Addon.KNOWLEDGE_POINTS = {
+Self.KNOWLEDGE_POINTS = {
     [228724] = 1,
     [228736] = 1,
     [228726] = 1,
@@ -44,14 +49,14 @@ Addon.KNOWLEDGE_POINTS = {
 
 -- Source: https://www.wowhead.com/items/trade-goods/other/name:Artisan
 ---@type true[]
-Addon.ARTISAN_CURRENCY = {
+Self.ARTISAN_CURRENCY = {
     [210814] = true,
     [190456] = true,
 }
 
 -- Source https://www.wowhead.com/spells?filter=16:109:29;11:6:511;0:0:0
 ---@type boolean[]
-Addon.BUFFS = {
+Self.BUFFS = {
     [432286] = true,
     [432304] = true,
     [432306] = true,
@@ -65,7 +70,7 @@ Addon.BUFFS = {
 
 -- Source: CraftSim
 ---@type table<number, number>
-Addon.REAGENTS = {
+Self.REAGENTS = {
     [188658] = 10,
     [189143] = 10,
     [189541] = 48,
@@ -721,7 +726,7 @@ Addon.REAGENTS = {
 
 -- Source: CraftSim
 ---@type table<number, number[]>
-Addon.ENCHANTS = {
+Self.ENCHANTS = {
     [0632] = { 198677, 198678, 198679 },
     [0728] = { 199957, 199999, 200041 },
     [0731] = { 199958, 200000, 200042 },
@@ -829,7 +834,7 @@ Addon.ENCHANTS = {
 
 -- Source: CraftSim
 ---@type table<number, table<BonusStat, number>>
-Addon.FINISHING_REAGENTS = {
+Self.FINISHING_REAGENTS = {
     [213762] = { rf = 6.00 },
     [213763] = { rf = 9.00 },
     [213764] = { rf = 12.00 },
@@ -856,7 +861,7 @@ Addon.FINISHING_REAGENTS = {
 }
 
 -- Source: CraftSim
-Addon.PERKS = {
+Self.PERKS = {
     ---@type table<number, table<BonusStat, number>>
     nodes = {
         [097609] = { mc = 25.00 },

@@ -2,14 +2,11 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local Orders, Recipes, Reagents = Addon.Orders, Addon.Recipes, Addon.Reagents
+local C, Orders, Recipes, Reagents = Addon.Constants,Addon.Orders, Addon.Recipes, Addon.Reagents
 
 
 ---@class Prices
 local Self = Addon.Prices
-
--- Sell location cuts
-Self.CUT_AUCTION_HOUSE = 0.05
 
 ---------------------------------------
 --              Source
@@ -205,7 +202,7 @@ function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, r
     local revenue = order and order.tipAmount or resultPrice
     local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, optionalReagents)
     local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
-    local traderCut = order and order.consortiumCut or self.CUT_AUCTION_HOUSE * resultPrice
+    local traderCut = order and order.consortiumCut or C.AUCTION_HOUSE_CUT * resultPrice
 
     local rewards = 0
     if order and order.npcOrderRewards then
@@ -247,7 +244,7 @@ function Self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalRea
 
     local itemPrice = resultPrice * 2 / (recipe.quantityMax + recipe.quantityMin)
 
-    return (1 - self.CUT_AUCTION_HOUSE) * itemPrice * factor
+    return (1 - C.AUCTION_HOUSE_CUT) * itemPrice * factor
 end
 
 ---------------------------------------

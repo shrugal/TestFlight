@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, Prices, Reagents, Recipes, Util = Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local C, Cache, Prices, Reagents, Recipes, Util = Addon.Constants, Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Operation.Static
 local Static = Addon.Operation
@@ -294,7 +294,7 @@ function Self:GetOperationInfo()
                 local p = skill / difficulty
 
                 local quality = maxQuality
-                local breakpoints = Addon.QUALITY_BREAKPOINTS[maxQuality]
+                local breakpoints = C.QUALITY_BREAKPOINTS[maxQuality]
 
                 for i, v in ipairs(breakpoints) do
                     if v > p then quality = i - 1 break end
@@ -430,7 +430,7 @@ function Self:GetResultQuality()
 end
 
 function Self:GetQualityBreakpoints()
-    return Addon.QUALITY_BREAKPOINTS[self:GetRecipeInfo().maxQuality]
+    return C.QUALITY_BREAKPOINTS[self:GetRecipeInfo().maxQuality]
 end
 
 ---@return boolean canIncrease
@@ -546,7 +546,7 @@ function Self:GetConcentrationFactors()
             ---@type number[]
             local concentrationFactors = {}
 
-            local n = #Addon.CONCENTRATION_BREAKPOINTS
+            local n = #C.CONCENTRATION_BREAKPOINTS
             local baseSkill = self:GetSkillBounds()
             local lowerSkill, upperSkill = self:GetSkillThresholds(true)
             local lowerWeight, upperWeight = self:GetWeightThresholds()
@@ -554,7 +554,7 @@ function Self:GetConcentrationFactors()
             local prevWeight, prevCon
             local operation
 
-            for i,v in ipairs(Addon.CONCENTRATION_BREAKPOINTS) do
+            for i,v in ipairs(C.CONCENTRATION_BREAKPOINTS) do
                 local skill = lowerSkill + v * (upperSkill - lowerSkill) - baseSkill
                 local weight = max(0, skill * weightPerSkill)
 
@@ -600,12 +600,12 @@ function Self:GetConcentrationCost(weight)
     local currCon = concentration
     local currWeight = self:GetWeight(true)
 
-    local n = #Addon.CONCENTRATION_BREAKPOINTS
+    local n = #C.CONCENTRATION_BREAKPOINTS
     local d = currWeight <= weight and 1 or -1
     local bound = d == 1 and min or max
 
     for i=1,n-1 do
-       local v = Addon.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
+       local v = C.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
        local f = conFactors[d == 1 and i or n-i]
        local targetSkill = lowerSkill + v * (upperSkill - lowerSkill) - baseSkill
        local targetWeight = max(0, bound(weight, targetSkill * weightPerSkill))

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Recipes, Reagents, Util = Addon.Recipes, Addon.Reagents, Addon.Util
+local C, Recipes, Reagents, Util = Addon.Constants, Addon.Recipes, Addon.Reagents, Addon.Util
 
 ---@class Orders: CallbackRegistryMixin
 ---@field Event Orders.Event
@@ -323,7 +323,7 @@ function Self:GetNumKnowledgeReward(order)
     local n = 0
     for _,reward in pairs(order.npcOrderRewards) do
         local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
-        n = n + (Addon.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
+        n = n + (C.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
     end
     return n
 end
@@ -335,7 +335,7 @@ function Self:GetNumCurrencyReward(order)
     local n = 0
     for _,reward in pairs(order.npcOrderRewards) do
         local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
-        n = n + (Addon.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
+        n = n + (C.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
     end
     return n
 end

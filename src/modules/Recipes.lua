@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Operation, Optimization, Promise, Reagents, Util = Addon.Operation, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
+local C, Operation, Optimization, Promise, Reagents, Util = Addon.Constants, Addon.Operation, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event
@@ -176,13 +176,13 @@ end
 function Self:GetStatBonus(recipe, stat, optionalReagents)
     local val = 0
 
-    local perks = Addon.PERKS.recipes[recipe.recipeID]
+    local perks = C.PERKS.recipes[recipe.recipeID]
     if perks then
         local professionInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
         local configID = C_ProfSpecs.GetConfigIDForSkillLine(professionInfo.professionID)
 
         for _,perkID in pairs(perks) do
-            local perk = Addon.PERKS.nodes[perkID]
+            local perk = C.PERKS.nodes[perkID]
             if perk[stat] and C_ProfSpecs.GetStateForPerk(perkID, configID) == Enum.ProfessionsSpecPerkState.Earned then
                 val = val + perk[stat] / 100
             end
@@ -206,7 +206,7 @@ function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = Addon.RESOURCEFULNESS_YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
+    local yield = C.RESOURCEFULNESS_YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
 
     return chance * yield
 end
@@ -219,7 +219,7 @@ function Self:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local baseYield = Addon.MULTICRAFT_YIELD[recipe.quantityMax] or Addon.MULTICRAFT_YIELD[0]
+    local baseYield = C.MULTICRAFT_YIELD[recipe.quantityMax] or C.MULTICRAFT_YIELD[0]
     local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatBonus(recipe, "mc", optionalReagents))) / 2
 
     return chance * yield
@@ -293,8 +293,8 @@ function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     if not qualityID then qualityID = operationInfo.craftingQualityID end
     if recipe.isRecraft then return end
 
-    if Addon.ENCHANTS[operationInfo.craftingDataID] then
-        return Addon.ENCHANTS[operationInfo.craftingDataID][qualityID]
+    if C.ENCHANTS[operationInfo.craftingDataID] then
+        return C.ENCHANTS[operationInfo.craftingDataID][qualityID]
     end
 
     local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)

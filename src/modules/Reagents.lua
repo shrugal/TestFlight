@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Orders, Prices, Recipes, Util = Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local C, Orders, Prices, Recipes, Util = Addon.Constants, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class Reagents
 local Self = Addon.Reagents
@@ -33,7 +33,7 @@ function Self:GetWeight(reagent, weightPerSkill)
     if self:HasStatBonus(reagent, "sk") then
         return floor(self:GetStatBonus(reagent, "sk") * weightPerSkill)
     else
-        return Addon.REAGENTS[reagent] or 0
+        return C.REAGENTS[reagent] or 0
     end
 end
 
@@ -446,7 +446,7 @@ end
 function Self:GetStatBonus(reagent, stat)
     if type(reagent) == "table" then reagent = reagent.itemID end
 
-    local stats = Addon.FINISHING_REAGENTS[reagent]
+    local stats = C.FINISHING_REAGENTS[reagent]
     local val = stats and stats[stat] or 0
 
     return stat == "sk" and val or val / 100
@@ -460,7 +460,7 @@ end
 
 function Self:GetMaxBonusSkill()
     local maxSkill = 0
-    for itemID, stats in pairs(Addon.FINISHING_REAGENTS) do
+    for itemID, stats in pairs(C.FINISHING_REAGENTS) do
         if (stats.sk or 0) > maxSkill and Prices:HasReagentPrice(itemID) then
             maxSkill = stats.sk
         end

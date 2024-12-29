@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Orders, Prices, Recipes, Util = Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local C, GUI, Optimization, Orders, Prices, Recipes, Util = Addon.Constants, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
 ---@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization
@@ -25,7 +25,7 @@ function Self:GetRecipeOperationInfo()
 
     -- Forms expect quality and skill values to change when applying concentration
     if op.applyConcentration and opInfo.craftingQuality < maxQuality then
-        local breakpoints = Addon.QUALITY_BREAKPOINTS[maxQuality]
+        local breakpoints = C.QUALITY_BREAKPOINTS[maxQuality]
         local difficulty = opInfo.baseDifficulty + opInfo.bonusDifficulty
         local quality = opInfo.craftingQuality + 1
         local lower, upper = breakpoints[quality], breakpoints[quality + 1] or 1
@@ -80,9 +80,9 @@ function Self:UpdateOutputIcon()
         if not item or not item:IsStackable() then return origOnEnter(...) end
 
         local op = self:GetOperation():GetOperationInfo()
-        if not op or not op.craftingDataID or not Addon.ENCHANTS[op.craftingDataID] then return origOnEnter(...) end
+        if not op or not op.craftingDataID or not C.ENCHANTS[op.craftingDataID] then return origOnEnter(...) end
 
-        local itemID = Addon.ENCHANTS[op.craftingDataID][op.craftingQuality]
+        local itemID = C.ENCHANTS[op.craftingDataID][op.craftingQuality]
 
 		GameTooltip:SetOwner(self.form.OutputIcon, "ANCHOR_RIGHT")
         GameTooltip:SetItemByID(itemID)

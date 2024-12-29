@@ -3,6 +3,8 @@
 ---@class Addon
 local Addon = select(2, ...)
 
+---@type Constants
+Addon.Constants = {}
 ---@type Util
 Addon.Util = {}
 ---@type Promise.Static

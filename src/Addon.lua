@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Prices, Util = Addon.GUI, Addon.Prices, Addon.Util
+local C, GUI, Prices, Util = Addon.Constants, Addon.GUI, Addon.Prices, Addon.Util
 
 ---@class Addon: CallbackRegistryMixin
 ---@field Event Addon.Event
@@ -316,7 +316,7 @@ Self:OnLoad()
 local buffCharges = {}
 
 AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
-    if Self.BUFFS[data.spellId] then buffCharges[data.auraInstanceID] = data.charges end
+    if C.BUFFS[data.spellId] then buffCharges[data.auraInstanceID] = data.charges end
 end, true)
 
 ---@param unit string
@@ -328,7 +328,7 @@ function Self:OnUnitAura(unit, info)
 
     if info.addedAuras then
         for _,data in pairs(info.addedAuras) do
-            if Self.BUFFS[data.spellId] then buffCharges[data.auraInstanceID], buffChanged = data.charges, true end
+            if C.BUFFS[data.spellId] then buffCharges[data.auraInstanceID], buffChanged = data.charges, true end
         end
     end
 

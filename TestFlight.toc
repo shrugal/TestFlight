@@ -8,7 +8,7 @@
 ## OptionalDeps: Auctionator, TradeSkillMaster, RECrystallize, OribosExchange, Auctioneer
 
 src/Init.lua
-src/Data.lua
+src/Constants.lua
 src/Util.lua
 src/Addon.lua
 

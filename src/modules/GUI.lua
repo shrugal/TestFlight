@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Reagents, Util = Addon.Reagents, Addon.Util
+local C, Reagents, Util = Addon.Constants, Addon.Reagents, Addon.Util
 
 ---@class GUI: CallbackRegistryMixin
 ---@field Event GUI.Event
@@ -115,7 +115,7 @@ function Self:TooltipPostCall(tooltip)
     local id = C_Item.GetItemIDForItemInfo(link)
     if not id then return end
 
-    local reagentWeight = Addon.REAGENTS[id]
+    local reagentWeight = C.REAGENTS[id]
     local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(link)
     if not reagentWeight or not quality then return end
 
