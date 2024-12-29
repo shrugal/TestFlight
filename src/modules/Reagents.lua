@@ -5,12 +5,16 @@ local C, Orders, Prices, Recipes, Util = Addon.Constants, Addon.Orders, Addon.Pr
 ---@class Reagents
 local Self = Addon.Reagents
 
----@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+---@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation | number
 ---@param characterInventoryOnly? boolean
 function Self:GetQuantity(reagent, characterInventoryOnly)
-    if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-    if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
-    return ProfessionsUtil.GetReagentQuantityInPossession(reagent, characterInventoryOnly)
+    if type(reagent) == "table" then
+        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
+        if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
+        if reagent.itemID then reagent = reagent.itemID end ---@cast reagent number
+    end
+
+    return Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")(reagent, characterInventoryOnly)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -20,6 +24,44 @@ function Self:GetQuantities(reagent)
 
     local r1, r2, r3 = unpack(reagent.reagents)
     return self:GetQuantity(r1), self:GetQuantity(r2), self:GetQuantity(r3)
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param allocation RecipeAllocation
+---@param order? CraftingOrderInfo
+---@param recraftMods? CraftingItemSlotModification
+function Self:GetMaxCraftAmount(recipe, allocation, order, recraftMods)
+    local count = math.huge
+
+    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat
+        if self:IsProvided(slot, order, recraftMods) then break end
+
+        local slotCount = math.huge
+        local missing = slot.required and slot.quantityRequired or 0
+        local allocs = allocation[slotIndex]
+
+        if allocs then
+            for _,alloc in allocs:Enumerate() do
+                slotCount = min(slotCount, floor(self:GetQuantity(alloc.reagent) / alloc.quantity))
+                missing = max(0, missing - alloc.quantity)
+            end
+        end
+
+        if missing > 0 then
+            slotCount = min(slotCount, floor(self:GetQuantity(slot) / missing))
+        end
+
+        count = min(count, slotCount)
+    until true end
+
+    if recipe.recipeType == Enum.TradeskillRecipeType.Enchant then
+        local item = self:GetEnchantVellum(recipe)
+        if not item then return 0 end
+
+        count = min(count, self:GetQuantity(item:GetItemID()))
+    end
+
+    return count
 end
 
 ---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
@@ -263,6 +305,14 @@ function Self:AddCraftingInfos(reagents, reagent, q1, q2, q3)
     self:AddCraftingInfo(reagents, reagent, 1, q1)
     self:AddCraftingInfo(reagents, reagent, 2, q2)
     self:AddCraftingInfo(reagents, reagent, 3, q3)
+end
+
+---@param recipe CraftingRecipeSchematic
+function Self:GetEnchantVellum(recipe)
+    for _,itemGUID in pairs(C_TradeSkillUI.GetEnchantItems(recipe.recipeID)) do
+        local item = Item:CreateFromItemGUID(itemGUID) --[[@as ItemMixin]]
+        if item:IsStackable() then return item end
+    end
 end
 
 ---------------------------------------

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Prices, Promise, Recipes, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Recipes, Addon.Util
+local Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.CraftingPage
 ---@field frame CraftingPage
@@ -144,8 +144,6 @@ function Self:ModifyRecipeListFilter()
         rootDescription:Insert(MenuUtil.CreateRadio("Tracked", IsFilterSelected, SetFilterSelected, self.Filter.Tracked))
         rootDescription:Insert(MenuUtil.CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock))
     end)
-
-
 
     -- Update reset filter button state
     local dropdown = self.frame.RecipeList.FilterDropdown
@@ -324,7 +322,31 @@ end
 ---------------------------------------
 
 function Self:CraftRestockButtonOnClick()
-    Addon:Debug("CraftRestockButtonOnClick")
+    if self.filter == self.Filter.Tracked then
+        local node = select(2, self.dataProvider:FindByPredicate(function (node)
+            local data = node:GetData() --[[@as RecipeTreeNodeData]]
+            return data.operation:HasAllReagents()
+        end, false))
+
+        if not node then return end
+
+        local data = node:GetData() --[[@as RecipeTreeNodeData]]
+        local operation = data.operation
+        local amount = min(data.amount, operation:GetMaxCraftAmount())
+
+        self:CraftOperation(operation, amount)
+    elseif self.filter == self.Filter.Restock then
+        for _,node in self.dataProvider:EnumerateEntireRange() do
+            local data = node:GetData() --[[@as RecipeTreeNodeData]]
+            local operation, amount = data.operation, data.amount
+            local recipe = operation.recipe
+
+            Recipes:SetTracked(recipe)
+            Recipes:SetTrackedAmount(recipe, amount)
+            Recipes:SetTrackedQuality(recipe, operation:GetResultQuality())
+            Recipes:SetTrackedAllocation(recipe, operation)
+        end
+    end
 end
 
 function Self:InsertCraftRestockButton()
@@ -344,6 +366,37 @@ function Self:UpdateCraftRestockButton()
         self.craftRestockBtn:SetTextToFit("Create Next")
     elseif self.filter == self.Filter.Restock then
         self.craftRestockBtn:SetTextToFit("Restock")
+    end
+end
+
+---------------------------------------
+--              Util
+---------------------------------------
+
+---@param operation Operation
+---@param amount? number
+function Self:CraftOperation(operation, amount)
+    local recipe = operation.recipe
+    local reagents = operation:GetReagents()
+    local applyConcentration = operation.applyConcentration
+
+    local form = GUI.RecipeForm.CraftingForm
+
+    ProfessionsUtil.OpenProfessionFrameToRecipe(recipe.recipeID)
+
+    form:SetOperation(operation)
+
+    if recipe.recipeType == Enum.TradeskillRecipeType.Enchant then
+        local item = Reagents:GetEnchantVellum(recipe)
+        if not item then return end
+
+        form.form.transaction:SetEnchantAllocation(item)
+
+        if amount > 1 then self.frame.vellumItemID = item:GetItemID() end
+
+        C_TradeSkillUI.CraftEnchant(recipe.recipeID, amount, reagents, item:GetItemLocation(), applyConcentration)
+    elseif recipe.recipeType == Enum.TradeskillRecipeType.Item then
+        C_TradeSkillUI.CraftRecipe(recipe.recipeID, amount, reagents, nil, nil, applyConcentration)
     end
 end
 
@@ -453,3 +506,9 @@ function Self:OnAddonLoaded(addonName)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
+
+---------------------------------------
+--              Types
+---------------------------------------
+
+---@alias RecipeTreeNodeData { recipeInfo: TradeSkillRecipeInfo, operation: Operation, value: number, method: Optimization.Method, quality: number, amount?: number }

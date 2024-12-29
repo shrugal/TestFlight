@@ -417,6 +417,14 @@ function Self:HasAllocation(slotIndex)
     return self.allocation[slotIndex] and self.allocation[slotIndex]:HasAnyAllocations()
 end
 
+function Self:GetMaxCraftAmount()
+    return Reagents:GetMaxCraftAmount(self.recipe, self.allocation, self:GetOrder(), self:GetRecraftMods())
+end
+
+function Self:HasAllReagents()
+    return self:GetMaxCraftAmount() > 0
+end
+
 -- Quality
 
 function Self:GetQuality()

@@ -215,6 +215,7 @@ StaticPopup_OnClick = nil
 ---@field SetApplyConcentration fun(self: self, applyConcentration: boolean)
 ---@field ShouldUseCharacterInventoryOnly fun(self: self): boolean
 ---@field GetEnchantAllocation fun(self: self): ItemMixin?
+---@field SetEnchantAllocation fun(self: self, item: ItemMixin)
 
 ---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
 
@@ -254,6 +255,7 @@ StaticPopup_OnClick = nil
 ProfessionsFrame = nil
 
 ---@class CraftingPage: Frame
+---@field vellumItemID? number
 ---@field professionInfo ProfessionInfo
 ---@field SchematicForm CraftingForm
 ---@field RecipeList RecipeList
@@ -490,6 +492,7 @@ Professions = {}
 ---@field IsReagentSlotBasicRequired fun(reagent: CraftingReagentSlotSchematic): boolean
 ---@field IsReagentSlotModifyingRequired fun(reagent: CraftingReagentSlotSchematic): boolean
 ---@field AccumulateReagentsInPossession fun(reagents: CraftingReagent[]): number
+---@field OpenProfessionFrameToRecipe fun(recipeID: number)
 ProfessionsUtil = {}
 
 -----------------------------------------------------
@@ -965,13 +968,13 @@ TreeNodeMixin = nil
 ---@field GetSize fun(self: self): number
 ---@field SetCollapsedByPredicate fun(self: self, ...: unknown): unknown
 ---@field InsertInParentByPredicate fun(self: self, ...: unknown): unknown
----@field EnumerateEntireRange fun(self: self, ...: unknown): unknown
----@field Enumerate fun(self: self, ...: unknown): unknown
+---@field EnumerateEntireRange fun(self: self): Enumerator<TreeNodeMixin, number>
+---@field Enumerate fun(self: self, startIndex?: number, endIndex?: number, excludeCollapsed: boolean): Enumerator<TreeNodeMixin, number>
 ---@field ForEach fun(self: self, ...: unknown): unknown
 ---@field Find fun(self: self, ...: unknown): unknown
 ---@field FindIndex fun(self: self, ...: unknown): unknown
 ---@field FindElementDataByPredicate fun(self: self, ...: unknown): unknown
----@field FindByPredicate fun(self: self, ...: unknown): unknown
+---@field FindByPredicate fun(self: self, predicate: (fun(node: TreeNodeMixin): boolean), excludeCollapsed: boolean): number?, TreeNodeMixin?
 ---@field FindIndexByPredicate fun(self: self, ...: unknown): unknown
 ---@field ContainsByPredicate fun(self: self, ...: unknown): unknown
 ---@field Flush fun(self: self, ...: unknown): unknown
