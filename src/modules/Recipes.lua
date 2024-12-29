@@ -29,7 +29,7 @@ end
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
 function Self:GetTrackedAmount(recipeOrOrder, isRecraft)
-    if not self:IsTracked(recipeOrOrder) then return end
+    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
     return Addon.DB.Char.amounts[isRecraft][recipeID] or 1
 end
@@ -37,7 +37,7 @@ end
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
 function Self:GetTrackedQuality(recipeOrOrder, isRecraft)
-    if not self:IsTracked(recipeOrOrder) then return end
+    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
     return Addon.DB.Char.qualities[isRecraft][recipeID]
 end

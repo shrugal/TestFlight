@@ -959,7 +959,7 @@ TreeNodeMixin = nil
 ---@field IsEmpty fun(self: self): boolean
 ---@field Insert fun(self: self, data: any)
 ---@field Remove fun(self: self, node: TreeNodeMixin)
----@field SetSortComparator fun(self: self, comp: (fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean), affectChildren?: boolean, skipSort?: boolean)
+---@field SetSortComparator fun(self: self, comp?: (fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean), affectChildren?: boolean, skipSort?: boolean)
 ---@field HasSortComparator fun(self: self): boolean
 ---@field Sort fun(self: self)
 ---@field GetSize fun(self: self): number

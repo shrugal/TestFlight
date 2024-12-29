@@ -32,17 +32,18 @@ end
 -- Get best recipe allocation for given optimization method
 ---@param recipe CraftingRecipeSchematic
 ---@param method Optimization.Method
-function Self:GetRecipeAllocation(recipe, method)
+---@param includeNonTradable? boolean
+function Self:GetRecipeAllocation(recipe, method, includeNonTradable)
     local applyConcentration = Util:OneOf(method, self.Method.CostPerConcentration, self.Method.ProfitPerConcentration)
 
     -- Only items and enchants
-    if recipe.isRecraft or not recipe.hasCraftingOperationInfo then return end
+    if recipe.isRecraft or applyConcentration and not recipe.hasCraftingOperationInfo then return end
     if not Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) then return end
 
     local operation = Operation:Create(recipe, nil, nil, applyConcentration)
 
     -- Only tradable crafts
-    if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) and not operation:HasProfit() then return end
+    if not includeNonTradable and Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) and not operation:HasProfit() then return end
 
     local operations = self:GetAllocationsForMethod(operation, method)
     if not operations then return end

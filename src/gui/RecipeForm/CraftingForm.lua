@@ -126,7 +126,7 @@ function Self:OnAddonLoaded(addonName)
     -- Insert optimization buttons
     self:InsertOptimizationButtons(
         craftingPage,
-        "BOTTOMLEFT", craftingPage.RecipeList, "BOTTOMRIGHT", 2, 2
+        "TOPLEFT", self.form, "BOTTOMLEFT", 0, -4
     )
 end
 

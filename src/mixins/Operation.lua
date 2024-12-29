@@ -426,7 +426,7 @@ end
 function Self:GetResultQuality()
     local quality = self:GetQuality()
     if not self.applyConcentration then return quality end
-    return min(quality + 1, self:GetRecipeInfo().maxQuality)
+    return min(quality + 1, self:GetRecipeInfo().maxQuality or 1)
 end
 
 function Self:GetQualityBreakpoints()
