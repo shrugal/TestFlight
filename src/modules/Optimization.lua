@@ -434,7 +434,7 @@ function Self:GetReagentPriceForWeight(operation, weight, weights, prices)
     if not weights or not prices then weights, prices = self:GetWeightsAndPrices(operation) end
 
     local resFactor = 1 - operation:GetResourcefulnessFactor()
-    local price = prices[weight] * resFactor
+    local price = (prices[weight] or math.huge) * resFactor
 
     local bonusSkillSlot = operation:GetBonusSkillReagentSlot()
     local bonusSkillReagent = bonusSkillSlot and bonusSkillSlot.reagents[weights[#weights]]
@@ -472,8 +472,9 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
 
     for weight = lowerWeight + 1, upperWeight do repeat
         local weightPrice = self:GetReagentPriceForWeight(operation, weight, weights, prices)
+        local nextWeightPrice = self:GetReagentPriceForWeight(operation, weight + 1, weights, prices)
 
-        if weight < upperWeight and weightPrice >= (prices[weight + 1] or math.huge) then break end
+        if weight < upperWeight and weightPrice >= nextWeightPrice then break end
 
         local profit = profit + weightReagentsPrice - weightPrice
         if profit < 0 and maxValue >= 0 then break end
