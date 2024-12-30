@@ -22,6 +22,7 @@ src/modules/Reagents.lua
 src/modules/Orders.lua
 src/modules/Prices.lua
 src/modules/Optimization.lua
+src/modules/Restock.lua
 src/modules/GUI.lua
 
 src/gui/frames/ProfessionsRecipeListProgressBar.xml
@@ -41,6 +42,7 @@ src/gui/RecipeForm/mixins/RecipeForm.lua
 src/gui/RecipeForm/mixins/WithExperimentation.lua
 src/gui/RecipeForm/mixins/WithSkill.lua
 src/gui/RecipeForm/mixins/WithAmount.lua
+src/gui/RecipeForm/mixins/WithRestock.lua
 src/gui/RecipeForm/mixins/WithOptimization.lua
 src/gui/RecipeForm/mixins/WithOrder.lua
 src/gui/RecipeForm/mixins/WithCrafting.lua

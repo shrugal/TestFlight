@@ -79,13 +79,11 @@ function Self:UpdateOutputIcon()
         local item = self.form.transaction:GetEnchantAllocation()
         if not item or not item:IsStackable() then return origOnEnter(...) end
 
-        local op = self:GetOperation():GetOperationInfo()
-        if not op or not op.craftingDataID or not C.ENCHANTS[op.craftingDataID] then return origOnEnter(...) end
-
-        local itemID = C.ENCHANTS[op.craftingDataID][op.craftingQuality]
+        local operation = self:GetOperation()
+        if not operation then return origOnEnter(...) end
 
 		GameTooltip:SetOwner(self.form.OutputIcon, "ANCHOR_RIGHT")
-        GameTooltip:SetItemByID(itemID)
+        GameTooltip:SetItemByID(operation:GetResult())
     end)
 end
 
@@ -453,7 +451,7 @@ end
 function Self:OnRefresh()
     Parent.OnRefresh(self)
 
-    if not self.form or not self.form:IsVisible() then return end
+    if not self.form:IsVisible() then return end
 
     self.isRefreshing = true
     self.form:Refresh()
@@ -461,17 +459,19 @@ function Self:OnRefresh()
 end
 
 function Self:OnExtraSkillUpdated()
-    if not self.form or not self.form:IsVisible() then return end
+    if not self.form:IsVisible() then return end
 
     self.form:UpdateDetailsStats()
     self.form:UpdateRecraftSlot()
 end
 
 function Self:OnAllocationModified()
+    if not self.form:IsVisible() then return end
     self:UpdateTracking()
 end
 
 function Self:OnTransactionUpdated()
+    if not self.form:IsVisible() then return end
     self:UpdateTracking()
 end
 

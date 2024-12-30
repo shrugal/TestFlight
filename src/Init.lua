@@ -24,6 +24,8 @@ Addon.Reagents = {}
 Addon.Orders = {}
 ---@type Optimization
 Addon.Optimization = {}
+---@type Restock
+Addon.Restock = {}
 
 ---@class GUI
 Addon.GUI = {
@@ -48,6 +50,8 @@ Addon.GUI = {
         WithSkill = {},
         ---@type GUI.RecipeForm.WithAmount
         WithAmount = {},
+        ---@type GUI.RecipeForm.WithRestock
+        WithRestock = {},
         ---@type GUI.RecipeForm.WithOptimization
         WithOptimization = {},
         ---@type GUI.RecipeForm.WithOrder

@@ -286,20 +286,26 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param operationInfo CraftingOperationInfo
+---@param operationInfo? CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@param qualityID? number
 function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
-    if not qualityID then qualityID = operationInfo.craftingQualityID end
+    if not qualityID then qualityID = operationInfo and operationInfo.craftingQualityID or 1 end
     if recipe.isRecraft then return end
 
-    if C.ENCHANTS[operationInfo.craftingDataID] then
-        return C.ENCHANTS[operationInfo.craftingDataID][qualityID]
+    if C.ENCHANTS[recipe.recipeID] then
+        return C.ENCHANTS[recipe.recipeID][qualityID]
     end
 
-    local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
-
-    return data.hyperlink or data.itemID
+    if operationInfo then
+        local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+        return data.hyperlink or data.itemID
+    else
+        if recipe.outputItemID then return recipe.outputItemID end
+        local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
+        if not recipeInfo or not recipeInfo.qualityItemIDs then return end
+        return recipeInfo.qualityItemIDs[qualityID]
+    end
 end
 
 ---@param recipe CraftingRecipeSchematic

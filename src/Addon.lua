@@ -27,11 +27,13 @@ TestFlightDB = {
 
 ---@class AddonCharDB
 TestFlightCharDB = {
-    v = 2,
+    v = 3,
     ---@type table<boolean, number[]>
     amounts = { [false] = {}, [true] = {} },
     ---@type table<boolean, number[]>
     qualities = { [false] = {}, [true] = {} },
+    ---@type table<number, number[]>
+    restock = {},
 }
 
 ---@type boolean
@@ -115,6 +117,10 @@ function Self:Load()
     if self.DB.Char.v < 2 then
         self.DB.Char.qualities = { [false] = {}, [true] = {} }
         self.DB.Char.v = 2
+    end
+    if self.DB.Char.v < 3 then
+        self.DB.Char.restock = {}
+        self.DB.Char.v = 3
     end
 
     self:TriggerEvent(self.Event.Loaded)

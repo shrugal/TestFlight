@@ -112,21 +112,23 @@ end
 
 -- Enumerate recursively over table
 ---@param tbl table
----@param n number
-function Self:TblEnum(tbl, n)
+---@param n? number
+---@param key? boolean
+function Self:TblEnum(tbl, n, key)
     if (n or 1) == 1 then
+       if key then return next, tbl end
        local i, v
        return function () i, v = next(tbl, i) return v end
     end
 
-    local i, t, v, iter
+    local i, j, t, v, iter
     return function ()
         while true do
-            if iter then v = iter() end
-            if v ~= nil then return v end
+            if iter then if key then j, v = iter() else v = iter() end end
+            if v ~= nil then if key then return j, v else return v end end
             i, t = next(tbl, i)
             if i == nil then return end
-            iter = self:TblEnum(t, n - 1)
+            iter = self:TblEnum(t, n - 1, key)
         end
     end
 end
@@ -313,6 +315,23 @@ end
 ---@param obj? S
 ---@return R
 function Self:TblReduce(tbl, fn, value, obj)
+    for k,v in self:Each(tbl) do
+        if obj then
+            value = fn(obj, value, v)
+        else
+            value = fn(value, v)
+        end
+    end
+    return value
+end
+
+---@generic T, R, S: table
+---@param tbl T[] | Enumerator<T>
+---@param fn (fun(prev: R, curr: T): R) | (fun(self: S, prev: R, curr: T): R)
+---@param value? R
+---@param obj? S
+---@return R
+function Self:TblIReduce(tbl, fn, value, obj)
     for k,v in self:IEach(tbl) do
         if obj then
             value = fn(obj, value, v)
@@ -981,7 +1000,7 @@ function Self:DebugProfileStep()
     if not Addon.DEBUG or not segmentStack then return end
 
     local time = debugprofilestop()
-    local segment = self:TblReduce(segmentStack, function (s, l)
+    local segment = self:TblIReduce(segmentStack, function (s, l)
         if l == 0 then return s end
         if not s[l] then s[l] = {} end
         return s[l]

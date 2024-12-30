@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
+local Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Restock, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Restock, Addon.Util
 
 ---@class GUI.CraftingPage
 ---@field frame CraftingPage
@@ -14,15 +14,6 @@ Self.Filter = {
     Restock = "RESTOCK",
 }
 
-Self.FilterSortComparators = {
-    [Self.Filter.Sorted] = function(a, b)
-        if not a or not b then return a ~= b and b == nil end
-        a, b = a:GetData().value, b:GetData().value
-        if Self.sort == Optimization.Method.Cost then return a < b end
-        return a > b
-    end,
-}
-
 ---@type CraftingPage.Filter?
 Self.filter = nil
 ---@type Optimization.Method?
@@ -32,6 +23,13 @@ Self.sort = nil
 Self.filterCache = Cache:Create(function (_, recipe) return recipe.recipeID end)
 ---@type TreeDataProviderMixin
 Self.dataProvider = CreateTreeDataProvider()
+
+Self.dataProvider:SetSortComparator(function(a, b)
+    if not a or not b then return a ~= b and b == nil end
+    a, b = a:GetData().value, b:GetData().value
+    if Self.sort == Optimization.Method.Cost then return a < b end
+    return a > b
+end, false, true)
 
 ---------------------------------------
 --            Hooks
@@ -62,42 +60,70 @@ end
 ---@param frame ProfessionsRecipeListRecipeFrame
 ---@param node TreeNodeMixin
 function Self:InitRecipeListRecipe(frame, node)
-    local value = node:GetData().value
+    if not frame.GetLabelColor then return end
 
-    if not value then
-        if frame.Value then frame.Value:Hide() end
-        return
+    local data = node:GetData() --[[@as RecipeTreeNodeData]]
+    local value, amount = data.value, data.amount
+    local r, g, b = frame:GetLabelColor():GetRGB()
+
+    -- Set amount
+    if amount then
+        if not frame.Amount then
+            frame.Amount = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
+            frame.Amount:SetPoint("LEFT")
+            frame.Amount:SetWidth(34)
+            frame.Amount:SetJustifyH("RIGHT")
+            frame.Amount:SetHeight(12)
+        end
+
+        frame.Amount:Show()
+        frame.Amount:SetText(tostring(amount))
+        frame.Amount:SetVertexColor(r, g, b)
+
+        -- Adjust other elements
+        frame.SkillUps:Hide()
+        frame.Label:SetPoint("LEFT", frame.Amount, "RIGHT", 6, 0)
+    elseif frame.Amount then
+        frame.Amount:Hide()
+
+        -- Adjust other elements
+        frame.Label:SetPoint("LEFT", frame.SkillUps, "RIGHT", 4, 0)
     end
 
     -- Set value
-    if not frame.Value then
-        frame.Value = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
-        frame.Value:SetPoint("RIGHT")
-        frame.Value:SetJustifyH("RIGHT")
-        frame.Value:SetHeight(12)
+    if value then
+        if not frame.Value then
+            frame.Value = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
+            frame.Value:SetPoint("RIGHT")
+            frame.Value:SetJustifyH("RIGHT")
+            frame.Value:SetHeight(12)
+        end
+
+        frame.Value:Show()
+        frame.Value:SetText(Util(value):RoundCurrency():CurrencyString(false)())
+        frame.Value:SetVertexColor(r, value < 0 and 0 or g, value < 0 and 0 or b)
+
+        -- Adjust other elements
+        if frame.LockedIcon:IsShown() then
+            frame.LockedIcon:ClearAllPoints()
+            frame.LockedIcon:SetPoint("RIGHT", frame.Value, "LEFT")
+        end
+    elseif frame.Value then
+        frame.Value:Hide()
     end
 
-    frame.Value:Show()
-    frame.Value:SetText(Util(value):RoundCurrency():CurrencyString(false)())
-
-    local r, g, b = frame:GetLabelColor():GetRGB()
-    if value < 0 then g, b = 0, 0 end
-    frame.Value:SetVertexColor(r, g, b)
+    if not amount and not value then return end
 
     -- Adjust label
     local padding = 10
-    local lockedWith = frame.LockedIcon:IsShown() and frame.LockedIcon:GetWidth() or 0
+    local leftWidth = (amount and frame.Amount:GetWidth() or frame.SkillUps:GetWidth()) + select(4, frame.Label:GetPoint(1))
     local countWidth = frame.Count:IsShown() and frame.Count:GetStringWidth() or 0
-    local width = frame:GetWidth() - (lockedWith + countWidth + padding + frame.SkillUps:GetWidth() + frame.Value:GetWidth())
+    local valueWidth = frame.Value and frame.Value:IsShown() and frame.Value:GetWidth() or 0
+    local lockedWith = frame.LockedIcon:IsShown() and frame.LockedIcon:GetWidth() or 0
+    local width = frame:GetWidth() - (lockedWith + countWidth + padding + leftWidth + valueWidth)
 
     frame.Label:SetWidth(frame:GetWidth())
     frame.Label:SetWidth(min(width, frame.Label:GetStringWidth()))
-
-    -- Adjust locked icon
-    if frame.LockedIcon:IsShown() then
-        frame.LockedIcon:ClearAllPoints()
-        frame.LockedIcon:SetPoint("RIGHT", frame.Value, "LEFT")
-    end
 end
 
 function Self:CreateRecipeListProgressBar()
@@ -209,7 +235,6 @@ function Self:UpdateRecipeList(refresh)
 
     if refresh or filterChanged then
         self.dataProvider:GetRootNode():Flush()
-        self.dataProvider:SetSortComparator(self:GetFilterSortComparator(), false, true)
 
         self:UpdateCraftRestockButton()
 
@@ -226,6 +251,7 @@ function Self:UpdateRecipeList(refresh)
 
                 if operation then
                     local value = Optimization:GetOperationValue(operation, method)
+                    local amount, total = self:GetFilterRecipeAmount(recipe)
 
                     if value and abs(value) ~= math.huge then
                         self.dataProvider:Insert({
@@ -234,7 +260,8 @@ function Self:UpdateRecipeList(refresh)
                             value = value,
                             method = method,
                             quality = operation:GetQuality(),
-                            amount = self:GetFilterRecipeAmount(recipe)
+                            amount = amount,
+                            total = total
                         })
                     end
                 end
@@ -270,22 +297,9 @@ function Self:GetFilterRecipeIDs()
             return C_TradeSkillUI.IsRecipeInSkillLine(recipeID, professionID)
         end)
     elseif self.filter == self.Filter.Tracked then
-        return Util:TblFilter(recipeIDs, function (recipeID)
-            return (Recipes:GetTrackedAmount(recipeID, false) or 0) > 0
-        end)
-    else
-        return {} ---@todo
-    end
-end
-
-function Self:GetFilterSortComparator()
-    if self.filter == self.Filter.Sorted then
-        return function(a, b)
-            if not a or not b then return a ~= b and b == nil end
-            a, b = a:GetData().value, b:GetData().value
-            if Self.sort == Optimization.Method.Cost then return a < b end
-            return a > b
-        end
+        return Util:TblFilter(recipeIDs, Recipes.IsTracked, false, Recipes)
+    elseif self.filter == self.Filter.Restock then
+        return Util:TblFilter(recipeIDs, Restock.IsTracked, false, Restock)
     end
 end
 
@@ -309,11 +323,13 @@ function Self:GetFilterRecipeOperation(recipe, method)
 end
 
 ---@param recipe CraftingRecipeSchematic
+---@return number? amount
+---@return number? total
 function Self:GetFilterRecipeAmount(recipe)
     if self.filter == self.Filter.Tracked then
         return Recipes:GetTrackedAmount(recipe) --[[@as number]]
     elseif self.filter == self.Filter.Restock then
-        return 1 ---@todo
+        return Restock:GetTrackedMissing(recipe), Restock:GetTrackedAmount(recipe)
     end
 end
 
@@ -468,6 +484,11 @@ function Self:OnTrackedRecipeUpdated()
     self:UpdateRecipeList(true)
 end
 
+function Self:OnTrackedRestockUpdated()
+    if self.filter ~= self.Filter.Restock or not self.frame:IsVisible() then return end
+    self:UpdateRecipeList(true)
+end
+
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
@@ -503,6 +524,8 @@ function Self:OnAddonLoaded(addonName)
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, OnTrackedRecipeUpdated, self)
     Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, OnTrackedRecipeUpdated, self)
     Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, OnTrackedRecipeUpdated, self)
+
+    Restock:RegisterCallback(Restock.Event.TrackedUpdated, self.OnTrackedRestockUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
@@ -511,4 +534,4 @@ Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
 --              Types
 ---------------------------------------
 
----@alias RecipeTreeNodeData { recipeInfo: TradeSkillRecipeInfo, operation: Operation, value: number, method: Optimization.Method, quality: number, amount?: number }
+---@alias RecipeTreeNodeData { recipeInfo: TradeSkillRecipeInfo, operation: Operation, value: number, method: Optimization.Method, quality: number, amount?: number, total?: number }
