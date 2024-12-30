@@ -1,3 +1,5 @@
-- Show enchanting scrolls as output item tooltip when enchanting a vellum
-- Fix executing some event handlers twice
-- Fix resourcefulness calculation
+- Move sort option in recipe fiter to the bottom
+- Add restock settings to item and enchant recipe forms
+- Add filter option to see all restocking recipes and to mark all as tracked
+- Add filter option to see all tracked recipes and to craft next batch
+- Fix showing qualities in recipe tracker for recipes that don't have any

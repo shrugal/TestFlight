@@ -9,7 +9,7 @@ local GUI, Recipes, Restock, Util = Addon.GUI, Addon.Recipes, Addon.Restock, Add
 ---@field craftingRecipe? CraftingRecipeSchematic
 local Self = GUI.RecipeForm.WithRestock
 
--- Elements
+-- Track checkbox
 
 ---@param frame CheckButton
 function Self:RestockCheckboxOnEnter(frame)
@@ -27,6 +27,8 @@ function Self:RestockCheckboxOnChange(frame)
 
     Restock:SetTracked(recipe, quality, frame:GetChecked() and 1 or 0)
 end
+
+-- Amount spinner
 
 ---@param frame NumericInputSpinner
 function Self:RestockAmountSpinnerOnEnter(frame)
@@ -46,6 +48,8 @@ function Self:RestockAmountSpinnerOnChange(frame, value)
 
     Restock:SetTracked(recipe, quality, value)
 end
+
+-- Insert/Update elements
 
 function Self:InsertRestockElements(...)
     local input = GUI:InsertCheckbox(self.form, Util:FnBind(self.RestockCheckboxOnEnter, self), Util:FnBind(self.RestockCheckboxOnChange, self), ...)
@@ -68,14 +72,15 @@ function Self:InsertRestockElements(...)
 end
 
 function Self:UpdateRestockElements()
+    local shown, checked, amount = false, false, 1
+
     local operation = self:GetOperation()
-    if not operation then return end
-
-    local recipe, quality = operation.recipe, operation:GetResultQuality()
-
-    local shown = not recipe.isRecraft and Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) or false
-    local checked = shown and Restock:IsTracked(recipe, quality) or false
-    local amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
+    if operation then
+        local recipe, quality = operation.recipe, operation:GetResultQuality()
+        shown = not recipe.isRecraft and Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) or false
+        checked = shown and Restock:IsTracked(recipe, quality) or false
+        amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
+    end
 
     self.restockCheckbox:SetShown(shown)
     self.restockCheckbox:SetChecked(checked)
@@ -98,7 +103,6 @@ function Self:OnAllocationModified()
 end
 
 function Self:OnTransactionUpdated()
-    if not self.form:IsVisible() then return end
     self:UpdateRestockElements()
 end
 

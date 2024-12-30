@@ -30,8 +30,10 @@ end
 ---@param isRecraft boolean
 function Self:AddRecipe(_, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID) ---@cast recipeInfo -?
+
     local amount = (Recipes:GetTrackedAmount(recipe) or 1) + (Orders:GetTrackedAmount(recipe) or 0)
-    local quality = Recipes:GetTrackedQuality(recipe)
+    local quality = recipeInfo.supportsQualities and Recipes:GetTrackedQuality(recipe)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
 

@@ -1,3 +1,9 @@
+Version 4.13
+
+- Show enchanting scrolls as output item tooltip when enchanting a vellum
+- Fix executing some event handlers twice
+- Fix resourcefulness calculation
+
 Version 4.12
 
 - Fix optimizing recipes without quality
