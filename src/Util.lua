@@ -536,6 +536,10 @@ function Self:TblCount(tbl, fn, key, obj, ...)
     return c
 end
 
+function Self:TblIsEmpty(tbl)
+    return self:TblCount(tbl) == 0
+end
+
 ---@generic T
 ---@param tbl T[]
 ---@param ... any

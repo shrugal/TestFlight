@@ -29,9 +29,9 @@ TestFlightDB = {
 TestFlightCharDB = {
     v = 3,
     ---@type table<boolean, number[]>
-    amounts = { [false] = {}, [true] = {} },
-    ---@type table<boolean, number[]>
     qualities = { [false] = {}, [true] = {} },
+    ---@type table<boolean, table<number, number | number[]>>
+    tracked = { [false] = {}, [true] = {} },
     ---@type table<number, number[]>
     restock = {},
 }
@@ -119,7 +119,9 @@ function Self:Load()
         self.DB.Char.v = 2
     end
     if self.DB.Char.v < 3 then
+        self.DB.Char.tracked = { [false] = {}, [true] = {} }
         self.DB.Char.restock = {}
+        self.DB.Char.amounts = nil
         self.DB.Char.v = 3
     end
 

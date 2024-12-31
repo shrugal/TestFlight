@@ -33,7 +33,7 @@ function Self:AddRecipe(_, recipeID, isRecraft)
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID) ---@cast recipeInfo -?
 
     local amount = (Recipes:GetTrackedAmount(recipe) or 1) + (Orders:GetTrackedAmount(recipe) or 0)
-    local quality = recipeInfo.supportsQualities and Recipes:GetTrackedQuality(recipe)
+    local quality = recipeInfo.supportsQualities and Recipes:GetTrackedQuality(recipeID, isRecraft)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
 

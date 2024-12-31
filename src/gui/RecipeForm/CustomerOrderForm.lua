@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Prices, Reagents, Util = Addon.GUI, Addon.Orders, Addon.Prices, Addon.Reagents, Addon.Util
+local GUI, Orders, Util = Addon.GUI, Addon.Orders, Addon.Util
 local NS = GUI.RecipeForm
 
 ---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithAmount | GUI.RecipeForm.WithOrder
@@ -166,7 +166,7 @@ function Self:OnAddonLoaded(addonName)
 
     -- Insert tracked amount spinner
     self:InsertAmountSpinner(
-        "LEFT", self.trackOrderBox, "RIGHT", 98, 1
+        "LEFT", self.trackOrderBox, "RIGHT", 98, 0
     )
     self.amountSpinner:SetScale(0.9)
 

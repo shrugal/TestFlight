@@ -1,15 +1,18 @@
 ---@class Addon
 local Addon = select(2, ...)
 local GUI, Recipes, Restock, Util = Addon.GUI, Addon.Recipes, Addon.Restock, Addon.Util
+local NS = GUI.RecipeForm
 
----@class GUI.RecipeForm.WithRestock: GUI.RecipeForm.RecipeForm
+local Parent = NS.WithAmount
+
+---@class GUI.RecipeForm.WithRestock: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithAmount
 ---@field form RecipeCraftingForm
 ---@field restockCheckbox CheckButton
 ---@field restockAmountSpinner NumericInputSpinner
 ---@field craftingRecipe? CraftingRecipeSchematic
-local Self = GUI.RecipeForm.WithRestock
+local Self = Mixin(NS.WithRestock, Parent)
 
--- Track checkbox
+-- Restock checkbox
 
 ---@param frame CheckButton
 function Self:RestockCheckboxOnEnter(frame)
@@ -28,7 +31,7 @@ function Self:RestockCheckboxOnChange(frame)
     Restock:SetTracked(recipe, quality, frame:GetChecked() and 1 or 0)
 end
 
--- Amount spinner
+-- Restock amount spinner
 
 ---@param frame NumericInputSpinner
 function Self:RestockAmountSpinnerOnEnter(frame)
@@ -49,7 +52,7 @@ function Self:RestockAmountSpinnerOnChange(frame, value)
     Restock:SetTracked(recipe, quality, value)
 end
 
--- Insert/Update elements
+-- Insert/Update restock elements
 
 function Self:InsertRestockElements(...)
     local input = GUI:InsertCheckbox(self.form, Util:FnBind(self.RestockCheckboxOnEnter, self), Util:FnBind(self.RestockCheckboxOnChange, self), ...)
@@ -65,6 +68,10 @@ function Self:InsertRestockElements(...)
     )
 
     input:SetMinMaxValues(1, math.huge)
+    input:SetWidth(32)
+    input:SetMaxLetters(4)
+    input.DecrementButton:SetAlpha(0.8)
+    input.IncrementButton:SetAlpha(0.8)
 
     self.restockAmountSpinner = input
 
@@ -88,6 +95,71 @@ function Self:UpdateRestockElements()
     self.restockAmountSpinner:SetValue(amount)
 end
 
+-- Track quality checkbox
+
+---@param frame CheckButton
+function Self:TrackQualityCheckboxOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+    GameTooltip_AddNormalLine(GameTooltip, "Track craft qualities separately.")
+    GameTooltip:Show()
+end
+
+---@param frame CheckButton
+function Self:TrackQualityCheckboxOnChange(frame)
+    local recipe = self:GetRecipe()
+    if not recipe then return end
+
+    Recipes:SetTrackedPerQuality(recipe, frame:GetChecked())
+end
+
+-- Insert/Update track quality checkbox
+
+function Self:InsertAmountSpinner(...)
+    Parent.InsertAmountSpinner(self, ...)
+
+    local input = GUI:InsertCheckbox(
+        self.form, Util:FnBind(self.TrackQualityCheckboxOnEnter, self), Util:FnBind(self.TrackQualityCheckboxOnChange, self),
+        "RIGHT", self.amountSpinner, "LEFT", -50, -1
+    )
+
+    input:SetSize(26, 26)
+    input.text:SetText(C_Texture.GetCraftingReagentQualityChatIcon(5))
+
+    self.trackQualiyCheckbox = input
+
+    self:UpdateTrackQualityCheckbox()
+end
+
+function Self:UpdateTrackQualityCheckbox()
+    local shown, checked = false, false
+
+    local recipeInfo = self.form:GetRecipeInfo()
+    if recipeInfo then
+        shown = Recipes:IsTracked(recipeInfo) and recipeInfo.supportsQualities
+        checked = Recipes:IsTrackedPerQuality(recipeInfo.recipeID, recipeInfo.isRecraft)
+    end
+
+    self.trackQualiyCheckbox:SetShown(shown)
+    self.trackQualiyCheckbox:SetChecked(checked)
+end
+
+-- Amount spinner
+
+---@param frame NumericInputSpinner
+---@param value number
+function Self:AmountSpinnerOnChange(frame, value)
+    local recipe = self:GetRecipe()
+    if not recipe or not self.form.transaction then return end
+
+    self:GetTracking():SetTrackedAmount(recipe, value)
+end
+
+function Self:UpdateAmountSpinner()
+    Parent.UpdateAmountSpinner(self)
+
+    self:UpdateTrackQualityCheckbox()
+end
+
 ---------------------------------------
 --              Events
 ---------------------------------------
@@ -97,18 +169,29 @@ function Self:OnTrackedRestockUpdated()
     self:UpdateRestockElements()
 end
 
-function Self:OnAllocationModified()
+function Self:OnTrackedPerQualityChanged()
     if not self.form:IsVisible() then return end
     self:UpdateRestockElements()
 end
 
+function Self:OnAllocationModified()
+    if not self.form:IsVisible() then return end
+    self:UpdateAmountSpinner()
+    self:UpdateRestockElements()
+end
+
 function Self:OnTransactionUpdated()
+    if not self.form:IsVisible() then return end
+    self:UpdateAmountSpinner()
     self:UpdateRestockElements()
 end
 
 function Self:OnAddonLoaded()
+    Parent.OnAddonLoaded(self)
+
     self.form:RegisterCallback(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified, self.OnAllocationModified, self)
     EventRegistry:RegisterCallback("Professions.TransactionUpdated", self.OnTransactionUpdated, self)
 
-    Restock:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedRestockUpdated, self)
+    Restock:RegisterCallback(Restock.Event.TrackedUpdated, self.OnTrackedRestockUpdated, self)
+    Recipes:RegisterCallback(Recipes.Event.TrackedPerQualityChanged, self.OnTrackedPerQualityChanged, self)
 end

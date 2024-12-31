@@ -6,7 +6,7 @@ local C, Operation, Optimization, Promise, Reagents, Util = Addon.Constants, Add
 ---@field Event Recipes.Event
 local Self = Mixin(Addon.Recipes, CallbackRegistryMixin)
 
----@type table<boolean, Operation[]>
+---@type table<boolean, table<number, Operation | Operation[]>>
 Self.trackedAllocations = { [false] = {}, [true] = {} }
 
 ---------------------------------------
@@ -16,9 +16,11 @@ Self.trackedAllocations = { [false] = {}, [true] = {} }
 -- Get
 
 ---@param recipeOrOrder RecipeOrOrder
----@param isRecraft? boolean
-function Self:IsTracked(recipeOrOrder, isRecraft)
-    return C_TradeSkillUI.IsRecipeTracked(self:GetRecipeInfo(recipeOrOrder, isRecraft))
+---@param isRecraftOrQuality? boolean|number
+function Self:IsTracked(recipeOrOrder, isRecraftOrQuality)
+    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+
+    return C_TradeSkillUI.IsRecipeTracked(recipeID, isRecraft)
 end
 
 ---@param isRecraft boolean
@@ -27,58 +29,90 @@ function Self:GetTrackedIDs(isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
----@param isRecraft? boolean
-function Self:GetTrackedAmount(recipeOrOrder, isRecraft)
-    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    return Addon.DB.Char.amounts[isRecraft][recipeID] or 1
+---@param isRecraftOrQuality? boolean|number
+function Self:GetTrackedAmount(recipeOrOrder, isRecraftOrQuality)
+    if not self:IsTracked(recipeOrOrder, isRecraftOrQuality) then return end
+    local recipeID, isRecraft, quality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
+
+    local tracked = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(tracked) ~= "table" then return tracked or 1 end
+
+    return quality and tracked[quality] or 0
 end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
-function Self:GetTrackedQuality(recipeOrOrder, isRecraft)
+---@return number[]?
+function Self:GetTrackedQualities(recipeOrOrder, isRecraft)
     if not self:IsTracked(recipeOrOrder, isRecraft) then return end
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+
+    local tracked = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(tracked) == "table" then return tracked end
+
+    local quality = self:GetTrackedQuality(recipeID, isRecraft)
+
+    return { [quality or 0] = tracked or 1 }
+end
+
+---@param recipeOrOrder RecipeOrOrder
+---@param isRecraftOrQuality? boolean|number
+---@return Operation?
+function Self:GetTrackedAllocation(recipeOrOrder, isRecraftOrQuality)
+    if not self:IsTracked(recipeOrOrder, isRecraftOrQuality) then return end
+    local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+
+    local allocations = self.trackedAllocations[isRecraft][recipeID]
+    if not trackedPerQuality then return allocations end
+
+    return allocations[quality]
+end
+
+---@param recipeID number
+---@param isRecraft? boolean
+function Self:GetTrackedQuality(recipeID, isRecraft)
     return Addon.DB.Char.qualities[isRecraft][recipeID]
 end
 
----@param recipeOrOrder RecipeOrOrder
+---@param recipeID number
 ---@param isRecraft? boolean
----@return Operation?
-function Self:GetTrackedAllocation(recipeOrOrder, isRecraft)
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    return self.trackedAllocations[isRecraft][recipeID]
+function Self:IsTrackedPerQuality(recipeID, isRecraft)
+    return type(Addon.DB.Char.tracked[isRecraft or false][recipeID]) == "table"
 end
 
 function Self:GetTrackedReagentAmounts()
     ---@type number[]
     local reagents = {}
 
-    for recipe in self:Enumerate() do repeat
-        local amount = self:GetTrackedAmount(recipe)
-        if amount <= 0 then break end
+    for recipe in self:Enumerate() do
+        local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
 
-        local operation = self:GetTrackedAllocation(recipe)
+        for quality,amount in pairs(qualities) do repeat
+            if amount <= 0 then break end
 
-        for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
-            local required = reagent.required and reagent.quantityRequired or 0
-            local missing = amount * required
+            local operation = self:GetTrackedAllocation(recipe, quality)
 
-            if operation and operation.allocation[slotIndex] then
-                for _, alloc in operation.allocation[slotIndex]:Enumerate() do repeat
-                    missing = missing - amount * alloc.quantity
+            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+                local required = reagent.required and reagent.quantityRequired or 0
+                local missing = amount * required
 
-                    local itemID = alloc.reagent.itemID ---@cast itemID -?
-                    reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
-                until true end
+                if operation and operation.allocation[slotIndex] then
+                    for _, alloc in operation.allocation[slotIndex]:Enumerate() do repeat
+                        missing = missing - amount * alloc.quantity
+
+                        local itemID = alloc.reagent.itemID ---@cast itemID -?
+                        reagents[itemID] = (reagents[itemID] or 0) + amount * alloc.quantity
+                    until true end
+                end
+
+                if missing > 0 then
+                    local itemID = reagent.reagents[1].itemID ---@cast itemID -?
+                    reagents[itemID] = (reagents[itemID] or 0) + missing
+                end
             end
-
-            if missing > 0 then
-                local itemID = reagent.reagents[1].itemID ---@cast itemID -?
-                reagents[itemID] = (reagents[itemID] or 0) + missing
-            end
-        end
-    until true end
+        until true end
+    end
 
     return reagents
 end
@@ -87,15 +121,19 @@ function Self:GetTrackedResultAmounts()
     ---@type number[]
     local items = {}
 
-    for recipe in self:Enumerate(false) do repeat
-        local amount = self:GetTrackedAmount(recipe)
-        if amount <= 0 then break end
+    for recipe in self:Enumerate(false) do
+        local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
 
-        local output = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, nil, nil, self:GetTrackedQuality(recipe))
-        if not output or not output.itemID then break end
+        for quality,amount in pairs(qualities) do repeat
+            if amount <= 0 then break end
 
-        items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
-    until true end
+            local output = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, nil, nil, quality ~= 0 and quality or nil)
+            if not output or not output.itemID then break end
+
+            ---@todo Quality
+            items[output.itemID] = (items[output.itemID] or 0) + amount * recipe.quantityMin
+        until true end
+    end
 
     return items
 end
@@ -104,28 +142,60 @@ end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param value? boolean
----@param isRecraft? boolean
-function Self:SetTracked(recipeOrOrder, value, isRecraft)
+---@param isRecraftOrQuality? boolean|number
+function Self:SetTracked(recipeOrOrder, value, isRecraftOrQuality)
     value = value ~= false
-    if self:IsTracked(recipeOrOrder, isRecraft) == value then return end
 
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+    if self:IsTracked(recipeOrOrder, isRecraftOrQuality) == value then return end
+
+    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+
     C_TradeSkillUI.SetRecipeTracked(recipeID, value, isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param amount? number
----@param isRecraft? boolean
-function Self:SetTrackedAmount(recipeOrOrder, amount, isRecraft)
+---@param isRecraftOrQuality? boolean|number
+function Self:SetTrackedAmount(recipeOrOrder, amount, isRecraftOrQuality)
+    if not self:IsTracked(recipeOrOrder, isRecraftOrQuality) then return end
+    local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
+
     if amount and amount < 0 then amount = 0 end
-    if amount == 1 then amount = nil end
+    if amount == (trackedPerQuality and 0 or 1) then amount = nil end
 
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    if Addon.DB.Char.amounts[isRecraft][recipeID] == amount then return end
+    local tracked = Addon.DB.Char.tracked[isRecraft]
 
-    Addon.DB.Char.amounts[isRecraft][recipeID] = amount
+    if trackedPerQuality then
+        if not quality or tracked[recipeID][quality] == amount then return end
+        tracked[recipeID][quality] = amount
+    else
+        if tracked[recipeID] == amount then return end
+        tracked[recipeID] = amount
+    end
 
-    self:TriggerEvent(Self.Event.TrackedAmountUpdated, recipeID, isRecraft, amount)
+    self:TriggerEvent(Self.Event.TrackedAmountUpdated, recipeID, isRecraftOrQuality or false, amount)
+end
+
+---@param recipeOrOrder RecipeOrOrder
+---@param operation? Operation
+---@param isRecraftOrQuality? boolean|number
+function Self:SetTrackedAllocation(recipeOrOrder, operation, isRecraftOrQuality)
+    local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
+
+    local allocations = self.trackedAllocations[isRecraft]
+
+    if trackedPerQuality then
+        if not allocations[recipeID] then allocations[recipeID] = {} end
+        if not quality or allocations[recipeID][quality] == operation then return end
+        allocations[recipeID][quality] = operation
+    else
+        if allocations[recipeID] == operation then return end
+        allocations[recipeID] = operation
+    end
+
+    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraftOrQuality or false, operation)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
@@ -143,13 +213,41 @@ function Self:SetTrackedQuality(recipeOrOrder, quality, isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
----@param operation? Operation
+---@param value? boolean
 ---@param isRecraft? boolean
-function Self:SetTrackedAllocation(recipeOrOrder, operation, isRecraft)
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    self.trackedAllocations[isRecraft][recipeID] = operation
+function Self:SetTrackedPerQuality(recipeOrOrder, value, isRecraft)
+    value = value ~= false
 
-    self:TriggerEvent(Self.Event.TrackedAllocationUpdated, recipeID, isRecraft, operation)
+    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
+
+    local recipeID, isRecraft, _, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+    if trackedPerQuality == value then return end
+
+    local tracked = Addon.DB.Char.tracked[isRecraft]
+    local allocations = self.trackedAllocations[isRecraft]
+    local quality = self:GetTrackedQuality(recipeID, isRecraft)
+
+    ---@type number?, Operation?
+    local amount, allocation
+
+    if value then
+        amount = tracked[recipeID] or 1 --[[@as number?]]
+        allocation = allocations[recipeID] or 1 --[[@as Operation?]]
+
+        tracked[recipeID], allocations[recipeID] = {}, {}
+    else
+        amount = tracked[recipeID] and tracked[recipeID][quality or 0] or 0
+        allocation = allocations[recipeID] and allocations[recipeID][quality or 0] or 0
+
+        tracked[recipeID], allocation[recipeID] = nil, nil
+    end
+
+    if quality or not value then
+        self:SetTrackedAmount(recipeOrOrder, amount, quality)
+        self:SetTrackedAllocation(recipeOrOrder, allocation, quality)
+    end
+
+    self:TriggerEvent(Self.Event.TrackedPerQualityChanged, recipeID, isRecraft, value)
 end
 
 -- Clear
@@ -159,9 +257,9 @@ function Self:ClearTrackedByRecipeID(recipeID)
     for i=0,1 do
         local isRecraft = i == 1
         if not self:IsTracked(recipeID, isRecraft) then
-            self:SetTrackedAmount(recipeID, nil, isRecraft)
-            self:SetTrackedQuality(recipeID, nil, isRecraft)
-            self:SetTrackedAllocation(recipeID, nil, isRecraft)
+            Addon.DB.Char.tracked[isRecraft][recipeID] = nil
+            Addon.DB.Char.qualities[isRecraft][recipeID] = nil
+            self.trackedAllocations[isRecraft][recipeID] = nil
         end
     end
 end
@@ -237,7 +335,7 @@ function Self:Enumerate(isRecraft)
         while true do
             if recraft ~= nil then
                 i, recipeID = next(recipeIDs, i)
-                if i ~= nil then return C_TradeSkillUI.GetRecipeSchematic(recipeID, recraft, self:GetTrackedQuality(recipeID, recraft)) end
+                if i ~= nil then return C_TradeSkillUI.GetRecipeSchematic(recipeID, recraft) end
             end
             if isRecraft == nil then
                 if recraft == false then return else recraft = not recraft end
@@ -250,14 +348,39 @@ function Self:Enumerate(isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
+---@param isRecraftOrQuality? boolean|number
+---@return number recipeID
+---@return boolean isRecraft
+---@return number? quality
+---@return boolean trackedPerQuality
+function Self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    local recipeID = type(recipeOrOrder) == "number" and recipeOrOrder or recipeOrOrder.recipeID or recipeOrOrder.spellID
+    local isRecraft = type(recipeOrOrder) == "table" and recipeOrOrder.isRecraft or isRecraftOrQuality == true
+    local quality = type(isRecraftOrQuality) == "number" and isRecraftOrQuality or nil
+    local trackedPerQuality = self:IsTrackedPerQuality(recipeID, isRecraft)
+
+    return recipeID, isRecraft, quality, trackedPerQuality
+end
+
+---@param recipeID number
+---@param isRecraft boolean
+function Self:GetTracked(recipeID, isRecraft)
+    return Addon.DB.Char.tracked[isRecraft][recipeID]
+end
+
+---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
----@return number, boolean
-function Self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    if type(recipeOrOrder) == "number" then
-        return recipeOrOrder, isRecraft or false
-    else
-        return recipeOrOrder.recipeID or recipeOrOrder.spellID, recipeOrOrder.isRecraft or false
+---@param create? boolean
+function Self:GetRecipeAllocations(recipeOrOrder, isRecraft, create)
+    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+    local allocations = self.trackedAllocations[isRecraft][recipeID]
+
+    if not allocations and create then
+        allocations = {}
+        self.trackedAllocations[isRecraft][recipeID] = allocations
     end
+
+    return allocations
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -308,31 +431,27 @@ function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     end
 end
 
----@param recipe CraftingRecipeSchematic
-function Self:LoadAllocation(recipe)
-    local quality = self:GetTrackedQuality(recipe) or 1
-    local allocations = Optimization:GetMinCostAllocations(Operation:Create(recipe))
-    local operation = allocations and allocations[max(quality, Util:TblMinKey(allocations))]
-    if not operation then return end
-
-    self:SetTrackedAllocation(recipe, operation)
-end
-
 ---@todo Recraft allocations
 function Self:LoadAllocations()
-    for i=0,0 do
-        local isRecraft = i == 1
-        local tracked = C_TradeSkillUI.GetRecipesTracked(isRecraft)
-
-        for _,recipeID in pairs(tracked) do
-            local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
+    return Promise:Async(function ()
+        for recipe in self:Enumerate() do repeat
             local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQuality, false, Reagents)
+            if not hasQualityReagents then break end
 
-            if hasQualityReagents then
-                Promise:Async(function() self:LoadAllocation(recipe) end)
-            end
-        end
-    end
+            local allocations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost)
+            if not allocations then break end
+
+            local minQuality = Util:TblMinKey(allocations)
+            local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
+
+            for quality,_ in pairs(qualities) do repeat
+                local operation = allocations[max(quality, minQuality)]
+                if not operation then break end
+
+                self:SetTrackedAllocation(recipe, operation, quality)
+            until true end
+        until true end
+    end)
 end
 
 ---------------------------------------
@@ -344,8 +463,9 @@ end
 ---@field TrackedAmountUpdated "TrackedAmountUpdated"
 ---@field TrackedQualityUpdated "TrackedQualityUpdated"
 ---@field TrackedAllocationUpdated "TrackedAllocationUpdated"
+---@field TrackedPerQualityChanged "TrackedPerQualityChanged"
 
-Self:GenerateCallbackEvents({ "TrackedUpdated", "TrackedAmountUpdated", "TrackedQualityUpdated", "TrackedAllocationUpdated" })
+Self:GenerateCallbackEvents({ "TrackedUpdated", "TrackedAmountUpdated", "TrackedQualityUpdated", "TrackedAllocationUpdated", "TrackedPerQualityChanged" })
 Self:OnLoad()
 
 ---@param recipeID number

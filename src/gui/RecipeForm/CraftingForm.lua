@@ -3,10 +3,10 @@ local Addon = select(2, ...)
 local GUI, Util = Addon.GUI, Addon.Util
 local NS = GUI.RecipeForm
 
----@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithAmount | GUI.RecipeForm.WithRestock
-local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithAmount, NS.WithRestock)
+---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithRestock
+local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithRestock)
 
----@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithAmount, GUI.RecipeForm.WithRestock
+---@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithRestock
 ---@field recraftRecipeID number?
 ---@field recraftItemLink string?
 local Self = Mixin(NS.CraftingForm, Parent)
@@ -121,7 +121,7 @@ function Self:OnAddonLoaded(addonName)
 
     -- Insert tracked amount spinner
     self:InsertAmountSpinner(
-        "RIGHT", self.form.TrackRecipeCheckbox, "LEFT", -30, 1
+        "RIGHT", self.form.TrackRecipeCheckbox, "LEFT", -30, 0
     )
 
     -- Insert restock elements

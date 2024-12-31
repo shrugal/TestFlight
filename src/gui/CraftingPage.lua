@@ -354,13 +354,13 @@ function Self:CraftRestockButtonOnClick()
     elseif self.filter == self.Filter.Restock then
         for _,node in self.dataProvider:EnumerateEntireRange() do
             local data = node:GetData() --[[@as RecipeTreeNodeData]]
-            local operation, amount = data.operation, data.amount
+            local operation, quality, amount = data.operation, data.quality, data.amount
             local recipe = operation.recipe
 
             Recipes:SetTracked(recipe)
-            Recipes:SetTrackedAmount(recipe, amount)
-            Recipes:SetTrackedQuality(recipe, operation:GetResultQuality())
-            Recipes:SetTrackedAllocation(recipe, operation)
+            Recipes:SetTrackedPerQuality(recipe)
+            Recipes:SetTrackedAmount(recipe, amount, quality)
+            Recipes:SetTrackedAllocation(recipe, operation, quality)
         end
     end
 end
