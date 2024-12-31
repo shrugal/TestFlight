@@ -15,8 +15,8 @@ local Self = Mixin(Addon.Restock, CallbackRegistryMixin)
 ---@param recipeOrOrder RecipeOrOrder
 ---@param quality? number
 function Self:IsTracked(recipeOrOrder, quality)
-    local qualities = self:GetRecipeQualities(recipeOrOrder)
-    return qualities and (not quality or qualities[quality] ~= nil) or false
+    local amounts = self:GetTrackedAmounts(recipeOrOrder)
+    return amounts and (not quality or amounts[quality] ~= nil) or false
 end
 
 function Self:GetTrackedIDs()
@@ -27,8 +27,8 @@ end
 ---@param quality? number
 function Self:GetTrackedAmount(recipeOrOrder, quality)
     if not self:IsTracked(recipeOrOrder, quality) then return end
-    local qualities = self:GetRecipeQualities(recipeOrOrder)
-    return quality and qualities[quality] or Util:TblReduce(qualities, Util.FnAdd, 0)
+    local amounts = self:GetTrackedAmounts(recipeOrOrder)
+    return quality and amounts[quality] or Util:TblReduce(amounts, Util.FnAdd, 0)
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -43,7 +43,7 @@ function Self:GetTrackedOwned(recipe, quality)
     end
 
     local owned = 0
-    for quality in pairs(self:GetRecipeQualities(recipe)) do
+    for quality in pairs(self:GetTrackedAmounts(recipe)) do
         owned = owned + (self:GetTrackedOwned(recipe, quality) or 0)
     end
 
@@ -62,9 +62,17 @@ function Self:GetTrackedMissing(recipe, quality)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
-function Self:GetTrackedQualities(recipeOrOrder)
-    if not self:IsTracked(recipeOrOrder) then return end
-    return self:GetRecipeQualities(recipeOrOrder)
+---@param create? boolean
+function Self:GetTrackedAmounts(recipeOrOrder, create)
+    local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
+    local amounts = Addon.DB.Char.restock[recipeID]
+
+    if not amounts and create then
+        amounts = {}
+        Addon.DB.Char.restock[recipeID] = amounts
+    end
+
+    return amounts
 end
 
 -- Set
@@ -77,13 +85,13 @@ function Self:SetTracked(recipeOrOrder, quality, amount)
     if amount == 0 then amount = nil end
 
     local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
-    local qualities = self:GetRecipeQualities(recipeOrOrder, amount ~= nil)
+    local amounts = self:GetTrackedAmounts(recipeOrOrder, amount ~= nil)
 
-    if not qualities or qualities[quality] == amount then return end
+    if not amounts or amounts[quality] == amount then return end
 
-    qualities[quality] = amount
+    amounts[quality] = amount
 
-    if not amount and Util:TblCount(qualities) == 0 then
+    if not amount and Util:TblCount(amounts) == 0 then
         Addon.DB.Char.restock[recipeID] = nil
     end
 
@@ -97,19 +105,6 @@ end
 ---@param key? boolean
 function Self:Enumerate(key)
     return Util:TblEnum(Addon.DB.Char.restock, 1, key)
-end
-
----@param recipeOrOrder RecipeOrOrder
-function Self:GetRecipeQualities(recipeOrOrder, create)
-    local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
-    local qualities = Addon.DB.Char.restock[recipeID]
-
-    if not qualities and create then
-        qualities = {}
-        Addon.DB.Char.restock[recipeID] = qualities
-    end
-
-    return qualities
 end
 
 ---------------------------------------

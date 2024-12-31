@@ -63,7 +63,7 @@ function Self:InitRecipeListRecipe(frame, node)
     if not frame.GetLabelColor then return end
 
     local data = node:GetData() --[[@as RecipeTreeNodeData]]
-    local value, amount = data.value, data.amount
+    local value, amount, quality = data.value, data.amount, data.quality
     local r, g, b = frame:GetLabelColor():GetRGB()
 
     -- Set amount
@@ -112,11 +112,19 @@ function Self:InitRecipeListRecipe(frame, node)
         frame.Value:Hide()
     end
 
-    if not amount and not value then return end
+    -- Set quality
+    if quality then
+        frame.Count:Show()
+        frame.Count:SetText(" " .. C_Texture.GetCraftingReagentQualityChatIcon(quality))
+    elseif value or amount then
+        frame.Count:Hide()
+    end
+
+    if not (amount or value or quality) then return end
 
     -- Adjust label
     local padding = 10
-    local leftWidth = (amount and frame.Amount:GetWidth() or frame.SkillUps:GetWidth()) + select(4, frame.Label:GetPoint(1))
+    local leftWidth = amount and frame.Amount:GetWidth() + select(4, frame.Label:GetPoint(1)) or frame.SkillUps:GetWidth()
     local countWidth = frame.Count:IsShown() and frame.Count:GetStringWidth() or 0
     local valueWidth = frame.Value and frame.Value:IsShown() and frame.Value:GetWidth() or 0
     local lockedWith = frame.LockedIcon:IsShown() and frame.LockedIcon:GetWidth() or 0
@@ -247,22 +255,27 @@ function Self:UpdateRecipeList(refresh)
 
             for i,recipeID in ipairs(recipeIDs) do
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
-                local operation = self:GetFilterRecipeOperation(recipe, method)
+                local operations = self:GetFilterRecipeOperations(recipe, method)
 
-                if operation then
-                    local value = Optimization:GetOperationValue(operation, method)
-                    local amount, total = self:GetFilterRecipeAmount(recipe)
+                if operations then
+                    for _,operation in pairs(operations) do
+                        local recipeInfo = operation:GetRecipeInfo()
 
-                    if value and abs(value) ~= math.huge then
-                        self.dataProvider:Insert({
-                            recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
-                            operation = operation,
-                            value = value,
-                            method = method,
-                            quality = operation:GetQuality(),
-                            amount = amount,
-                            total = total
-                        })
+                        local value = Optimization:GetOperationValue(operation, method)
+                        local amount, total = self:GetFilterRecipeAmount(recipe)
+                        local quality = recipeInfo and recipeInfo.supportsQualities and operation:GetResultQuality()
+
+                        if value and abs(value) ~= math.huge then
+                            self.dataProvider:Insert({
+                                recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
+                                operation = operation,
+                                value = value,
+                                method = method,
+                                quality =  quality,
+                                amount = amount,
+                                total = total
+                            })
+                        end
                     end
                 end
 
@@ -305,21 +318,42 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param method Optimization.Method
-function Self:GetFilterRecipeOperation(recipe, method)
-    if self.filter == self.Filter.Tracked then
-        local op = Recipes:GetTrackedAllocation(recipe)
-        if op then return op end
+---@return Operation[]?
+function Self:GetFilterRecipeOperations(recipe, method)
+    local Service = Util:Select(self.filter, self.Filter.Tracked, Recipes, self.Filter.Restock, Restock) --[[@as (Recipes|Restock)?]]
+    local amounts = Service and Service:GetTrackedAmounts(recipe)
+
+    ---@type table<number, Operation | false>
+    local operations
+
+    if Service and amounts then
+        operations = {}
+
+        for quality,amount in pairs(amounts) do repeat
+            if amount == 0 then break end
+            operations[quality] = Recipes:GetTrackedAllocation(recipe, quality) or false
+        until true end
     end
+
+    if operations and not Util:TblIncludes(operations, false) then return operations end
 
     local cache = self.filterCache
     local key, time = cache:Key(recipe), Prices:GetRecipeScanTime(recipe)
 
     if not cache:Has(key) or cache:Get(key)[1] ~= time then
         local includeNonTradable = Util:OneOf(self.filter, self.Filter.Tracked, self.Filter.Restock)
-        cache:Set(key, { time, Optimization:GetRecipeAllocation(recipe, method, includeNonTradable) })
+        cache:Set(key, { time, Optimization:GetRecipeAllocations(recipe, method, includeNonTradable) })
     end
 
-    return cache:Get(key)[2]
+    local optimized = cache:Get(key)[2]
+    if not operations then return optimized end
+
+    for quality,op in pairs(operations) do repeat
+        if op then break end
+        operations[quality] = optimized and optimized[quality]
+    until true end
+
+    return operations
 end
 
 ---@param recipe CraftingRecipeSchematic

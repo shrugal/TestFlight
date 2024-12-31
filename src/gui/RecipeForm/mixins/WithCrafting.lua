@@ -139,7 +139,7 @@ function Self:CostStatLineOnEnter(line)
         end
 
         if op:GetRecipeInfo().supportsQualities then
-            local operations = Optimization:GetRecipeAllocations(op.recipe, Optimization.Method.Cost, self.form.transaction)
+            local operations = Optimization:GetTransactionAllocations(op.recipe, Optimization.Method.Cost, self.form.transaction)
 
             if operations then
                 GameTooltip_AddBlankLineToTooltip(GameTooltip)
@@ -196,7 +196,7 @@ function Self:ProfitStatLineOnEnter(line)
     GameTooltip_AddColoredDoubleLine(GameTooltip, order and "Consortium cut" or "Auction fee", Util:NumCurrencyString(-traderCut), HIGHLIGHT_FONT_COLOR, HIGHLIGHT_FONT_COLOR)
 
     if recipeInfo.supportsQualities then
-        local operations = Optimization:GetRecipeAllocations(op.recipe, Optimization.Method.Profit, self.form.transaction)
+        local operations = Optimization:GetTransactionAllocations(op.recipe, Optimization.Method.Profit, self.form.transaction)
 
         if operations then
             GameTooltip_AddBlankLineToTooltip(GameTooltip)

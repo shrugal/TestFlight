@@ -114,9 +114,7 @@ end
 
 -- Insert/Update track quality checkbox
 
-function Self:InsertAmountSpinner(...)
-    Parent.InsertAmountSpinner(self, ...)
-
+function Self:InsertTrackQualityCheckbox()
     local input = GUI:InsertCheckbox(
         self.form, Util:FnBind(self.TrackQualityCheckboxOnEnter, self), Util:FnBind(self.TrackQualityCheckboxOnChange, self),
         "RIGHT", self.amountSpinner, "LEFT", -50, -1
@@ -144,6 +142,12 @@ function Self:UpdateTrackQualityCheckbox()
 end
 
 -- Amount spinner
+
+function Self:InsertAmountSpinner(...)
+    Parent.InsertAmountSpinner(self, ...)
+
+    self:InsertTrackQualityCheckbox()
+end
 
 ---@param frame NumericInputSpinner
 ---@param value number

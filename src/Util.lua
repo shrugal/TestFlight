@@ -17,6 +17,21 @@ function Self:OneOf(val, ...)
     return false
 end
 
+---@generic K, T
+---@param val K
+---@param a K?
+---@param b T
+---@return T?
+function Self:Select(val, a, b, ...)
+    if val == a then return b end
+    local n = select("#", ...)
+    for i=1, n, 2 do
+        a, b = select(i, ...)
+        if val == a then return b end
+    end
+    return select(n - n % 2 + 1, ...)
+end
+
 ---@param targetAddonName string
 ---@param addonName string
 function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)

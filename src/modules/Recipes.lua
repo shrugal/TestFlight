@@ -33,27 +33,24 @@ end
 function Self:GetTrackedAmount(recipeOrOrder, isRecraftOrQuality)
     if not self:IsTracked(recipeOrOrder, isRecraftOrQuality) then return end
     local recipeID, isRecraft, quality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
-    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
 
-    local tracked = Addon.DB.Char.tracked[isRecraft][recipeID]
-    if type(tracked) ~= "table" then return tracked or 1 end
+    local amounts = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(amounts) ~= "table" then return amounts or 1 end
 
-    return quality and tracked[quality] or 0
+    return quality and amounts[quality] or 0
 end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraft? boolean
 ---@return number[]?
-function Self:GetTrackedQualities(recipeOrOrder, isRecraft)
+function Self:GetTrackedAmounts(recipeOrOrder, isRecraft)
     if not self:IsTracked(recipeOrOrder, isRecraft) then return end
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+    local recipeID, isRecraft, quality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
 
-    local tracked = Addon.DB.Char.tracked[isRecraft][recipeID]
-    if type(tracked) == "table" then return tracked end
+    local amounts = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(amounts) == "table" then return amounts end
 
-    local quality = self:GetTrackedQuality(recipeID, isRecraft)
-
-    return { [quality or 0] = tracked or 1 }
+    return { [quality or 0] = amounts or 1 }
 end
 
 ---@param recipeOrOrder RecipeOrOrder
@@ -64,9 +61,9 @@ function Self:GetTrackedAllocation(recipeOrOrder, isRecraftOrQuality)
     local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
 
     local allocations = self.trackedAllocations[isRecraft][recipeID]
-    if not trackedPerQuality then return allocations end
+    if not allocations or not trackedPerQuality then return allocations end
 
-    return allocations[quality]
+    return allocations[quality or 0]
 end
 
 ---@param recipeID number
@@ -86,7 +83,7 @@ function Self:GetTrackedReagentAmounts()
     local reagents = {}
 
     for recipe in self:Enumerate() do
-        local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
+        local qualities = self:GetTrackedAmounts(recipe) ---@cast qualities -?
 
         for quality,amount in pairs(qualities) do repeat
             if amount <= 0 then break end
@@ -122,7 +119,7 @@ function Self:GetTrackedResultAmounts()
     local items = {}
 
     for recipe in self:Enumerate(false) do
-        local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
+        local qualities = self:GetTrackedAmounts(recipe) ---@cast qualities -?
 
         for quality,amount in pairs(qualities) do repeat
             if amount <= 0 then break end
@@ -159,19 +156,18 @@ end
 function Self:SetTrackedAmount(recipeOrOrder, amount, isRecraftOrQuality)
     if not self:IsTracked(recipeOrOrder, isRecraftOrQuality) then return end
     local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
-    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
 
     if amount and amount < 0 then amount = 0 end
     if amount == (trackedPerQuality and 0 or 1) then amount = nil end
 
-    local tracked = Addon.DB.Char.tracked[isRecraft]
+    local amounts = Addon.DB.Char.tracked[isRecraft]
 
     if trackedPerQuality then
-        if not quality or tracked[recipeID][quality] == amount then return end
-        tracked[recipeID][quality] = amount
+        if not quality or amounts[recipeID][quality] == amount then return end
+        amounts[recipeID][quality] = amount
     else
-        if tracked[recipeID] == amount then return end
-        tracked[recipeID] = amount
+        if amounts[recipeID] == amount then return end
+        amounts[recipeID] = amount
     end
 
     self:TriggerEvent(Self.Event.TrackedAmountUpdated, recipeID, isRecraftOrQuality or false, amount)
@@ -182,7 +178,6 @@ end
 ---@param isRecraftOrQuality? boolean|number
 function Self:SetTrackedAllocation(recipeOrOrder, operation, isRecraftOrQuality)
     local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
-    if not quality then quality = self:GetTrackedQuality(recipeID, isRecraft) end
 
     local allocations = self.trackedAllocations[isRecraft]
 
@@ -220,26 +215,25 @@ function Self:SetTrackedPerQuality(recipeOrOrder, value, isRecraft)
 
     if not self:IsTracked(recipeOrOrder, isRecraft) then return end
 
-    local recipeID, isRecraft, _, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+    local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
     if trackedPerQuality == value then return end
 
-    local tracked = Addon.DB.Char.tracked[isRecraft]
+    local amounts = Addon.DB.Char.tracked[isRecraft]
     local allocations = self.trackedAllocations[isRecraft]
-    local quality = self:GetTrackedQuality(recipeID, isRecraft)
 
     ---@type number?, Operation?
     local amount, allocation
 
     if value then
-        amount = tracked[recipeID] or 1 --[[@as number?]]
+        amount = amounts[recipeID] or 1 --[[@as number?]]
         allocation = allocations[recipeID] or 1 --[[@as Operation?]]
 
-        tracked[recipeID], allocations[recipeID] = {}, {}
+        amounts[recipeID], allocations[recipeID] = {}, {}
     else
-        amount = tracked[recipeID] and tracked[recipeID][quality or 0] or 0
+        amount = amounts[recipeID] and amounts[recipeID][quality or 0] or 0
         allocation = allocations[recipeID] and allocations[recipeID][quality or 0] or 0
 
-        tracked[recipeID], allocation[recipeID] = nil, nil
+        amounts[recipeID], allocation[recipeID] = nil, nil
     end
 
     if quality or not value then
@@ -356,31 +350,10 @@ end
 function Self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
     local recipeID = type(recipeOrOrder) == "number" and recipeOrOrder or recipeOrOrder.recipeID or recipeOrOrder.spellID
     local isRecraft = type(recipeOrOrder) == "table" and recipeOrOrder.isRecraft or isRecraftOrQuality == true
-    local quality = type(isRecraftOrQuality) == "number" and isRecraftOrQuality or nil
+    local quality = type(isRecraftOrQuality) == "number" and isRecraftOrQuality or self:GetTrackedQuality(recipeID, isRecraft) or nil
     local trackedPerQuality = self:IsTrackedPerQuality(recipeID, isRecraft)
 
     return recipeID, isRecraft, quality, trackedPerQuality
-end
-
----@param recipeID number
----@param isRecraft boolean
-function Self:GetTracked(recipeID, isRecraft)
-    return Addon.DB.Char.tracked[isRecraft][recipeID]
-end
-
----@param recipeOrOrder RecipeOrOrder
----@param isRecraft? boolean
----@param create? boolean
-function Self:GetRecipeAllocations(recipeOrOrder, isRecraft, create)
-    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
-    local allocations = self.trackedAllocations[isRecraft][recipeID]
-
-    if not allocations and create then
-        allocations = {}
-        self.trackedAllocations[isRecraft][recipeID] = allocations
-    end
-
-    return allocations
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -438,11 +411,11 @@ function Self:LoadAllocations()
             local hasQualityReagents = Util:TblFind(recipe.reagentSlotSchematics, Reagents.IsQuality, false, Reagents)
             if not hasQualityReagents then break end
 
-            local allocations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost)
+            local allocations = Optimization:GetTransactionAllocations(recipe, Optimization.Method.Cost)
             if not allocations then break end
 
             local minQuality = Util:TblMinKey(allocations)
-            local qualities = self:GetTrackedQualities(recipe) ---@cast qualities -?
+            local qualities = self:GetTrackedAmounts(recipe) ---@cast qualities -?
 
             for quality,_ in pairs(qualities) do repeat
                 local operation = allocations[max(quality, minQuality)]

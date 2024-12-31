@@ -34,6 +34,32 @@ end
 ---@param method Optimization.Method
 ---@param includeNonTradable? boolean
 function Self:GetRecipeAllocation(recipe, method, includeNonTradable)
+    local operations = self:GetRecipeAllocations(recipe, method, includeNonTradable)
+    if not operations then return end
+
+    local d = method == Self.Method.Cost and -1 or 1
+    local bestOperation, bestValue, lastQuality, lastPrice
+
+    for i=5, 1, -1 do repeat
+        local operation = operations[i]
+        if not operation then break end
+
+        local value = self:GetOperationValue(operation, method)
+
+        if not value or abs(value) == math.huge then break end
+        if bestValue and value * d <= bestValue * d then break end
+
+        bestOperation, bestValue = operation, value
+    until true end
+
+    return bestOperation
+end
+
+-- Get best recipe allocations for given optimization method
+---@param recipe CraftingRecipeSchematic
+---@param method Optimization.Method
+---@param includeNonTradable? boolean
+function Self:GetRecipeAllocations(recipe, method, includeNonTradable)
     local applyConcentration = Util:OneOf(method, self.Method.CostPerConcentration, self.Method.ProfitPerConcentration)
 
     -- Only items and enchants
@@ -48,29 +74,23 @@ function Self:GetRecipeAllocation(recipe, method, includeNonTradable)
     local operations = self:GetAllocationsForMethod(operation, method)
     if not operations then return end
 
-    local d = method == Self.Method.Cost and -1 or 1
-    local bestOperation, bestValue, lastQuality, lastPrice
+    -- Ignore lower qualities with higher or equal prices
+    if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) then
+        operations = Util:TblCopy(operations)
 
-    for i=5, 1, -1 do repeat
-        local operation = operations[i]
-        if not operation then break end
+        local lastQuality, lastPrice
 
-        -- Ignore lower qualities with higher or equal prices
-        if Util:OneOf(method, Self.Method.Profit, Self.Method.ProfitPerConcentration) then
+        for i=5, 1, -1 do repeat
+            local operation = operations[i]
+            if not operation then break end
+
             local quality, price = operation:GetResultQuality(), operation:GetResultPrice()
             if lastQuality and lastPrice and quality < lastQuality and price >= lastPrice then break end
             lastQuality, lastPrice = quality,  price
-        end
+        until true end
+    end
 
-        local value = self:GetOperationValue(operation, method)
-
-        if not value or abs(value) == math.huge then break end
-        if bestValue and value * d <= bestValue * d then break end
-
-        bestOperation, bestValue = operation, value
-    until true end
-
-    return bestOperation
+    return operations
 end
 
 ---@param order CraftingOrderInfo
@@ -83,7 +103,7 @@ function Self:GetOrderAllocation(order, tx, extraSkill)
 
     -- Try without concentration
     if not applyConcentration then
-        local operations = self:GetRecipeAllocations(recipe, self.Method.Profit, tx, order, extraSkill)
+        local operations = self:GetTransactionAllocations(recipe, self.Method.Profit, tx, order, extraSkill)
         if not operations then return end
 
         local operation = operations[math.max(quality, Util:TblMinKey(operations))]
@@ -92,7 +112,7 @@ function Self:GetOrderAllocation(order, tx, extraSkill)
     end
 
     -- Try with concentration
-    local operations = self:GetRecipeAllocations(recipe, self.Method.ProfitPerConcentration, tx, order, extraSkill)
+    local operations = self:GetTransactionAllocations(recipe, self.Method.ProfitPerConcentration, tx, order, extraSkill)
     if not operations then return end
 
     return operations[math.max(quality - 1, Util:TblMinKey(operations))]
@@ -104,7 +124,7 @@ end
 ---@param tx? ProfessionTransaction
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param extraSkill? boolean | number
-function Self:GetRecipeAllocations(recipe, method, tx, orderOrRecraftGUID, extraSkill)
+function Self:GetTransactionAllocations(recipe, method, tx, orderOrRecraftGUID, extraSkill)
     local applyConcentration = Util:OneOf(method, self.Method.CostPerConcentration, self.Method.ProfitPerConcentration)
     local allocation
 
@@ -125,6 +145,10 @@ function Self:GetRecipeAllocations(recipe, method, tx, orderOrRecraftGUID, extra
 
     return self:GetAllocationsForMethod(operation, method)
 end
+
+---------------------------------------
+--            Optimization
+---------------------------------------
 
 -- Recipe alloctions for given optimization method
 ---@param operation Operation
