@@ -392,7 +392,7 @@ function Self:CraftRestockButtonOnClick()
             local recipe = operation.recipe
 
             Recipes:SetTracked(recipe)
-            Recipes:SetTrackedPerQuality(recipe)
+            Recipes:SetTrackedPerQuality(recipe, quality ~= nil)
             Recipes:SetTrackedAmount(recipe, amount, quality)
             Recipes:SetTrackedAllocation(recipe, operation, quality)
         end

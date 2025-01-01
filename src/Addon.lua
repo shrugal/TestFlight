@@ -119,7 +119,7 @@ function Self:Load()
         self.DB.Char.v = 2
     end
     if self.DB.Char.v < 3 then
-        self.DB.Char.tracked = { [false] = {}, [true] = {} }
+        self.DB.Char.tracked = self.DB.Char.amounts
         self.DB.Char.restock = {}
         self.DB.Char.amounts = nil
         self.DB.Char.v = 3

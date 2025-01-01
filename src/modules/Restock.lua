@@ -39,7 +39,7 @@ function Self:GetTrackedOwned(recipe, quality)
     if quality then
         local itemID = Recipes:GetResult(recipe, nil, nil, quality)
         if not itemID then return end
-        return C_Item.GetItemCount(itemID, true, false, true, true)
+        return self:GetItemCount(itemID)
     end
 
     local owned = 0
@@ -96,6 +96,30 @@ function Self:SetTracked(recipeOrOrder, quality, amount)
     end
 
     self:TriggerEvent(Self.Event.TrackedUpdated, recipeID, quality, amount or 0)
+end
+
+---------------------------------------
+--              Stock
+---------------------------------------
+
+function Self:GetItemCount(itemID)
+    local count = C_Item.GetItemCount(itemID, true, false, true, true)
+
+    if C_AddOns.IsAddOnLoaded("TradeSkillMaster") then
+        local itemStr = "i:" .. itemID
+        count = count + TSM_API.GetAuctionQuantity(itemStr)
+        count = count + TSM_API.GetMailQuantity(itemStr)
+    elseif C_AddOns.IsAddOnLoaded("Syndicator") and Syndicator.API.IsReady() then
+        local info = Syndicator.API.GetInventoryInfoByItemID(itemID, true, true)
+        local char = Util:TblWhere(info.characters, "character", UnitName("player"), "realmNormalized", GetNormalizedRealmName())
+        if char then count = count + char.auctions + char.mail end
+    elseif C_AddOns.IsAddOnLoaded("DataStore_Auctions") and C_AddOns.IsAddOnLoaded("DataStore_Mails") then
+        local charID = DataStore.ThisCharID
+        count = count + DataStore.GetAuctionHouseItemCount(charID, itemID)
+        count = count + DataStore.GetMailItemCount(charID, itemID)
+    end
+
+    return count
 end
 
 ---------------------------------------

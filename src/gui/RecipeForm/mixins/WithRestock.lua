@@ -17,7 +17,7 @@ local Self = Mixin(NS.WithRestock, Parent)
 ---@param frame CheckButton
 function Self:RestockCheckboxOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-    GameTooltip_AddNormalLine(GameTooltip, "Enable restocking this item to a set quantity.")
+    GameTooltip_AddNormalLine(GameTooltip, "Enable restocking this item and quality to a set amount.")
     GameTooltip:Show()
 end
 
@@ -36,7 +36,7 @@ end
 ---@param frame NumericInputSpinner
 function Self:RestockAmountSpinnerOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
-    GameTooltip_AddNormalLine(GameTooltip, "Set target restock quantity.")
+    GameTooltip_AddNormalLine(GameTooltip, "Set target restock amount.")
     GameTooltip:Show()
 end
 
@@ -84,7 +84,7 @@ function Self:UpdateRestockElements()
     local operation = self:GetOperation()
     if operation then
         local recipe, quality = operation.recipe, operation:GetResultQuality()
-        shown = not recipe.isRecraft and Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Item, Enum.TradeskillRecipeType.Enchant) or false
+        shown = not operation.applyConcentration and operation:HasProfit()
         checked = shown and Restock:IsTracked(recipe, quality) or false
         amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
     end

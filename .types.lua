@@ -84,7 +84,15 @@ DevTool = nil
 ---@field buttonHeight number
 
 ---@class TSMAPI
----@field GetCustomPriceValue fun(customPriceStr: string, itemStr: string)
+---@field GetCustomPriceValue fun(customPriceStr: string, itemString: string)
+---@field GetBagQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
+---@field GetBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
+---@field GetReagentBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
+---@field GetBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
+---@field GetAuctionQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
+---@field GetMailQuantity fun(itemString: string, character?: string, factionrealm?: string): number
+---@field GetWarbankQuantity fun(itemStr: string): number
+---@field GetGuildQuantity fun(itemStr: string, guild?: string): number
 ---@field ToItemString fun(item: string): string
 TSM_API = nil
 
@@ -119,6 +127,46 @@ Auctioneer = nil
 
 ---@class AuctioneerPoint
 ---@field timeslice number
+
+---@class Syndicator
+---@field API SyndicatorAPI
+Syndicator = nil
+
+---@class SyndicatorAPI
+---@field GetInventoryInfo fun(itemLink: string, sameConnectedRealm?: boolean, sameFaction?: boolean): SyndicatorInventoryInfo
+---@field GetInventoryInfoByItemLink fun(itemLink: string, sameConnectedRealm?: boolean, sameFaction?: boolean): SyndicatorInventoryInfo
+---@field GetInventoryInfoByItemID fun(itemID: number, sameConnectedRealm?: boolean, sameFaction?: boolean): SyndicatorInventoryInfo
+---@field GetCurrentCharacter fun(): string
+---@field IsReady fun(): boolean
+
+---@class SyndicatorInventoryInfo
+---@field characters SyndicatorCharacterInfo[]
+---@field guilds SyndicatorGuildInfo[]
+---@field warband number[]
+
+---@class SyndicatorCharacterInfo
+---@field character string
+---@field realmNormalized string
+---@field className string
+---@field race string
+---@field sex number
+---@field bags number
+---@field bank number
+---@field mail number
+---@field equipped number
+---@field void number
+---@field auctions number
+
+---@class SyndicatorGuildInfo
+---@field guild string
+---@field realmNormalized string
+---@field bank number
+
+---@class DataStore
+---@field ThisCharID number
+---@field GetAuctionHouseItemCount fun(characterID: number, searchedID: number): number
+---@field GetMailItemCount fun(characterID: number, searchedID: number): number
+DataStore = nil
 
 ---@class WorldQuestTracker
 ---@field TrackerHeight number

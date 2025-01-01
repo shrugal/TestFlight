@@ -1,5 +1,5 @@
 - Add option to track recipes per quality
-- Add restock settings to item and enchant recipe forms
+- Add restock settings to tradable item and enchant recipe forms
 - Add filter option to see all restocking recipes and to mark all as tracked
 - Add filter option to see all tracked recipes and to craft next batch
 - Move sort option in recipe fiter to the bottom
