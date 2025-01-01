@@ -34,6 +34,7 @@ TestFlightCharDB = {
     tracked = { [false] = {}, [true] = {} },
     ---@type table<number, number[]>
     restock = {},
+    restockMinProfits = {}
 }
 
 ---@type boolean
@@ -121,6 +122,7 @@ function Self:Load()
     if self.DB.Char.v < 3 then
         self.DB.Char.tracked = self.DB.Char.amounts
         self.DB.Char.restock = {}
+        self.DB.Char.restockMinProfits = {}
         self.DB.Char.amounts = nil
         self.DB.Char.v = 3
     end

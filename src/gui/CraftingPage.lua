@@ -26,9 +26,10 @@ Self.dataProvider = CreateTreeDataProvider()
 
 Self.dataProvider:SetSortComparator(function(a, b)
     if not a or not b then return a ~= b and b == nil end
-    a, b = a:GetData().value, b:GetData().value
-    if Self.sort == Optimization.Method.Cost then return a < b end
-    return a > b
+    a, b = a:GetData(), b:GetData()
+    if (a.amount == 0) ~= (b.amount == 0) then return a.amount ~= 0 end
+    if Self.sort == Optimization.Method.Cost then return a.value < b.value end
+    return a.value > b.value
 end, false, true)
 
 ---------------------------------------
@@ -261,11 +262,12 @@ function Self:UpdateRecipeList(refresh)
                     for _,operation in pairs(operations) do
                         local recipeInfo = operation:GetRecipeInfo()
 
+                        local quality = recipeInfo and recipeInfo.supportsQualities and operation:GetResultQuality() or nil
                         local value = Optimization:GetOperationValue(operation, method)
-                        local amount, total = self:GetFilterRecipeAmount(recipe)
-                        local quality = recipeInfo and recipeInfo.supportsQualities and operation:GetResultQuality()
 
                         if value and abs(value) ~= math.huge then
+                            local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(recipe, quality, value)
+
                             self.dataProvider:Insert({
                                 recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
                                 operation = operation,
@@ -273,7 +275,8 @@ function Self:UpdateRecipeList(refresh)
                                 method = method,
                                 quality =  quality,
                                 amount = amount,
-                                total = total
+                                amountShown = amountShown,
+                                amountTotal = amountTotal
                             })
                         end
                     end
@@ -320,28 +323,30 @@ end
 ---@param method Optimization.Method
 ---@return Operation[]?
 function Self:GetFilterRecipeOperations(recipe, method)
-    local Service = Util:Select(self.filter, self.Filter.Tracked, Recipes, self.Filter.Restock, Restock) --[[@as (Recipes|Restock)?]]
-    local amounts = Service and Service:GetTrackedAmounts(recipe)
-
     ---@type table<number, Operation | false>
     local operations
+    local Service = Util:Select(self.filter, self.Filter.Tracked, Recipes, self.Filter.Restock, Restock)
 
-    if Service and amounts then
-        operations = {}
+    if Service then
+        local amounts = Service:GetTrackedAmounts(recipe) ---@cast amounts -?
 
-        for quality,amount in pairs(amounts) do repeat
-            if amount == 0 then break end
-            operations[quality] = Recipes:GetTrackedAllocation(recipe, quality) or false
-        until true end
+        operations = Util:TblMap(amounts, Util.FnFalse) --[[@as table<number, Operation | false>]]
+
+        if self.filter == self.Filter.Tracked then
+            for quality,amount in pairs(amounts) do repeat
+                if amount == 0 then break end
+                operations[quality] = Recipes:GetTrackedAllocation(recipe, quality) or false
+            until true end
+        end
+
+        if not Util:TblIncludes(operations, false) then return operations end
     end
-
-    if operations and not Util:TblIncludes(operations, false) then return operations end
 
     local cache = self.filterCache
     local key, time = cache:Key(recipe), Prices:GetRecipeScanTime(recipe)
 
     if not cache:Has(key) or cache:Get(key)[1] ~= time then
-        local includeNonTradable = Util:OneOf(self.filter, self.Filter.Tracked, self.Filter.Restock)
+        local includeNonTradable = self.filter == self.Filter.Tracked
         cache:Set(key, { time, Optimization:GetRecipeAllocations(recipe, method, includeNonTradable) })
     end
 
@@ -357,13 +362,20 @@ function Self:GetFilterRecipeOperations(recipe, method)
 end
 
 ---@param recipe CraftingRecipeSchematic
+---@param quality? number
+---@param value number
 ---@return number? amount
----@return number? total
-function Self:GetFilterRecipeAmount(recipe)
+---@return number? amountShown
+---@return number? amountTotal
+function Self:GetFilterRecipeAmount(recipe, quality, value)
     if self.filter == self.Filter.Tracked then
         return Recipes:GetTrackedAmount(recipe) --[[@as number]]
     elseif self.filter == self.Filter.Restock then
-        return Restock:GetTrackedMissing(recipe), Restock:GetTrackedAmount(recipe)
+        local total = Restock:GetTrackedAmount(recipe)
+
+        if value < Restock:GetTrackedMinProfit(recipe, quality or 1) then return 0, total end
+
+        return Restock:GetTrackedMissing(recipe), total
     end
 end
 
@@ -375,7 +387,7 @@ function Self:CraftRestockButtonOnClick()
     if self.filter == self.Filter.Tracked then
         local node = select(2, self.dataProvider:FindByPredicate(function (node)
             local data = node:GetData() --[[@as RecipeTreeNodeData]]
-            return data.operation:HasAllReagents()
+            return data.amount > 0 and data.operation:HasAllReagents()
         end, false))
 
         if not node then return end
@@ -386,16 +398,22 @@ function Self:CraftRestockButtonOnClick()
 
         self:CraftOperation(operation, amount)
     elseif self.filter == self.Filter.Restock then
-        for _,node in self.dataProvider:EnumerateEntireRange() do
+        for _,node in self.dataProvider:EnumerateEntireRange() do repeat
             local data = node:GetData() --[[@as RecipeTreeNodeData]]
             local operation, quality, amount = data.operation, data.quality, data.amount
             local recipe = operation.recipe
+
+            if amount <= 0 then break end
+
+            Addon:Debug(operation, recipe.name)
+            Addon:Debug(quality, "> quality")
+            Addon:Debug(amount, "> amount")
 
             Recipes:SetTracked(recipe)
             Recipes:SetTrackedPerQuality(recipe, quality ~= nil)
             Recipes:SetTrackedAmount(recipe, amount, quality)
             Recipes:SetTrackedAllocation(recipe, operation, quality)
-        end
+        until true end
     end
 end
 
@@ -559,7 +577,9 @@ function Self:OnAddonLoaded(addonName)
     Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, OnTrackedRecipeUpdated, self)
     Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, OnTrackedRecipeUpdated, self)
 
-    Restock:RegisterCallback(Restock.Event.TrackedUpdated, self.OnTrackedRestockUpdated, self)
+    local OnTrackedRestockUpdated = Util:FnDebounce(self.OnTrackedRestockUpdated, 0)
+    Restock:RegisterCallback(Restock.Event.TrackedUpdated, OnTrackedRestockUpdated, self)
+    Restock:RegisterCallback(Restock.Event.TrackedMinProfitUpdated, OnTrackedRestockUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

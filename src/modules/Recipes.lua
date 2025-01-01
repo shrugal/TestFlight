@@ -218,6 +218,9 @@ function Self:SetTrackedPerQuality(recipeOrOrder, value, isRecraft)
     local recipeID, isRecraft, quality, trackedPerQuality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
     if trackedPerQuality == value then return end
 
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID)
+    if not recipeInfo or not recipeInfo.supportsQualities then return end
+
     local amounts = Addon.DB.Char.tracked[isRecraft]
     local allocations = self.trackedAllocations[isRecraft]
 

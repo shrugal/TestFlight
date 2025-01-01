@@ -52,6 +52,27 @@ function Self:RestockAmountSpinnerOnChange(frame, value)
     Restock:SetTracked(recipe, quality, value)
 end
 
+-- Restock profit spinner
+
+---@param frame NumericInputSpinner
+function Self:RestockMinProfitSpinnerOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+    GameTooltip_AddNormalLine(GameTooltip, "Set minimum gold profit per craft to restock this item.")
+    GameTooltip:Show()
+end
+
+---@param frame NumericInputSpinner
+---@param value number
+function Self:RestockMinProfitSpinnerOnChange(frame, value)
+    local operation = self:GetOperation()
+    if not operation then return end
+
+    local recipe, quality = operation.recipe, operation:GetResultQuality()
+    if not Restock:IsTracked(recipe, quality) then return end
+
+    Restock:SetTrackedMinProfit(recipe, quality, value * 10000)
+end
+
 -- Insert/Update restock elements
 
 function Self:InsertRestockElements(...)
@@ -67,19 +88,45 @@ function Self:InsertRestockElements(...)
         "RIGHT", self.restockCheckbox, "LEFT", -30, 1
     )
 
-    input:SetMinMaxValues(1, math.huge)
-    input:SetWidth(32)
-    input:SetMaxLetters(4)
+    input:SetMinMaxValues(1, 999)
+    input:SetWidth(27)
     input.DecrementButton:SetAlpha(0.8)
     input.IncrementButton:SetAlpha(0.8)
 
     self.restockAmountSpinner = input
 
+    local input = GUI:InsertNumericSpinner(
+        self.form, Util:FnBind(self.RestockMinProfitSpinnerOnEnter, self), Util:FnBind(self.RestockMinProfitSpinnerOnChange, self),
+        "RIGHT", self.restockAmountSpinner.DecrementButton, "LEFT", -30, 0
+    )
+
+    input:SetMinMaxValues(-9999, 9999)
+    input:SetMaxLetters(5)
+    input:SetWidth(37)
+    input.DecrementButton:SetAlpha(0.8)
+    input.IncrementButton:SetAlpha(0.8)
+
+    -- Enable negative numbers
+    input:SetNumeric(false)
+    input:SetScript("OnTextChanged", function (self)
+        local str = self:GetText() --[[@as string]]
+        local num = tonumber(str)
+        if not num and str ~= "" and str ~= "-" then
+            self:SetText("0")
+        elseif str:find("%.") then
+            self:SetText(str:gsub("%.", ""))
+        else
+            self:SetValue(self:GetNumber())
+        end
+    end)
+
+    self.restockMinProfitSpinner = input
+
     self:UpdateRestockElements()
 end
 
 function Self:UpdateRestockElements()
-    local shown, checked, amount = false, false, 1
+    local shown, checked, amount, minProfit = false, false, 1, 0
 
     local operation = self:GetOperation()
     if operation then
@@ -87,12 +134,15 @@ function Self:UpdateRestockElements()
         shown = not operation.applyConcentration and operation:HasProfit()
         checked = shown and Restock:IsTracked(recipe, quality) or false
         amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
+        minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
     end
 
     self.restockCheckbox:SetShown(shown)
     self.restockCheckbox:SetChecked(checked)
     self.restockAmountSpinner:SetShown(checked)
     self.restockAmountSpinner:SetValue(amount)
+    self.restockMinProfitSpinner:SetShown(checked)
+    self.restockMinProfitSpinner:SetValue(floor(minProfit / 10000))
 end
 
 -- Track quality checkbox

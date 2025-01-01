@@ -29,9 +29,8 @@ end
 function Self:InsertAmountSpinner(...)
     local input = GUI:InsertNumericSpinner(self.form, Util:FnBind(self.AmountSpinnerOnEnter, self), Util:FnBind(self.AmountSpinnerOnChange, self), ...)
 
-    input:SetMinMaxValues(0, math.huge)
-    input:SetWidth(32)
-    input:SetMaxLetters(4)
+    input:SetMinMaxValues(0, 999)
+    input:SetWidth(27)
     input.DecrementButton:SetAlpha(0.8)
     input.IncrementButton:SetAlpha(0.8)
 

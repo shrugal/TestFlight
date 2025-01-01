@@ -75,6 +75,15 @@ function Self:GetTrackedAmounts(recipeOrOrder, create)
     return amounts
 end
 
+---@param recipeOrOrder RecipeOrOrder
+---@param quality? number
+function Self:GetTrackedMinProfit(recipeOrOrder, quality)
+    if not self:IsTracked(recipeOrOrder, quality) then return end
+    local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
+    local profits = Addon.DB.Char.restockMinProfits[recipeID]
+    return profits and profits[quality or 1] or 0
+end
+
 -- Set
 
 ---@param recipeOrOrder RecipeOrOrder
@@ -91,11 +100,39 @@ function Self:SetTracked(recipeOrOrder, quality, amount)
 
     amounts[quality] = amount
 
-    if not amount and Util:TblCount(amounts) == 0 then
+    if not amount and Util:TblIsEmpty(amounts) then
         Addon.DB.Char.restock[recipeID] = nil
     end
 
     self:TriggerEvent(Self.Event.TrackedUpdated, recipeID, quality, amount or 0)
+end
+
+---@param recipeOrOrder RecipeOrOrder
+---@param quality number
+function Self:SetTrackedMinProfit(recipeOrOrder, quality, profit)
+    if not self:IsTracked(recipeOrOrder, quality) then return end
+
+    if profit then profit = max(-9999 * 10000, min(profit, 9999 * 10000)) end
+    if profit == 0 then profit = nil end
+
+    local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
+
+    local profits = Addon.DB.Char.restockMinProfits[recipeID]
+    if not profits then
+        if profit == nil then return end
+        profits = {}
+        Addon.DB.Char.restockMinProfits[recipeID] = profits
+    end
+
+    if profit == profits[quality] then return end
+
+    profits[quality] = profit
+
+    if not profit and Util:TblIsEmpty(profits) then
+        Addon.DB.Char.restockMinProfits[recipeID] = nil
+    end
+
+    self:TriggerEvent(Self.Event.TrackedMinProfitUpdated, recipeID, quality, profit or 0)
 end
 
 ---------------------------------------
@@ -137,6 +174,7 @@ end
 
 ---@class Restock.Event
 ---@field TrackedUpdated "TrackedUpdated"
+---@field TrackedMinProfitUpdated "TrackedMinProfitUpdated"
 
-Self:GenerateCallbackEvents({ "TrackedUpdated" })
+Self:GenerateCallbackEvents({ "TrackedUpdated", "TrackedMinProfitUpdated" })
 Self:OnLoad()
