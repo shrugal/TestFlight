@@ -72,7 +72,7 @@ function Self:InitRecipeListRecipe(frame, node)
         if not frame.Amount then
             frame.Amount = GUI:InsertFontString(frame, "OVERLAY", "GameFontHighlight_NoShadow")
             frame.Amount:SetPoint("LEFT")
-            frame.Amount:SetWidth(34)
+            frame.Amount:SetWidth(26)
             frame.Amount:SetJustifyH("RIGHT")
             frame.Amount:SetHeight(12)
         end
@@ -227,7 +227,8 @@ function Self:SetFilterSelected(filter, sort)
 end
 
 ---@param refresh? boolean
-function Self:UpdateRecipeList(refresh)
+---@param keepCache? boolean
+function Self:UpdateRecipeList(refresh, keepCache)
     local method = self.sort or Optimization.Method.Profit ---@cast method -?
 
     local info = self.frame.professionInfo
@@ -247,7 +248,7 @@ function Self:UpdateRecipeList(refresh)
 
         self:UpdateCraftRestockButton()
 
-        if refresh then self.filterCache:Clear() end
+        if refresh and not keepCache then self.filterCache:Clear() end
 
         self.frame.RecipeList.NoResultsText:SetShown(false)
 
@@ -369,9 +370,9 @@ end
 ---@return number? amountTotal
 function Self:GetFilterRecipeAmount(recipe, quality, value)
     if self.filter == self.Filter.Tracked then
-        return Recipes:GetTrackedAmount(recipe) --[[@as number]]
+        return Recipes:GetTrackedAmount(recipe, quality) --[[@as number]]
     elseif self.filter == self.Filter.Restock then
-        local total = Restock:GetTrackedAmount(recipe)
+        local total = Restock:GetTrackedAmount(recipe, quality)
 
         if value < Restock:GetTrackedMinProfit(recipe, quality or 1) then return 0, total end
 
@@ -533,12 +534,12 @@ end
 
 function Self:OnTrackedRecipeUpdated()
     if self.filter ~= self.Filter.Tracked or not self.frame:IsVisible() then return end
-    self:UpdateRecipeList(true)
+    self:UpdateRecipeList(true, true)
 end
 
 function Self:OnTrackedRestockUpdated()
     if self.filter ~= self.Filter.Restock or not self.frame:IsVisible() then return end
-    self:UpdateRecipeList(true)
+    self:UpdateRecipeList(true, true)
 end
 
 ---@param addonName string

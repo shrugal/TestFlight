@@ -72,6 +72,19 @@ function Self:GetTrackedQuality(recipeID, isRecraft)
     return Addon.DB.Char.qualities[isRecraft][recipeID]
 end
 
+---@param recipeOrOrder RecipeOrOrder
+---@param isRecraft? boolean
+---@return number[]?
+function Self:GetTrackedQualities(recipeOrOrder, isRecraft)
+    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
+    local recipeID, isRecraft, quality = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+
+    local amounts = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(amounts) == "table" then return Util(amounts):Keys():Sort()() end
+
+    return quality and { quality }
+end
+
 ---@param recipeID number
 ---@param isRecraft? boolean
 function Self:IsTrackedPerQuality(recipeID, isRecraft)

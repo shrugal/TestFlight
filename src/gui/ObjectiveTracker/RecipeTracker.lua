@@ -32,8 +32,9 @@ function Self:AddRecipe(_, recipeID, isRecraft)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, isRecraft)
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID) ---@cast recipeInfo -?
 
-    local amount = (Recipes:GetTrackedAmount(recipe) or 1) + (Orders:GetTrackedAmount(recipe) or 0)
-    local quality = recipeInfo.supportsQualities and Recipes:GetTrackedQuality(recipeID, isRecraft)
+    local amounts = Recipes:GetTrackedAmounts(recipeID, isRecraft) ---@cast amounts -?
+    local amount = Util:TblReduce(amounts, Util.FnAdd, 0) + (Orders:GetTrackedAmount(recipe) or 0)
+    local qualities = recipeInfo.supportsQualities and Recipes:GetTrackedQualities(recipeID, isRecraft)
 
     local block = self.module:GetExistingBlock(NegateIf(recipeID, isRecraft))
 
@@ -46,9 +47,11 @@ function Self:AddRecipe(_, recipeID, isRecraft)
         blockName = ("%d %s"):format(amount, blockName)
         blockName = Util:StrAbbr(blockName, 38)
     end
-    if quality then
-        blockName = Util:StrAbbr(blockName, 35)
-        blockName = ("%s %s"):format(blockName, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+    if qualities and not Util:TblIsEmpty(qualities) then
+        blockName = Util:StrAbbr(blockName, 35 * #qualities)
+        for _,quality in ipairs(qualities) do
+            blockName = ("%s %s"):format(blockName, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+        end
     end
 
     block:SetHeader(blockName);

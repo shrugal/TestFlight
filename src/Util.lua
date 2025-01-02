@@ -551,8 +551,9 @@ function Self:TblCount(tbl, fn, key, obj, ...)
     return c
 end
 
+---@param tbl table
 function Self:TblIsEmpty(tbl)
-    return self:TblCount(tbl) == 0
+    return not next(tbl)
 end
 
 ---@generic T
