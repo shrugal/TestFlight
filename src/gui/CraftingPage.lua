@@ -223,6 +223,8 @@ function Self:SetFilterSelected(filter, sort)
     self.filter = filter
     self.sort = sort
 
+    self.professionInfo, self.recipeIDs, self.selectedRecipeID, self.selectedQuality = nil, nil, nil, nil
+
     if filter then ---@cast sort -?
         self.frame.RecipeList:SetPoint("BOTTOMLEFT", 0, 32.5)
         self:UpdateRecipeList(true)
@@ -713,7 +715,7 @@ function Self:OnAddonLoaded(addonName)
     Restock:RegisterCallback(Restock.Event.TrackedUpdated, OnTrackedRestockUpdated, self)
     Restock:RegisterCallback(Restock.Event.TrackedMinProfitUpdated, OnTrackedRestockUpdated, self)
 
-    local OnOwnedItemsUpdated = Util:FnDebounce(self.OnOwnedItemsUpdated, 1)
+    local OnOwnedItemsUpdated = Util:FnDelayedUpdate(self.OnOwnedItemsUpdated, 1)
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_NOTIFICATION", OnOwnedItemsUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", OnOwnedItemsUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("UPDATE_PENDING_MAIL", OnOwnedItemsUpdated, self)

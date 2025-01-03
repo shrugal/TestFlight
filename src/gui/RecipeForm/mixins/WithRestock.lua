@@ -159,6 +159,10 @@ function Self:UpdateRestockElements()
 
     self.restockMinProfitSpinner:SetShown(checked)
     self.restockMinProfitSpinner:SetValue(floor(minProfit / 10000))
+
+    if not self.form.UpdateRequiredTools then return end
+
+    self.form.UpdateRequiredTools()
 end
 
 -- Track quality checkbox

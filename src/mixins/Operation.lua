@@ -37,6 +37,7 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
         local missing = slot.required and slot.quantityRequired or 0
         local allocs = allocation and allocation[slotIndex]
 
+        if Reagents:IsProvided(slot, order, recraftMods) then break end
         if reagentsFilter and not reagentsFilter(slot, allocs) then break end
 
         if allocs then
@@ -423,6 +424,14 @@ end
 
 function Self:HasAllReagents()
     return self:GetMaxCraftAmount() > 0
+end
+
+function Self:HasAllRequirementsMet()
+    return Util:TblEveryWhere(C_TradeSkillUI.GetRecipeRequirements(self.recipe.recipeID), "met", true)
+end
+
+function Self:IsCraftable()
+    return self:HasAllReagents() and self:HasAllRequirementsMet()
 end
 
 -- Quality

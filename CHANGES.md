@@ -2,7 +2,9 @@
 - Add restock settings to tradable item and enchant recipes
 - Add filter option to see all restocking recipes and to mark all as tracked
 - Add filter option to see all tracked recipes and to craft next batch
+- Add controls to quickly switch between custom filter views
 - Rename sort option in recipe fiter, and move it to the bottom
 - Show recipe qualities separately when sorting recipes by optimization goal
 - Fix showing qualities in recipe tracker for recipes that don't have any
+- Fix reagent price sometimes not updating when creating orders
 - Fix professions frame positioning issues with TSM auction UI

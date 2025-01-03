@@ -935,6 +935,14 @@ function Self:FnDebounce(fn, n, leading, trailing, update)
     return self:FnSlowDown(fn, n, true, leading, trailing, update)
 end
 
+-- Call immediately, at most every n seconds, and n seconds after the last call
+---@param fn function
+---@param n? number
+---@param update? boolean
+function Self:FnDelayedUpdate(fn, n, update)
+    return self:FnCombine(self:FnThrottle(fn, n, nil, nil, update), self:FnDebounce(fn, n, true, nil, update))
+end
+
 -- DEBUG
 
 ---@param label? string
