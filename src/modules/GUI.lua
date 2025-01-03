@@ -154,6 +154,22 @@ function Self:GetVisibleForm()
     end
 end
 
+---@param fontString FontString
+---@param text string
+---@param maxWidth number
+---@param multiline? boolean
+function Self:SetTextToFit(fontString, text, maxWidth, multiline)
+    fontString:SetHeight(200)
+    fontString:SetText(text)
+
+    fontString:SetWidth(maxWidth)
+    if not multiline then
+       fontString:SetWidth(fontString:GetStringWidth())
+    end
+
+    fontString:SetHeight(fontString:GetStringHeight())
+ end
+
 ---------------------------------------
 --              Events
 ---------------------------------------
@@ -186,5 +202,34 @@ function Self:Refresh()
     self:TriggerEvent(self.Event.Refresh)
 end
 
+function Self:OnAddonLoaded(addonName)
+    if not Util:IsAddonLoadingOrLoaded("TradeSkillMaster", addonName) then return end
+
+    local LibAHTab = LibStub("LibAHTab-1-0", true)
+    if not LibAHTab then return end
+
+    --- Fix ProfessionsFrame positioning with TSM auction house UI
+    local tsmSelected = false
+    local adjustFrame = function (selected)
+        if tsmSelected == selected then return end
+        tsmSelected = selected
+        if not ProfessionsFrame or not ProfessionsFrame:IsVisible() then return end
+        UpdateUIPanelPositions(ProfessionsFrame)
+    end
+
+    hooksecurefunc(LibAHTab, "SetSelected", function (_, tabID)
+        if tabID == "TSM_AH_TAB" then adjustFrame(true) end
+    end)
+
+    hooksecurefunc("UIParent_OnEvent", function (_, event)
+        if event == "AUCTION_HOUSE_SHOW" then adjustFrame(false) end
+    end)
+
+    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_CLOSED", function ()
+        adjustFrame(false)
+    end)
+end
+
+Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
 Addon:RegisterCallback(Addon.Event.Enabled, Self.OnEnabled, Self)
 Addon:RegisterCallback(Addon.Event.Disabled, Self.OnDisabled, Self)

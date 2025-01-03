@@ -30,6 +30,7 @@ end
 ---@param allocation RecipeAllocation
 ---@param order? CraftingOrderInfo
 ---@param recraftMods? CraftingItemSlotModification
+---@return number
 function Self:GetMaxCraftAmount(recipe, allocation, order, recraftMods)
     local count = math.huge
 

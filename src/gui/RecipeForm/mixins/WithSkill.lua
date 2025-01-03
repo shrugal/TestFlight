@@ -44,6 +44,6 @@ function Self:UpdateSkillSpinner()
     local difficulty = op.baseDifficulty + op.bonusDifficulty
 
     self.skillSpinner:SetMinMaxValues(0, math.max(0, difficulty - skillNoExtra))
-    self.skillSpinner:SetShown(Addon.enabled and not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe())
+    self.skillSpinner:SetShown(Addon.enabled and self:ShouldShowElement())
     self.skillSpinner:SetValue(Addon.extraSkill)
 end

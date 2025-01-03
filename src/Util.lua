@@ -826,7 +826,7 @@ end
 ---@vararg T
 ---@return T
 function Self:FnCombine(fns, ...)
-    if type(fns) == "function" then fns = { fns, ... } end
+    if type(fns) ~= "table" then fns = { fns, ... } end
 
     local n = #fns
     if n == 1 then return fns[1] end
@@ -937,15 +937,21 @@ end
 
 -- DEBUG
 
-function Self:DebugStack(level, countTop, countBottom)
+---@param label? string
+---@param level? number
+---@param countTop? number
+---@param countBottom? number
+function Self:DebugStack(label, level, countTop, countBottom)
     if not Addon.DEBUG then return end
 
-    Addon:Debug("---", "Debugstack")
-    local i = 0
+    local t = {}
     for line in debugstack((level or 1) + 1, countTop or 12, countBottom or 10):gmatch("[^\n]+") do
-        i = i + 1
-        Addon:Debug(line, i)
+        tinsert(t, line)
     end
+
+    Addon:Debug(t, label or "Stacktrace")
+
+    return t
 end
 
 local prevTime

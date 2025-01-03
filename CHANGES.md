@@ -1,7 +1,8 @@
-- Add option to track recipes per quality
-- Add restock settings to tradable item and enchant recipe forms
+- Add option to track recipe qualities separately
+- Add restock settings to tradable item and enchant recipes
 - Add filter option to see all restocking recipes and to mark all as tracked
 - Add filter option to see all tracked recipes and to craft next batch
-- Move sort option in recipe fiter to the bottom
+- Rename sort option in recipe fiter, and move it to the bottom
 - Show recipe qualities separately when sorting recipes by optimization goal
 - Fix showing qualities in recipe tracker for recipes that don't have any
+- Fix professions frame positioning issues with TSM auction UI

@@ -30,7 +30,7 @@ function Self:InsertExperimentBox(parent, ...)
 end
 
 function Self:UpdateExperimentBox()
-    self.experimentBox:SetShown(self:IsCraftingRecipe() and not ProfessionsUtil.IsCraftingMinimized())
+    self.experimentBox:SetShown(self:ShouldShowElement(false, true))
     self.experimentBox:SetChecked(Addon.enabled)
 end
 

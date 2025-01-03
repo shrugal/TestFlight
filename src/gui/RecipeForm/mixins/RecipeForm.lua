@@ -58,14 +58,20 @@ function Self:GetRecipe()
     return self.form.transaction:GetRecipeSchematic()
 end
 
-function Self:IsCraftingRecipe()
+---@param minimized? boolean
+---@param nonLocal? boolean
+function Self:ShouldShowElement(minimized, nonLocal)
     local recipe = self:GetRecipe()
-    if not recipe then return end
+    if not recipe then return false end
 
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
-    if not recipeInfo then return end
+    if not recipeInfo then return false end
 
     return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
+        and not C_TradeSkillUI.IsRuneforging()
+        and (minimized or not ProfessionsUtil.IsCraftingMinimized())
+        and (nonLocal or Professions.InLocalCraftingMode())
+        or false
 end
 
 ---@return CraftingOrderInfo?

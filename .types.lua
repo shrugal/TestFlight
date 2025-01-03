@@ -94,6 +94,7 @@ DevTool = nil
 ---@field GetWarbankQuantity fun(itemStr: string): number
 ---@field GetGuildQuantity fun(itemStr: string, guild?: string): number
 ---@field ToItemString fun(item: string): string
+---@field IsUIVisible fun(ui: "AUCTION" | "CRAFTING" | "MAILING" | "VENDORING"): boolean
 TSM_API = nil
 
 ---@class Auctionator
@@ -315,6 +316,7 @@ ProfessionsFrame = nil
 ---@field SetCreateButtonTooltipText fun(self: self, text: string)
 
 ---@class RecipeList: Frame
+---@field previousRecipeID? number
 ---@field selectionBehavior SelectionBehaviorMixin
 ---@field FilterDropdown DropdownButton
 ---@field ScrollBox ScrollFrame
@@ -354,12 +356,14 @@ ProfessionsFrame = nil
 ---@field Concentrate ConcentrateContainer
 ---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
+---@field RequiredTools FontString
+---@field UpdateRequiredTools fun()
+---@field currentRecipeInfo TradeSkillRecipeInfo
+---@field recraftSlot RecraftSlot
 ---@field GetRecipeOperationInfo fun(self: self): CraftingOperationInfo
 ---@field Init fun(self: self, recipe: CraftingRecipeSchematic)
 ---@field Refresh fun(self: self)
 ---@field UpdateDetailsStats fun(self: self)
----@field currentRecipeInfo TradeSkillRecipeInfo
----@field recraftSlot RecraftSlot
 ---@field UpdateRecraftSlot fun(self: self)
 ---@field GetRecipeInfo fun(self: self): TradeSkillRecipeInfo
 ---@field GetCurrentRecipeLevel fun(self: self): number
@@ -1086,14 +1090,14 @@ ProfessionsRecipeListRecipeMixin = nil
 ---@field Init fun(self: self, ...: unknown): unknown
 ---@field SetSelectionFlags fun(self: self, ...: unknown): unknown
 ---@field HasSelection fun(self: self, ...: unknown): unknown
----@field GetFirstSelectedElementData fun(self: self, ...: unknown): unknown
----@field GetSelectedElementData fun(self: self, ...: unknown): unknown
+---@field GetFirstSelectedElementData fun(self: self, ...: unknown): TreeNodeMixin?
+---@field GetSelectedElementData fun(self: self, ...: unknown): TreeNodeMixin[]
 ---@field IsFlagSet fun(self: self, ...: unknown): unknown
 ---@field DeselectByPredicate fun(self: self, ...: unknown): unknown
 ---@field DeselectSelectedElements fun(self: self, ...: unknown): unknown
 ---@field ClearSelections fun(self: self, ...: unknown): unknown
 ---@field ToggleSelectElementData fun(self: self, ...: unknown): unknown
----@field SelectFirstElementData fun(self: self, ...: unknown): unknown
+---@field SelectFirstElementData fun(self: self, predicate?: (fun(data: any): boolean))
 ---@field SelectNextElementData fun(self: self, ...: unknown): unknown
 ---@field SelectPreviousElementData fun(self: self, ...: unknown): unknown
 ---@field SelectOffsetElementData fun(self: self, ...: unknown): unknown

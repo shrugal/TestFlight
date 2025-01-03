@@ -6,6 +6,8 @@ local NS = GUI.RecipeForm
 ---@type GUI.RecipeForm.RecipeForm | GUI.RecipeForm.WithCrafting | GUI.RecipeForm.WithRestock
 local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithRestock)
 
+Parent.Init = Util:FnCombine(NS.WithCrafting.Init, NS.WithRestock.Init)
+
 ---@class GUI.RecipeForm.CraftingForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithRestock
 ---@field recraftRecipeID number?
 ---@field recraftItemLink string?

@@ -54,14 +54,11 @@ function Self:UpdateOptimizationButtons()
     if not Prices:IsSourceInstalled() then return end
     if self.isOptimizing then return end
 
-    local recipe, op = self.form.recipeSchematic, self.form:GetRecipeOperationInfo()
+    local op = self.form:GetRecipeOperationInfo()
     local order = self:GetOrder()
 
-    local show = op and op.craftingQuality
-        and Professions.InLocalCraftingMode()
-        and not Util:OneOf(recipe.recipeType, Enum.TradeskillRecipeType.Salvage, Enum.TradeskillRecipeType.Gathering)
-        and not ProfessionsUtil.IsCraftingMinimized()
-        and not C_TradeSkillUI.IsRuneforging()
+    local show = self:ShouldShowElement()
+        and op and op.craftingQuality
         and not (order and order.orderState ~= Enum.CraftingOrderState.Claimed)
 
     self.decreaseBtn:SetShown(show)
@@ -71,7 +68,12 @@ function Self:UpdateOptimizationButtons()
 
     if not show then return end
 
-    local canDecrease, canIncrease = self:GetOperation():CanChangeQuality()
+    local canDecrease, canIncrease = false, false
+
+    local operation = self:GetOperation()
+    if operation then
+        canDecrease, canIncrease = operation:CanChangeQuality()
+    end
 
     self.decreaseBtn:SetEnabled(canDecrease)
     self.increaseBtn:SetEnabled(canIncrease)
@@ -113,7 +115,7 @@ end
 
 function Self:UpdateConcentrationCostSpinner()
     self.concentrationCostSpinner:SetShown(
-        not ProfessionsUtil.IsCraftingMinimized() and self:IsCraftingRecipe()
+        self:ShouldShowElement()
         and self.optimizationMethod == Optimization.Method.CostPerConcentration
         and self.form:GetRecipeOperationInfo().concentrationCost > 0
     )

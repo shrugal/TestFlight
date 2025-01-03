@@ -10,8 +10,8 @@ local Self = GUI.CraftingPage
 ---@enum CraftingPage.Filter
 Self.Filter = {
     Sorted = "SORTED",
-    Tracked = "TRACKED",
     Restock = "RESTOCK",
+    Tracked = "TRACKED",
 }
 
 ---@type CraftingPage.Filter?
@@ -19,8 +19,11 @@ Self.filter = nil
 ---@type Optimization.Method?
 Self.sort = nil
 
----@type Cache<{ [1]: number, [2]: Operation }, fun(self: self, recipe: CraftingRecipeSchematic): number>
-Self.filterCache = Cache:Create(function (_, recipe) return recipe.recipeID end)
+---@type Cache<{ [1]: number, [2]: Operation }, fun(self: self, method: Optimization.Method, recipe: CraftingRecipeSchematic): number>
+Self.filterCache = Cache:Create(function (_, method, recipe)
+    return ("%s;;%s"):format(method, recipe.recipeID)
+end)
+
 ---@type TreeDataProviderMixin
 Self.dataProvider = CreateTreeDataProvider()
 
@@ -28,7 +31,7 @@ Self.dataProvider:SetSortComparator(function(a, b)
     if not a or not b then return a ~= b and b == nil end
     a, b = a:GetData(), b:GetData()
     if (a.amount == 0) ~= (b.amount == 0) then return a.amount ~= 0 end
-    if Self.sort == Optimization.Method.Cost then return a.value < b.value end
+    if Self:GetFilterSort(Self.filter) == Optimization.Method.Cost then return a.value < b.value end
     return a.value > b.value
 end, false, true)
 
@@ -66,6 +69,21 @@ function Self:InitRecipeListRecipe(frame, node)
     local data = node:GetData() --[[@as RecipeTreeNodeData]]
     local value, amount, quality = data.value, data.amount, data.quality
     local r, g, b = frame:GetLabelColor():GetRGB()
+
+    frame:HookScript("OnClick", function (_, buttonName)
+        if buttonName ~= "LeftButton" or not IsModifiedClick("RECIPEWATCHTOGGLE") then return end
+
+        if self.filter == self.Filter.Restock then
+            local operation, quality, amount = data.operation, data.quality, data.amount
+            local recipe = operation.recipe
+
+            if amount <= 0 or not Recipes:IsTracked(recipe) then return end
+
+            Recipes:SetTrackedPerQuality(recipe, quality ~= nil)
+            Recipes:SetTrackedAmount(recipe, amount, quality)
+            Recipes:SetTrackedAllocation(recipe, operation, quality)
+        end
+    end)
 
     -- Set amount
     if amount then
@@ -163,7 +181,7 @@ function Self:ModifyRecipeListFilter()
         rootDescription:Insert(MenuUtil.CreateRadio(NONE, IsFilterSelected, SetFilterSelected))
 
         -- Add sort menu
-        local sortSubmenu = rootDescription:Insert(MenuUtil.CreateRadio("Sorted", IsFilterSelected, SetFilterSelected, self.Filter.Sorted)) --[[@as ElementMenuDescriptionProxy]]
+        local sortSubmenu = rootDescription:Insert(MenuUtil.CreateRadio("Scan", IsFilterSelected, SetFilterSelected, self.Filter.Sorted)) --[[@as ElementMenuDescriptionProxy]]
 
         for name,method in pairs(Optimization.Method) do repeat
             if method == Optimization.Method.CostPerConcentration then
@@ -176,7 +194,7 @@ function Self:ModifyRecipeListFilter()
         until true end
 
         -- Add tracked and restock options
-        rootDescription:Insert(MenuUtil.CreateRadio("Tracked", IsFilterSelected, SetFilterSelected, self.Filter.Tracked))
+        rootDescription:Insert(MenuUtil.CreateRadio("Queue", IsFilterSelected, SetFilterSelected, self.Filter.Tracked))
         rootDescription:Insert(MenuUtil.CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock))
     end)
 
@@ -192,33 +210,26 @@ function Self:IsFilterSelected(filter, sort)
     return filter == self.filter and (not sort or self.sort == sort)
 end
 
+---@param filter? CraftingPage.Filter
+---@param sort? Optimization.Method
 function Self:SetFilterSelected(filter, sort)
-    if filter ~= self.Filter.Sorted then
-        sort = nil
-    elseif not sort then
-        sort = self.sort or Optimization.Method.Profit
+    if filter == self.Filter.Sorted then
+        sort = sort or self.sort or Optimization.Method.Profit
+        GUI.RecipeForm.CraftingForm:SetOptimizationMethod(sort)
+    else
+        sort = filter and self.sort or nil
     end
 
     self.filter = filter
     self.sort = sort
 
-    -- Adjust recipe list
-    if Util:OneOf(filter, self.Filter.Tracked, self.Filter.Restock) then
+    if filter then ---@cast sort -?
         self.frame.RecipeList:SetPoint("BOTTOMLEFT", 0, 32.5)
-    else
-        self.frame.RecipeList:SetPoint("BOTTOMLEFT", 0, 5)
-    end
-
-    self:UpdateCraftRestockButton()
-
-    -- Update
-    if filter then
-        if sort then
-            GUI.RecipeForm.CraftingForm:SetOptimizationMethod(sort)
-        end
-
         self:UpdateRecipeList(true)
     else
+        self.frame.RecipeList:SetPoint("BOTTOMLEFT", 0, 5)
+        self:UpdateFilterButtons()
+
         if self.filterJob then self.filterJob:Cancel() end
         self.filterCache:Clear()
 
@@ -226,114 +237,158 @@ function Self:SetFilterSelected(filter, sort)
     end
 end
 
+---@param filter? CraftingPage.Filter
+function Self:GetFilterSort(filter)
+    return filter == self.Filter.Sorted and self.sort or filter and Optimization.Method.Profit or nil
+end
+
 ---@param refresh? boolean
----@param keepCache? boolean
-function Self:UpdateRecipeList(refresh, keepCache)
-    local method = self.sort or Optimization.Method.Profit ---@cast method -?
+function Self:UpdateRecipeList(refresh)
+    if not self.filter then return end
+    local filter, sort = self.filter, self:GetFilterSort(self.filter) --[[@cast filter -?]] --[[@cast sort -?]]
 
-    local info = self.frame.professionInfo
-    local professionChanged = not self.professionInfo or not Util:TblMatch(self.professionInfo, "professionID", info.professionID, "skillLevel", info.skillLevel, "skillModifier", info.skillModifier)
+    local profInfo = self.frame.professionInfo
+    local professionChanged = not self.professionInfo or not Util:TblMatch(self.professionInfo, "professionID", profInfo.professionID, "skillLevel", profInfo.skillLevel, "skillModifier", profInfo.skillModifier)
 
-    refresh = refresh or professionChanged
-
-    local recipeIDs = self:GetFilterRecipeIDs()
+    local recipeIDs = self:GetFilterRecipeIDs(filter)
     local n = #recipeIDs
     local filterChanged = not self.recipeIDs or not Util:TblEquals(self.recipeIDs, recipeIDs)
 
-    self.professionInfo = info
+    self.professionInfo = profInfo
     self.recipeIDs = recipeIDs
 
-    if refresh or filterChanged then
-        self.dataProvider:GetRootNode():Flush()
+    local recipeList = self.frame.RecipeList
+    local noResultsText = recipeList.NoResultsText
+    local selectionBehavior = recipeList.selectionBehavior
+    local provider = self.dataProvider
 
-        self:UpdateCraftRestockButton()
+    if professionChanged or recipeList.ScrollBox:GetDataProvider() == provider then
+        local selected = selectionBehavior:GetFirstSelectedElementData() --[[@as TreeNodeMixin]]
+        if selected then
+            local data = selected:GetData() --[[@as RecipeTreeNodeData]]
+            self.selectedRecipeID, self.selectedQuality = data.recipeInfo.recipeID, data.quality
+        else
+            self.selectedRecipeID, self.selectedQuality = recipeList.previousRecipeID, nil
+        end
+    end
 
-        if refresh and not keepCache then self.filterCache:Clear() end
+    if refresh or professionChanged or filterChanged then
+        provider:GetRootNode():Flush()
+        recipeList.ScrollBox:SetDataProvider(provider, ScrollBoxConstants.RetainScrollPosition)
+        selectionBehavior:ClearSelections()
 
-        self.frame.RecipeList.NoResultsText:SetShown(false)
+        if professionChanged then self.filterCache:Clear() end
 
         Promise:Async(function ()
             Promise:GetCurrent():SetPriority(5)
 
             for i,recipeID in ipairs(recipeIDs) do
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
-                local operations = self:GetFilterRecipeOperations(recipe, method)
+                local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID)
+                local operations = self:GetFilterRecipeOperations(filter, recipe, sort)
 
                 if operations then
-                    for _,operation in pairs(operations) do
-                        local recipeInfo = operation:GetRecipeInfo()
-
+                    for _,operation in pairs(operations) do repeat
                         local quality = recipeInfo and recipeInfo.supportsQualities and operation:GetResultQuality() or nil
-                        local value = Optimization:GetOperationValue(operation, method)
+                        local value = Optimization:GetOperationValue(operation, sort)
 
-                        if value and abs(value) ~= math.huge then
-                            local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(recipe, quality, value)
+                        if not value or abs(value) == math.huge then break end
 
-                            self.dataProvider:Insert({
-                                recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID),
-                                operation = operation,
-                                value = value,
-                                method = method,
-                                quality =  quality,
-                                amount = amount,
-                                amountShown = amountShown,
-                                amountTotal = amountTotal
-                            })
-                        end
-                    end
+                        local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(filter, recipe, quality, value)
+
+                        provider:Insert({
+                            recipeInfo = recipeInfo,
+                            operation = operation,
+                            value = value,
+                            method = sort,
+                            quality =  quality,
+                            amount = amount,
+                            amountShown = amountShown,
+                            amountTotal = amountTotal
+                        })
+                    until true end
                 end
 
-                Promise:YieldProgress(i, n)
+                if recipeID == self.selectedRecipeID and not selectionBehavior:HasSelection() then
+                    Promise:Yield(i, n, recipeID) -- Yield so UI can be updated
+                else
+                    Promise:YieldProgress(i, n, recipeID)
+                end
             end
 
-            self.frame.RecipeList.NoResultsText:SetShown(self.dataProvider:IsEmpty())
-
             -- Fix last recipe not getting sorted correctly
-            self.dataProvider:Invalidate()
+            provider:Invalidate()
         end):Singleton(self, "filterJob"):Start(function ()
-            self.progressBar:Start(n)
-            return function () self.progressBar:Progress(n, n) end
-        end):Progress(function (i, n)
-            if not i or not n then return end
-            self.progressBar:Progress(i, n)
-        end):Finally(function ()
-            self:UpdateCraftRestockButton()
-        end)
-    end
+            noResultsText:SetShown(false)
 
-    self.frame.RecipeList.ScrollBox:SetDataProvider(self.dataProvider, ScrollBoxConstants.RetainScrollPosition)
+            self:UpdateFilterButtons()
+
+            self.progressBar:Start(n)
+
+            return function () self.progressBar:Progress(n, n) end
+        end):Progress(function (i, n, recipeID)
+            if not i or not n then return end
+
+            self.progressBar:Progress(i, n)
+
+            if recipeID == self.selectedRecipeID and not selectionBehavior:HasSelection() then
+                self:RestoreSelectedRecipe()
+            end
+        end):Finally(function ()
+            noResultsText:SetShown(provider:IsEmpty())
+
+            self:UpdateFilterButtons()
+        end)
+    else
+        recipeList.ScrollBox:SetDataProvider(provider, ScrollBoxConstants.RetainScrollPosition)
+        self:RestoreSelectedRecipe()
+    end
 end
 
-function Self:GetFilterRecipeIDs()
+function Self:RestoreSelectedRecipe()
+    if not self.filter then return end
+
+    local recipeID, quality = self.selectedRecipeID, self.selectedQuality
+    if not recipeID then return end
+
+    self.frame.RecipeList.selectionBehavior:SelectFirstElementData(function (node) ---@cast node TreeNodeMixin
+        local data = node:GetData() --[[@as RecipeTreeNodeData]]
+        return data.recipeInfo.recipeID == recipeID and (not data.quality or not quality or data.quality == quality)
+    end)
+end
+
+---@param filter CraftingPage.Filter
+function Self:GetFilterRecipeIDs(filter)
     local recipeIDs = C_TradeSkillUI.GetFilteredRecipeIDs() ---@cast recipeIDs -?
 
-    if self.filter == self.Filter.Sorted then
+    if filter == self.Filter.Sorted then
         local professionID = self.frame.professionInfo.professionID
 
         return Util:TblFilter(recipeIDs, function (recipeID)
             return C_TradeSkillUI.IsRecipeInSkillLine(recipeID, professionID)
         end)
-    elseif self.filter == self.Filter.Tracked then
+    elseif filter == self.Filter.Tracked then
         return Util:TblFilter(recipeIDs, Recipes.IsTracked, false, Recipes)
-    elseif self.filter == self.Filter.Restock then
+    elseif filter == self.Filter.Restock then
         return Util:TblFilter(recipeIDs, Restock.IsTracked, false, Restock)
     end
 end
 
+---@param filter CraftingPage.Filter
 ---@param recipe CraftingRecipeSchematic
 ---@param method Optimization.Method
 ---@return Operation[]?
-function Self:GetFilterRecipeOperations(recipe, method)
+function Self:GetFilterRecipeOperations(filter, recipe, method)
     ---@type table<number, Operation | false>
     local operations
-    local Service = Util:Select(self.filter, self.Filter.Tracked, Recipes, self.Filter.Restock, Restock)
+    local Service = Util:Select(filter, self.Filter.Tracked, Recipes, self.Filter.Restock, Restock)
 
     if Service then
         local amounts = Service:GetTrackedAmounts(recipe) ---@cast amounts -?
 
         operations = Util:TblMap(amounts, Util.FnFalse) --[[@as table<number, Operation | false>]]
 
-        if self.filter == self.Filter.Tracked then
+        if filter == self.Filter.Tracked then
             for quality,amount in pairs(amounts) do repeat
                 if amount == 0 then break end
                 operations[quality] = Recipes:GetTrackedAllocation(recipe, quality) or false
@@ -344,10 +399,10 @@ function Self:GetFilterRecipeOperations(recipe, method)
     end
 
     local cache = self.filterCache
-    local key, time = cache:Key(recipe), Prices:GetRecipeScanTime(recipe)
+    local key, time = cache:Key(method, recipe), Prices:GetRecipeScanTime(recipe)
 
     if not cache:Has(key) or cache:Get(key)[1] ~= time then
-        local includeNonTradable = self.filter == self.Filter.Tracked
+        local includeNonTradable = filter == self.Filter.Tracked
         cache:Set(key, { time, Optimization:GetRecipeAllocations(recipe, method, includeNonTradable) })
     end
 
@@ -362,16 +417,17 @@ function Self:GetFilterRecipeOperations(recipe, method)
     return operations
 end
 
+---@param filter CraftingPage.Filter
 ---@param recipe CraftingRecipeSchematic
 ---@param quality? number
 ---@param value number
 ---@return number? amount
 ---@return number? amountShown
 ---@return number? amountTotal
-function Self:GetFilterRecipeAmount(recipe, quality, value)
-    if self.filter == self.Filter.Tracked then
+function Self:GetFilterRecipeAmount(filter, recipe, quality, value)
+    if filter == self.Filter.Tracked then
         return Recipes:GetTrackedAmount(recipe, quality) --[[@as number]]
-    elseif self.filter == self.Filter.Restock then
+    elseif filter == self.Filter.Restock then
         local total = Restock:GetTrackedAmount(recipe, quality)
 
         if value < Restock:GetTrackedMinProfit(recipe, quality or 1) then return 0, total end
@@ -381,16 +437,34 @@ function Self:GetFilterRecipeAmount(recipe, quality, value)
 end
 
 ---------------------------------------
---        Craft/Restock button
+--        Filter buttons
 ---------------------------------------
+
+-- Craft/Restock
+
+function Self:GetNextTrackedCraftable()
+    if self.filter ~= self.Filter.Tracked then return end
+    if self.dataProvider:IsEmpty() then return end
+
+    return select(2, self.dataProvider:FindByPredicate(function (node)
+        local data = node:GetData() --[[@as RecipeTreeNodeData]]
+        if not data.amount or not data.operation then return false end
+        return data.amount > 0 and data.operation:HasAllReagents()
+    end, false))
+end
+
+function Self:GetNextTrackedCRestock()
+    if self.filter ~= self.Filter.Restock then return end
+    if self.dataProvider:IsEmpty() then return end
+
+    return select(2, self.dataProvider:FindByPredicate(function (node)
+        return (node:GetData().amount or 0) > 0
+    end, false))
+end
 
 function Self:CraftRestockButtonOnClick()
     if self.filter == self.Filter.Tracked then
-        local node = select(2, self.dataProvider:FindByPredicate(function (node)
-            local data = node:GetData() --[[@as RecipeTreeNodeData]]
-            return data.amount > 0 and data.operation:HasAllReagents()
-        end, false))
-
+        local node = self:GetNextTrackedCraftable()
         if not node then return end
 
         local data = node:GetData() --[[@as RecipeTreeNodeData]]
@@ -406,10 +480,6 @@ function Self:CraftRestockButtonOnClick()
 
             if amount <= 0 then break end
 
-            Addon:Debug(operation, recipe.name)
-            Addon:Debug(quality, "> quality")
-            Addon:Debug(amount, "> amount")
-
             Recipes:SetTracked(recipe)
             Recipes:SetTrackedPerQuality(recipe, quality ~= nil)
             Recipes:SetTrackedAmount(recipe, amount, quality)
@@ -418,24 +488,71 @@ function Self:CraftRestockButtonOnClick()
     end
 end
 
-function Self:InsertCraftRestockButton()
-    self.craftRestockBtn = GUI:InsertButton(
-        "", self.frame, nil, Util:FnBind(self.CraftRestockButtonOnClick, self),
-        "TOP", self.frame.RecipeList, "BOTTOM", 0, -5
-    )
+-- Prev/Next filter
 
-    self.craftRestockBtn:Hide()
+local filterList = { Self.Filter.Sorted, Self.Filter.Tracked, Self.Filter.Restock }
+
+function Self:PrevFilterButtonOnClick()
+    local curr = Util:TblIndexOf(filterList, self.filter) or 0
+    self:SetFilterSelected(filterList[curr - 1])
 end
 
-function Self:UpdateCraftRestockButton()
-    self.craftRestockBtn:SetShown(Util:OneOf(self.filter, self.Filter.Tracked, self.Filter.Restock))
-    self.craftRestockBtn:SetEnabled(not self.filterJob and not self.dataProvider:IsEmpty())
+function Self:NextFilterButtonOnClick()
+    local curr = Util:TblIndexOf(filterList, self.filter) or 0
+    self:SetFilterSelected(filterList[curr + 1])
+end
 
-    if self.filter == self.Filter.Tracked then
-        self.craftRestockBtn:SetTextToFit("Create Next")
-    elseif self.filter == self.Filter.Restock then
-        self.craftRestockBtn:SetTextToFit("Restock")
+-- Insert/Update buttons
+
+function Self:InsertFilterButtons()
+    self.craftRestockBtn = GUI:InsertButton(
+        "", self.frame, nil, Util:FnBind(self.CraftRestockButtonOnClick, self),
+        "TOP", self.frame.RecipeList, "BOTTOM", 0, -3.5
+    )
+
+    self.prevFilterBtn = GUI:InsertButton(
+        "<", self.frame, nil, Util:FnBind(self.PrevFilterButtonOnClick, self),
+        "TOPLEFT", self.frame.RecipeList, "BOTTOMLEFT", 1, -3.5
+    )
+
+
+    self.nextFilterBtn = GUI:InsertButton(
+        ">", self.frame, nil, Util:FnBind(self.NextFilterButtonOnClick, self),
+        "TOPRIGHT", self.frame.RecipeList, "BOTTOMRIGHT", -1, -3.5
+    )
+
+    self.prevFilterBtn.tooltipText = "Previous filter page"
+    self.nextFilterBtn.tooltipText = "Next filter page"
+
+    self.craftRestockBtn:Hide()
+    self.prevFilterBtn:Hide()
+    self.nextFilterBtn:Hide()
+end
+
+function Self:UpdateFilterButtons()
+    local shown = Util:OneOf(self.filter, self.Filter.Tracked, self.Filter.Restock)
+    local enabled = shown and not self.filterJob
+    local text = ""
+
+    if self.filter == self.Filter.Restock then
+        enabled = enabled and self:GetNextTrackedCRestock() ~= nil
+        text = "Restock"
+    elseif self.filter == self.Filter.Tracked then
+        enabled = enabled and self:GetNextTrackedCraftable() ~= nil
+        text = "Create Next"
     end
+
+    self.craftRestockBtn:SetShown(shown)
+    self.craftRestockBtn:SetEnabled(enabled)
+    self.craftRestockBtn:SetTextToFit(text)
+
+    local shown = self.filter ~= nil
+    local curr = Util:TblIndexOf(filterList, self.filter) or 0
+
+    self.prevFilterBtn:SetShown(shown)
+    self.nextFilterBtn:SetShown(shown)
+    self.prevFilterBtn:SetText(curr > 1 and "<" or "X")
+    self.nextFilterBtn:SetEnabled(curr < #filterList)
 end
 
 ---------------------------------------
@@ -450,8 +567,12 @@ function Self:CraftOperation(operation, amount)
     local applyConcentration = operation.applyConcentration
 
     local form = GUI.RecipeForm.CraftingForm
+    local recipeList = self.frame.RecipeList
 
-    ProfessionsUtil.OpenProfessionFrameToRecipe(recipe.recipeID)
+    if recipeList.previousRecipeID ~= recipe.recipeID then
+        EventRegistry:TriggerEvent("ProfessionsRecipeListMixin.Event.OnRecipeSelected", operation:GetRecipeInfo(), recipeList)
+        recipeList.previousRecipeID = recipe.recipeID
+    end
 
     form:SetOperation(operation)
 
@@ -476,12 +597,17 @@ end
 ---@param node TreeNodeMixin
 ---@param selected boolean
 function Self:OnSelectionChanged(node, selected)
-    if not selected then return end
+    if not selected or not self.frame:IsVisible() then return end
 
-    local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
+    local form, data = GUI.RecipeForm.CraftingForm, node:GetData() --[[@as RecipeTreeNodeData]]
 
     if data.operation then
         form:SetOperation(data.operation)
+
+        local amount = min(data.amount or 1, data.operation:GetMaxCraftAmount())
+        if amount <= 1 then return end
+
+        self.frame.CreateMultipleInputBox:SetValue(amount)
     elseif data.method and data.quality then
         form:SetOptimizationMethod(data.method)
         form:SetQuality(data.quality)
@@ -528,18 +654,23 @@ function Self:OnRecipeListRecipeInitialized(frame, node)
     self:InitRecipeListRecipe(frame, node)
 end
 
-function Self:OnProfessionChanged()
+function Self:OnProfessionStatsChanged()
     self.filterCache:Clear()
 end
 
 function Self:OnTrackedRecipeUpdated()
     if self.filter ~= self.Filter.Tracked or not self.frame:IsVisible() then return end
-    self:UpdateRecipeList(true, true)
+    self:UpdateRecipeList(true)
 end
 
 function Self:OnTrackedRestockUpdated()
     if self.filter ~= self.Filter.Restock or not self.frame:IsVisible() then return end
-    self:UpdateRecipeList(true, true)
+    self:UpdateRecipeList(true)
+end
+
+function Self:OnOwnedItemsUpdated()
+    if not Util:OneOf(self.filter, self.Filter.Restock, self.Filter.Tracked) or not self.frame:IsVisible() then return end
+    self:UpdateRecipeList(true)
 end
 
 ---@param addonName string
@@ -557,7 +688,7 @@ function Self:OnAddonLoaded(addonName)
 
     self:CreateRecipeListProgressBar()
     self:ModifyRecipeListFilter()
-    self:InsertCraftRestockButton()
+    self:InsertFilterButtons()
 
     hooksecurefunc(self.frame, "RegisterUnitEvent", Util:FnBind(self.OnRegisterUnitEvent, self))
     hooksecurefunc(self.frame, "UnregisterEvent", Util:FnBind(self.OnUnregisterEvent, self))
@@ -570,8 +701,8 @@ function Self:OnAddonLoaded(addonName)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
 
-    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionChanged, self)
-    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionChanged, self)
+    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionStatsChanged, self)
+    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionStatsChanged, self)
 
     local OnTrackedRecipeUpdated = Util:FnDebounce(self.OnTrackedRecipeUpdated, 0)
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, OnTrackedRecipeUpdated, self)
@@ -581,6 +712,12 @@ function Self:OnAddonLoaded(addonName)
     local OnTrackedRestockUpdated = Util:FnDebounce(self.OnTrackedRestockUpdated, 0)
     Restock:RegisterCallback(Restock.Event.TrackedUpdated, OnTrackedRestockUpdated, self)
     Restock:RegisterCallback(Restock.Event.TrackedMinProfitUpdated, OnTrackedRestockUpdated, self)
+
+    local OnOwnedItemsUpdated = Util:FnDebounce(self.OnOwnedItemsUpdated, 1)
+    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_NOTIFICATION", OnOwnedItemsUpdated, self)
+    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", OnOwnedItemsUpdated, self)
+    EventRegistry:RegisterFrameEventAndCallback("UPDATE_PENDING_MAIL", OnOwnedItemsUpdated, self)
+    EventRegistry:RegisterFrameEventAndCallback("UNIT_INVENTORY_CHANGED", OnOwnedItemsUpdated, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Recipes, Restock, Util = Addon.GUI, Addon.Recipes, Addon.Restock, Addon.Util
+local GUI, Prices, Recipes, Restock, Util = Addon.GUI, Addon.Prices, Addon.Recipes, Addon.Restock, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = NS.WithAmount
@@ -11,6 +11,17 @@ local Parent = NS.WithAmount
 ---@field restockAmountSpinner NumericInputSpinner
 ---@field craftingRecipe? CraftingRecipeSchematic
 local Self = Mixin(NS.WithRestock, Parent)
+
+function Self:Init()
+    if not self.form.UpdateRequiredTools then return end
+    if not self.restockMinProfitSpinner then return end
+
+    hooksecurefunc(self.form, "UpdateRequiredTools", function ()
+        if not self.restockMinProfitSpinner:IsShown() then return end
+        local fontString = self.form.RequiredTools
+        GUI:SetTextToFit(fontString, fontString:GetText(), 300, true)
+    end)
+end
 
 -- Restock checkbox
 
@@ -95,32 +106,34 @@ function Self:InsertRestockElements(...)
 
     self.restockAmountSpinner = input
 
-    local input = GUI:InsertNumericSpinner(
-        self.form, Util:FnBind(self.RestockMinProfitSpinnerOnEnter, self), Util:FnBind(self.RestockMinProfitSpinnerOnChange, self),
-        "RIGHT", self.restockAmountSpinner.DecrementButton, "LEFT", -30, 0
-    )
+    if Prices:IsSourceInstalled() then
+        local input = GUI:InsertNumericSpinner(
+            self.form, Util:FnBind(self.RestockMinProfitSpinnerOnEnter, self), Util:FnBind(self.RestockMinProfitSpinnerOnChange, self),
+            "RIGHT", self.restockAmountSpinner.DecrementButton, "LEFT", -30, 0
+        )
 
-    input:SetMinMaxValues(-9999, 9999)
-    input:SetMaxLetters(5)
-    input:SetWidth(37)
-    input.DecrementButton:SetAlpha(0.8)
-    input.IncrementButton:SetAlpha(0.8)
+        input:SetMinMaxValues(-9999, 9999)
+        input:SetMaxLetters(5)
+        input:SetWidth(37)
+        input.DecrementButton:SetAlpha(0.8)
+        input.IncrementButton:SetAlpha(0.8)
 
-    -- Enable negative numbers
-    input:SetNumeric(false)
-    input:SetScript("OnTextChanged", function (self)
-        local str = self:GetText() --[[@as string]]
-        local num = tonumber(str)
-        if not num and str ~= "" and str ~= "-" then
-            self:SetText("0")
-        elseif str:find("%.") then
-            self:SetText(str:gsub("%.", ""))
-        else
-            self:SetValue(self:GetNumber())
-        end
-    end)
+        -- Enable negative numbers
+        input:SetNumeric(false)
+        input:SetScript("OnTextChanged", function (self)
+            local str = self:GetText() --[[@as string]]
+            local num = tonumber(str)
+            if not num and str ~= "" and str ~= "-" then
+                self:SetText("0")
+            elseif str:find("%.") then
+                self:SetText(str:gsub("%.", ""))
+            else
+                self:SetValue(self:GetNumber())
+            end
+        end)
 
-    self.restockMinProfitSpinner = input
+        self.restockMinProfitSpinner = input
+    end
 
     self:UpdateRestockElements()
 end
@@ -131,7 +144,7 @@ function Self:UpdateRestockElements()
     local operation = self:GetOperation()
     if operation then
         local recipe, quality = operation.recipe, operation:GetResultQuality()
-        shown = not operation.applyConcentration and operation:HasProfit()
+        shown = self:ShouldShowElement() and not operation.applyConcentration and operation:HasProfit()
         checked = shown and Restock:IsTracked(recipe, quality) or false
         amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
         minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
@@ -141,6 +154,9 @@ function Self:UpdateRestockElements()
     self.restockCheckbox:SetChecked(checked)
     self.restockAmountSpinner:SetShown(checked)
     self.restockAmountSpinner:SetValue(amount)
+
+    if not self.restockMinProfitSpinner then return end
+
     self.restockMinProfitSpinner:SetShown(checked)
     self.restockMinProfitSpinner:SetValue(floor(minProfit / 10000))
 end

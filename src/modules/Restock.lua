@@ -58,7 +58,7 @@ function Self:GetTrackedMissing(recipe, quality)
     local total = self:GetTrackedAmount(recipe, quality)
     local owned = self:GetTrackedOwned(recipe, quality)
 
-    return total - owned
+    return max(0, total - owned)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
@@ -109,6 +109,7 @@ end
 
 ---@param recipeOrOrder RecipeOrOrder
 ---@param quality number
+---@param profit? number
 function Self:SetTrackedMinProfit(recipeOrOrder, quality, profit)
     if not self:IsTracked(recipeOrOrder, quality) then return end
 
@@ -136,7 +137,7 @@ function Self:SetTrackedMinProfit(recipeOrOrder, quality, profit)
 end
 
 ---------------------------------------
---              Stock
+--              Util
 ---------------------------------------
 
 function Self:GetItemCount(itemID)
