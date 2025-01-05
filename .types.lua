@@ -198,14 +198,10 @@ StaticPopup_Hide = nil
 StaticPopup_OnClick = nil
 
 ---@class ScrollFrame
----@field view ScrollBoxListView
+---@field view ScrollBoxListTreeListViewMixin
 ---@field SetDataProvider fun(self: self, dataProvider: TreeDataProviderMixin, retainScrollPosition?: boolean)
 ---@field GetDataProvider fun(self: self): TreeDataProviderMixin
-
----@class ScrollBoxListView: Frame, CallbackRegistryMixin
----@field factoryFrame? frame
----@field factoryFrameIsNew? boolean
----@field initializers table<Frame, function>
+---@field FindFrame fun(self: self, node: TreeNodeMixin): ScrollBoxListViewElementFrame?
 
 ---@class ButtonFitToText: Button
 ---@field tooltipText? string
@@ -568,6 +564,182 @@ ProfessionsRecipeSchematicFormMixin = {
 -----------------------------------------------------
 ---            WoW Templates & Mixins              --
 -----------------------------------------------------
+
+---@class ScrollDirectionMixin
+---@field SetHorizontal fun(self: self, isHorizontal)
+---@field IsHorizontal fun(self: self)
+---@field GetFrameExtent fun(self: self, frame)
+---@field SetFrameExtent fun(self: self, frame, value)
+---@field GetUpper fun(self: self, frame)
+---@field GetLower fun(self: self, frame)
+---@field SelectCursorComponent fun(self: self, parent)
+---@field SelectPointComponent fun(self: self, frame)
+
+---@class ScrollBoxViewMixin: ScrollDirectionMixin
+---@field GetFrameLevelPolicy fun(self: self)
+---@field SetFrameLevelPolicy fun(self: self, frameLevelPolicy)
+---@field IsElementStretchDisabled fun(self: self)
+---@field SetElementStretchDisabled fun(self: self, elementStretchDisabled)
+---@field Init fun(self: self)
+---@field IsInitialized fun(self: self)
+---@field SetPadding fun(self: self, padding)
+---@field GetPadding fun(self: self)
+---@field SetPanExtent fun(self: self, panExtent)
+---@field SetScrollBox fun(self: self, scrollBox)
+---@field GetScrollBox fun(self: self)
+---@field InitDefaultDrag fun(self: self, scrollBox)
+---@field IsExtentValid fun(self: self)
+---@field SetExtent fun(self: self, extent)
+---@field GetScrollTarget fun(self: self)
+---@field RequiresFullUpdateOnScrollTargetSizeChange fun(self: self)
+---@field GetFrames fun(self: self)
+---@field FindFrame fun(self: self, elementData)
+---@field FindFrameByPredicate fun(self: self, predicate: (fun(frame: Frame, elementData: any): boolean)): Frame?
+
+---@class ScrollBoxListViewMixin: ScrollBoxViewMixin, CallbackRegistryMixin
+---@field factoryFrame? frame
+---@field factoryFrameIsNew? boolean
+---@field initializers table<Frame, function>
+---@field Init fun(self: self)
+---@field GetExtentFromInfo fun(self: self, info)
+---@field GetTemplateInfo fun(self: self, frameTemplate)
+---@field AssignAccessors fun(self: self, frame, elementData)
+---@field UnassignAccessors fun(self: self, frame)
+---@field Flush fun(self: self)
+---@field ForEachFrame fun(self: self, func)
+---@field ReverseForEachFrame fun(self: self, func: (fun(frame: ScrollBoxListViewElementFrame, data: any)))
+---@field EnumerateFrames fun(self: self)
+---@field FindFrame fun(self: self, elementData: any): ScrollBoxListViewElementFrame?
+---@field FindFrameByPredicate fun(self: self, predicate: (fun(frame: ScrollBoxListViewElementFrame, elementData: any): boolean)): ScrollBoxListViewElementFrame?
+---@field FindFrameElementDataIndex fun(self: self, findFrame: ScrollBoxListViewElementFrame): number?
+---@field ForEachElementData fun(self: self, func)
+---@field ReverseForEachElementData fun(self: self, func)
+---@field FindElementData fun(self: self, index)
+---@field FindElementDataIndex fun(self: self, elementData)
+---@field FindElementDataByPredicate fun(self: self, predicate)
+---@field FindElementDataIndexByPredicate fun(self: self, predicate)
+---@field FindByPredicate fun(self: self, predicate)
+---@field Find fun(self: self, index)
+---@field FindIndex fun(self: self, elementData)
+---@field ContainsElementDataByPredicate fun(self: self, predicate)
+---@field EnumerateDataProviderEntireRange fun(self: self)
+---@field EnumerateDataProvider fun(self: self, indexBegin, indexEnd)
+---@field ReverseEnumerateDataProviderEntireRange fun(self: self)
+---@field ReverseEnumerateDataProvider fun(self: self, indexBegin, indexEnd)
+---@field GetDataProviderSize fun(self: self)
+---@field TranslateElementDataToUnderlyingData fun(self: self, elementData)
+---@field IsScrollToDataIndexSafe fun(self: self)
+---@field PrepareScrollToElementDataByPredicate fun(self: self, predicate)
+---@field PrepareScrollToElementData fun(self: self, elementData)
+---@field GetDataProvider fun(self: self)
+---@field HasDataProvider fun(self: self)
+---@field RemoveDataProviderInternal fun(self: self)
+---@field RemoveDataProvider fun(self: self)
+---@field FlushDataProvider fun(self: self)
+---@field SetDataProvider fun(self: self, dataProvider, retainScrollPosition)
+---@field OnDataProviderSizeChanged fun(self: self, pendingSort)
+---@field OnDataProviderSort fun(self: self)
+---@field DataProviderContentsChanged fun(self: self)
+---@field SignalDataChangeEvent fun(self: self, invalidationReason)
+---@field IsAcquireLocked fun(self: self)
+---@field SetAcquireLocked fun(self: self, locked)
+---@field AcquireInternal fun(self: self, dataIndex, elementData)
+---@field InvokeInitializer fun(self: self, frame, initializer)
+---@field InvokeInitializers fun(self: self)
+---@field AcquireRange fun(self: self, dataIndices)
+---@field ReinitializeFrames fun(self: self)
+---@field Release fun(self: self, frame)
+---@field GetFrameCount fun(self: self)
+---@field SetElementInitializer fun(self: self, frameTemplateOrFrameType, initializer)
+---@field SetElementFactory fun(self: self, elementFactory)
+---@field SetFrameFactoryResetter fun(self: self, resetter)
+---@field SetElementResetter fun(self: self, resetter)
+---@field SetVirtualized fun(self: self, virtualized)
+---@field CalculateFrameExtent fun(self: self, dataIndex, elementData)
+---@field GetFactoryDataFromElementData fun(self: self, elementData)
+---@field GetTemplateExtentFromElementData fun(self: self, elementData)
+---@field GetTemplateExtent fun(self: self, frameTemplate)
+---@field GetPanExtent fun(self: self, spacing)
+---@field IsVirtualized fun(self: self)
+---@field CalculateDataIndices fun(self: self, scrollBox, stride, spacing)
+---@field RecalculateExtent fun(self: self, scrollBox, stride, spacing)
+---@field GetExtent fun(self: self, scrollBox, stride, spacing)
+---@field HasIdenticalElementExtents fun(self: self)
+---@field GetIdenticalElementExtents fun(self: self)
+---@field GetElementExtent fun(self: self, dataIndex)
+---@field SetElementExtent fun(self: self, extent)
+---@field SetElementExtentCalculator fun(self: self, elementExtentCalculator)
+---@field GetElementExtentCalculator fun(self: self)
+---@field GetExtentUntil fun(self: self, scrollBox, dataIndex, stride, spacing)
+---@field GetDataScrollOffset fun(self: self, scrollBox)
+---@field ValidateDataRange fun(self: self, scrollBox)
+---@field SortFrames fun(self: self)
+---@field SetInvalidationReason fun(self: self, invalidationReason)
+---@field GetInvalidationReason fun(self: self)
+---@field ClearInvalidation fun(self: self)
+---@field IsInvalidated fun(self: self)
+---@field GetDataIndexBegin fun(self: self)
+---@field GetDataIndexEnd fun(self: self)
+---@field GetDataRange fun(self: self)
+---@field SetDataRange fun(self: self, dataIndexBegin, dataIndexEnd)
+---@field IsDataIndexWithinRange fun(self: self, dataIndex)
+
+---@class ScrollBoxListViewElementFrame: Frame
+---@field GetData fun(self: self): any?
+---@field GetElementData fun(self: self): any?
+---@field GetElementDataIndex fun(self: self): number?
+---@field ElementDataMatches fun(self: self, elementData: any): boolean
+---@field GetOrderIndex fun(self: self): number
+---@field SetOrderIndex fun(self: self, orderIndex: number)
+
+---@class ScrollBoxLinearBaseViewMixin
+---@field SetPadding fun(self: self, top, bottom, left, right, spacing)
+---@field GetSpacing fun(self: self)
+---@field GetStride fun(self: self)
+---@field LayoutInternal fun(self: self, layoutFunction)
+---@field SetElementIndentCalculator fun(self: self, elementIndentCalculator)
+---@field GetElementIndent fun(self: self, frame)
+---@field GetLayoutFunction fun(self: self)
+---@field Layout fun(self: self)
+
+---@class ScrollBoxListLinearViewMixin: ScrollBoxListViewMixin, ScrollBoxLinearBaseViewMixin
+---@field Init fun(self: self, top, bottom, left, right, spacing)
+---@field SetScrollBox fun(self: self, scrollBox)
+---@field InitDefaultDrag fun(self: self, scrollBox)
+---@field CalculateDataIndices fun(self: self, scrollBox)
+---@field GetExtent fun(self: self, scrollBox)
+---@field RecalculateExtent fun(self: self, scrollBox)
+---@field GetExtentUntil fun(self: self, scrollBox, dataIndex)
+---@field GetPanExtent fun(self: self)
+
+---@class ScrollBoxListTreeListViewMixin: ScrollBoxListLinearViewMixin
+---@field Init fun(self: self, indent, top, bottom, left, right, spacing)
+---@field InitDefaultDrag fun(self: self, scrollBox)
+---@field ForEachElementData fun(self: self, func)
+---@field ReverseForEachElementData fun(self: self, func)
+---@field Find fun(self: self, index)
+---@field FindIndex fun(self: self, elementData)
+---@field FindElementData fun(self: self, index)
+---@field FindElementDataIndex fun(self: self, elementData)
+---@field FindElementDataByPredicate fun(self: self, predicate)
+---@field FindElementDataIndexByPredicate fun(self: self, predicate)
+---@field FindByPredicate fun(self: self, predicate)
+---@field ContainsElementDataByPredicate fun(self: self, predicate)
+---@field EnumerateDataProviderEntireRange fun(self: self)
+---@field EnumerateDataProvider fun(self: self, indexBegin, indexEnd)
+---@field ReverseEnumerateDataProviderEntireRange fun(self: self)
+---@field ReverseEnumerateDataProvider fun(self: self, indexBegin, indexEnd)
+---@field GetDataProviderSize fun(self: self)
+---@field TranslateElementDataToUnderlyingData fun(self: self, elementData)
+---@field IsScrollToDataIndexSafe fun(self: self)
+---@field PrepareScrollToElementDataByPredicate fun(self: self, predicate)
+---@field PrepareScrollToElementData fun(self: self, elementData)
+---@field SetElementIndent fun(self: self, indent)
+---@field GetElementIndent fun(self: self)
+---@field AssignAccessors fun(self: self, frame, elementData)
+---@field UnassignAccessors fun(self: self, frame)
+---@field GetLayoutFunction fun(self: self)
+---@field Layout fun(self: self)
 
 ---@class ItemMixin
 ---@field IsStackable fun(self: self): boolean
@@ -1079,7 +1251,7 @@ ScrollBoxConstants = {
 ---@field SetSelected fun(self: self, ...: unknown): unknown
 ProfessionsRecipeListRecipeMixin = nil
 
----@class ProfessionsRecipeListRecipeFrame: Frame, ProfessionsRecipeListRecipeMixin
+---@class ProfessionsRecipeListRecipeFrame: ScrollBoxListViewElementFrame, ProfessionsRecipeListRecipeMixin
 
 ---@class SelectionBehaviorMixin: CallbackRegistryMixin
 ---@field Event { OnSelectionChanged: "OnSelectionChanged" }

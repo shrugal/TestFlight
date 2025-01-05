@@ -447,7 +447,7 @@ function Self:GetResultQuality()
 end
 
 function Self:GetQualityBreakpoints()
-    return C.QUALITY_BREAKPOINTS[self:GetRecipeInfo().maxQuality]
+    return C.QUALITY_BREAKPOINTS[self:GetRecipeInfo().maxQuality or 0]
 end
 
 ---@return boolean canIncrease
@@ -713,7 +713,12 @@ function Self:GetProfitPerConcentration()
 end
 
 function Self:HasProfit()
-    return self:GetOrder() ~= nil or not self.orderOrRecraftGUID and self:GetResultPrice() > 0
+    if self:GetOrder() then return true end
+    if self:GetRecraftGUID() then return false end
+    if Prices:IsSourceInstalled() then return self:GetResultPrice() > 0 end
+    local item = self:GetResult()
+    if not item then return false end
+    return Prices:HasItemPrice(item)
 end
 
 -- CACHE

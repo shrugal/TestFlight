@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local C, Orders, Recipes, Reagents = Addon.Constants,Addon.Orders, Addon.Recipes, Addon.Reagents
+local C, Orders, Recipes, Reagents, Util = Addon.Constants,Addon.Orders, Addon.Recipes, Addon.Reagents, Addon.Util
 
 
 ---@class Prices
@@ -46,6 +46,13 @@ end
 function Self:GetItemPrice(item)
     if not self:IsSourceAvailable() then return 0 end
     return self:GetSource():GetItemPrice(item) or 0
+end
+
+---@param item string | number
+function Self:HasItemPrice(item)
+    if self:IsSourceAvailable() then return self:GetItemPrice(item) > 0 end
+    local bindType = select(14, C_Item.GetItemInfo(item))
+    return Util:OneOf(bindType, Enum.ItemBind.None, Enum.ItemBind.OnEquip, Enum.ItemBind.OnUse)
 end
 
 function Self:GetFullScanTime()
@@ -177,7 +184,7 @@ function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qual
     local item = Recipes:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     if not item then return 0 end
 
-    if select(14, C_Item.GetItemInfo(item)) == Enum.ItemBind.OnAcquire then return 0 end
+    if not self:HasItemPrice(item) then return 0 end
 
     local price = self:GetItemPrice(item)
     local quantity = (recipe.quantityMin + recipe.quantityMax) / 2 -- TODO

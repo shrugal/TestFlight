@@ -178,9 +178,12 @@ function Self:TblCopy(tbl, recursive)
 end
 
 ---@param tbl table
-function Self:TblFlip(tbl)
+---@param val? any
+function Self:TblFlip(tbl, val)
     local t = {}
-    for k,v in pairs(tbl) do t[v] = k end
+    for k,v in pairs(tbl) do
+        if val ~= nil then t[v] = val else t[v] = k end
+    end
     return t
 end
 
@@ -439,6 +442,7 @@ end
 ---@generic T
 ---@param tbl T[] | Enumerator<T>
 ---@param value T
+---@return (number | string)?
 function Self:TblIndexOf(tbl, value)
     for k,v in self:Each(tbl) do if v == value then return k end end
 end
