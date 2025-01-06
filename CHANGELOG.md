@@ -1,3 +1,10 @@
+Version 4.15
+
+- Fix Queue and Restock filters not being available without price source addon
+- Fix visual flickering when filter view is updated sometimes
+- Fix adding missing restock amounts for different qualities together
+- Fix queue items not showing if a quality hasn't been tracked yet
+
 Version 4.14
 
 - Add option to track recipe qualities separately

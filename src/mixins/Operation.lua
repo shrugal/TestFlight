@@ -563,7 +563,6 @@ function Self:GetConcentrationFactors()
             ---@type number[]
             local concentrationFactors = {}
 
-            local n = #C.CONCENTRATION_BREAKPOINTS
             local baseSkill = self:GetSkillBounds()
             local lowerSkill, upperSkill = self:GetSkillThresholds(true)
             local lowerWeight, upperWeight = self:GetWeightThresholds()
@@ -585,7 +584,7 @@ function Self:GetConcentrationFactors()
                     end
                 end
 
-                if i > 1 and opWeight >= prevWeight then
+                if opWeight and prevWeight and opWeight >= prevWeight then
                     concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
                 end
 

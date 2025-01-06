@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.Cache, Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
+local Buffs, Cache, GUI, Operation, Optimization, Orders, Reagents, Recipes, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.RecipeForm
 ---@field form RecipeForm
@@ -259,7 +259,7 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     self:UpdateTracking()
 end
 
-function Self:OnProfessionChanged()
+function Self:OnBuffChanged()
     self.operationCache:Clear()
 end
 
@@ -268,6 +268,5 @@ function Self:OnAddonLoaded()
 
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 
-    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionChanged, Self)
-    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionChanged, Self)
+    Buffs:RegisterCallback(Buffs.Event.BuffChanged, Self.OnBuffChanged, Self)
 end

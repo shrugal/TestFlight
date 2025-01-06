@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Orders, Prices, Recipes, Util = Addon.Constants, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local C, Buffs, Orders, Prices, Recipes, Util = Addon.Constants, Addon.Buffs, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class Reagents
 local Self = Addon.Reagents
@@ -561,9 +561,12 @@ Self.Cache = {
 --              Events
 ---------------------------------------
 
-function Self:OnProfessionChanged()
+function Self:OnBuffChanged()
     self.Cache.SkillBounds:Clear()
 end
 
-Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionChanged, Self)
-Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionChanged, Self)
+function Self:OnLoaded()
+    Buffs:RegisterCallback(Buffs.Event.AuraChanged, self.OnBuffChanged, self)
+end
+
+Addon:RegisterCallback(Addon.Event.Loaded, Self.OnLoaded, Self)

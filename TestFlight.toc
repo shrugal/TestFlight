@@ -23,6 +23,7 @@ src/modules/Orders.lua
 src/modules/Prices.lua
 src/modules/Optimization.lua
 src/modules/Restock.lua
+src/modules/Buffs.lua
 src/modules/GUI.lua
 
 src/gui/frames/ProfessionsRecipeListProgressBar.xml

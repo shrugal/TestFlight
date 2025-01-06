@@ -140,6 +140,11 @@ end
 --              Util
 ---------------------------------------
 
+---@param key? boolean
+function Self:Enumerate(key)
+    return Util:TblEnum(Addon.DB.Char.restock, 1, key)
+end
+
 function Self:GetItemCount(itemID)
     local count = C_Item.GetItemCount(itemID, true, false, true, true)
 
@@ -158,15 +163,6 @@ function Self:GetItemCount(itemID)
     end
 
     return count
-end
-
----------------------------------------
---              Util
----------------------------------------
-
----@param key? boolean
-function Self:Enumerate(key)
-    return Util:TblEnum(Addon.DB.Char.restock, 1, key)
 end
 
 ---------------------------------------

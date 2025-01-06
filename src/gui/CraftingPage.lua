@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Restock, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Restock, Addon.Util
+local Buffs, Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Restock, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Restock, Addon.Util
 
 ---@class GUI.CraftingPage
 ---@field frame CraftingPage
@@ -260,7 +260,6 @@ end
 function Self:UpdateRecipeList(refresh, flush)
     if not self.filter then return end
     local filter, sort = self.filter, self:GetFilterSort(self.filter) --[[@cast filter -?]] --[[@cast sort -?]]
-    local applyConcentration = Util:OneOf(sort, Optimization.Method.CostPerConcentration, Optimization.Method.ProfitPerConcentration)
 
     local profInfo = self.frame.professionInfo
     local professionChanged = not self.professionInfo or not Util:TblMatch(self.professionInfo, "professionID", profInfo.professionID, "skillLevel", profInfo.skillLevel, "skillModifier", profInfo.skillModifier)
@@ -350,32 +349,23 @@ function Self:UpdateRecipeList(refresh, flush)
                             return data.recipeInfo.recipeID == recipeID and data.quality == quality
                         end, false) --[[@as RecipeTreeNode?]]
 
-                        ---@type RecipeTreeNodeData
-                        local data = node and node:GetData() or {
-                            recipeInfo = recipeInfo,
-                            operation = operation,
-                            value = value,
-                            method = sort,
-                            quality =  quality,
-                            amount = amount,
-                            amountShown = amountShown,
-                            amountTotal = amountTotal
-                        }
+                        local data = node and node:GetData() or {} --[[@as RecipeTreeNodeData]]
+                        local frame = node and scrollBox:FindFrame(node) --[[@as ProfessionsRecipeListRecipeFrame?]]
 
-                        -- Insert or update node
+                        data.recipeInfo = recipeInfo
+                        data.operation = operation
+                        data.value = value
+                        data.method = sort
+                        data.quality =  quality
+                        data.amount = amount
+                        data.amountShown = amountShown
+                        data.amountTotal = amountTotal
+
+                        -- Insert node or update visible frame
                         if not node then
                             provider:Insert(data)
-                        else
-                            data.operation = operation
-                            data.value = value
-                            data.method = sort
-                            data.quality =  quality
-                            data.amount = amount
-                            data.amountShown = amountShown
-                            data.amountTotal = amountTotal
-
-                            local frame = scrollBox:FindFrame(node) --[[@as ProfessionsRecipeListRecipeFrame]]
-                            if frame then self:InitRecipeListRecipe(frame, node) end
+                        elseif frame then
+                            self:InitRecipeListRecipe(frame, node)
                         end
 
                         datas[data] = true
@@ -397,6 +387,7 @@ function Self:UpdateRecipeList(refresh, flush)
                 end
             until true end
 
+            provider:Sort()
             provider:Invalidate()
         end):Singleton(self, "filterJob"):Start(function ()
             noResultsText:SetShown(false)
@@ -420,6 +411,7 @@ function Self:UpdateRecipeList(refresh, flush)
             self:UpdateFilterButtons()
         end)
     else
+        provider:Sort()
         provider:Invalidate()
     end
 end
@@ -745,7 +737,7 @@ function Self:OnRecipeListRecipeInitialized(frame, node)
     self:InitRecipeListRecipe(frame, node)
 end
 
-function Self:OnProfessionStatsChanged()
+function Self:OnBuffChanged()
     self.filterCache:Clear()
 end
 
@@ -790,8 +782,7 @@ function Self:OnAddonLoaded(addonName)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
 
-    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionStatsChanged, self)
-    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionStatsChanged, self)
+    Addon:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
 
     local OnTrackedRecipeUpdated = Util:FnDebounce(self.OnTrackedRecipeUpdated, 0)
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, OnTrackedRecipeUpdated, self)

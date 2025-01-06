@@ -26,6 +26,8 @@ Addon.Orders = {}
 Addon.Optimization = {}
 ---@type Restock
 Addon.Restock = {}
+---@type Buffs
+Addon.Buffs = {}
 
 ---@class GUI
 Addon.GUI = {

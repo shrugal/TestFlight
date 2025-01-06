@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, Operation, Prices, Promise, Reagents, Recipes, Util = Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Util
+local Buffs, Cache, Operation, Prices, Promise, Reagents, Util = Addon.Buffs, Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -269,8 +269,6 @@ function Self:GetMinCostAllocations(operation)
     local difficulty = operation:GetDifficulty()
     local weightPerSkill = operation:GetWeightPerSkill()
 
-    local _, prices = self:GetWeightsAndPrices(operation)
-
     ---@type Operation[]
     local operations = {}
     local prevPrice, upperWeight = math.huge, operation:GetMaxWeight(true)
@@ -284,7 +282,7 @@ function Self:GetMinCostAllocations(operation)
             local operation, lowerWeight = self:GetAllocationForQuality(operation, quality, Self.Method.Cost, lowerWeight, upperWeight)
 
             if operation then
-                local price = prices[operation:GetWeight(true)]
+                local price = operation:GetReagentPrice()
                 if price > prevPrice then break end
 
                 operations[quality] = operation
@@ -304,9 +302,8 @@ function Self:GetMinCostAllocations(operation)
 end
 
 ---@param operation Operation
----@return table<number, table<number, number>>
----@return table<number, number>
----@return number?
+---@return number[][]
+---@return number[]
 function Self:GetWeightsAndPrices(operation)
     local cache = self.Cache.WeightsAndPrices
     local key = cache:Key(operation)
@@ -318,7 +315,7 @@ function Self:GetWeightsAndPrices(operation)
     local weightSlots = operation:GetWeightReagentSlots()
 
     -- Intialize knapsack matrices
-    ---@type table<number, table<number, number>>, table<number, table<number, number>>, number?
+    ---@type number[][], number[][], number?
     local prices, weights, weightPerSkill = { [0] = {}, { [0] = 0 } }, {}, nil
     for i=1, #weightSlots do weights[i] = {} end
 
@@ -378,7 +375,7 @@ function Self:GetWeightsAndPrices(operation)
         Promise:YieldTime()
     until true end
 
-    cache:Set(key, { weights, prices[1], weightPerSkill })
+    cache:Set(key, { weights, prices[1] })
 
     return weights, prices[1]
 end
@@ -430,8 +427,9 @@ function Self:GetReagentsForWeight(operation, weight)
     ---@type CraftingReagentInfo[]
     local reagents = {}
 
-    local weights, _, weightPerSkill = self:GetWeightsAndPrices(operation)
+    local weights = self:GetWeightsAndPrices(operation)
     local weightSlots = operation:GetWeightReagentSlots()
+    local weightPerSkill = operation:GetWeightPerSkill()
 
     for i=#weightSlots, 1, -1 do
         local slot, j = weightSlots[i], weights[i][weight]
@@ -453,8 +451,8 @@ end
 
 ---@param operation Operation
 ---@param weight number 
----@param weights? table<number, table<number, number>>
----@param prices? table<number, number>
+---@param weights? number[][]
+---@param prices? number[]
 function Self:GetReagentPriceForWeight(operation, weight, weights, prices)
     if not weights or not prices then weights, prices = self:GetWeightsAndPrices(operation) end
 
@@ -591,13 +589,18 @@ Self.Cache = {
 --               Events
 ---------------------------------------
 
-function Self:OnProfessionBuffChanged()
+function Self:OnAuraChanged()
     self.Cache.ProfitAllocations:Clear()
 end
 
-function Self:OnProfessionTraitChanged()
+function Self:OnTraitOrEquipmentChanged()
     for _,cache in pairs(self.Cache) do cache:Clear() end
 end
 
-Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, Self.OnProfessionBuffChanged, Self)
-Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, Self.OnProfessionTraitChanged, Self)
+function Self:OnLoaded()
+    Buffs:RegisterCallback(Buffs.Event.AuraChanged, self.OnAuraChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.TraitChanged, self.OnTraitOrEquipmentChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.EquipmentChanged, self.OnTraitOrEquipmentChanged, self)
+end
+
+Addon:RegisterCallback(Addon.Event.Loaded, Self.OnLoaded, Self)

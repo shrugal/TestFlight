@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Cache, GUI, Optimization, Orders, Promise, Util = Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Util
+local Buffs, Cache, GUI, Optimization, Orders, Promise, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Util
 
 ---@class GUI.OrdersPage
 ---@field frame OrdersPage
@@ -438,7 +438,7 @@ function Self:OnOrderTypeChanged()
     self:UpdateTrackAllFilters()
 end
 
-function Self:OnProfessionChanged()
+function Self:OnBuffChanged()
     self.profitCache:Clear()
 end
 
@@ -469,8 +469,7 @@ function Self:OnAddonLoaded(addonName)
 
     Addon:RegisterCallback(Addon.Event.KnowledgeCostUpdated, self.OnTrackAllFilterCostUpdated, self)
     Addon:RegisterCallback(Addon.Event.CurrencyCostUpdated, self.OnTrackAllFilterCostUpdated, self)
-    Addon:RegisterCallback(Addon.Event.ProfessionBuffChanged, self.OnProfessionChanged, self)
-    Addon:RegisterCallback(Addon.Event.ProfessionTraitChanged, self.OnProfessionChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

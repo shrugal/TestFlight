@@ -316,58 +316,9 @@ end
 ---@field ConcentrationCostUpdated "ConcentrationCostUpdated"
 ---@field KnowledgeCostUpdated "KnowledgeCostUpdated"
 ---@field CurrencyCostUpdated "CurrencyCostUpdated"
----@field ProfessionBuffChanged "ProfessionBuffChanged"
----@field ProfessionTraitChanged "ProfessionTraitChanged"
 
-Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated", "ProfessionBuffChanged", "ProfessionTraitChanged" })
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated" })
 Self:OnLoad()
-
----@type number[]
-local buffCharges = {}
-
-AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
-    if C.BUFFS[data.spellId] then buffCharges[data.auraInstanceID] = data.charges end
-end, true)
-
----@param unit string
----@param info UnitAuraUpdateInfo
-function Self:OnUnitAura(unit, info)
-    if unit ~= "player" then return end
-
-    local buffChanged
-
-    if info.addedAuras then
-        for _,data in pairs(info.addedAuras) do
-            if C.BUFFS[data.spellId] then buffCharges[data.auraInstanceID], buffChanged = data.charges, true end
-        end
-    end
-
-    if info.removedAuraInstanceIDs then
-        for _,instanceID in pairs(info.removedAuraInstanceIDs) do
-            if buffCharges[instanceID] then buffCharges[instanceID], buffChanged = nil, true end
-        end
-    end
-
-    if info.updatedAuraInstanceIDs then
-        for _,instanceID in pairs(info.updatedAuraInstanceIDs) do repeat
-            if not buffCharges[instanceID] then break end
-            local data = C_UnitAuras.GetAuraDataByAuraInstanceID("player", instanceID) ---@cast data -?
-            if buffCharges[instanceID] == data.charges then break end
-            buffCharges[instanceID], buffChanged = data.charges, true
-        until true end
-    end
-
-    if not buffChanged then return end
-
-    self:TriggerEvent(self.Event.ProfessionBuffChanged)
-end
-
-function Self:OnTradeConfigUpdated(configID)
-    local config = C_Traits.GetConfigInfo(configID)
-    if not config or config.type ~= Enum.TraitConfigType.Profession then return end
-
-    self:TriggerEvent(self.Event.ProfessionTraitChanged, configID)
-end
 
 ---@param addonName string
 function Self:OnAddonLoaded(addonName)
@@ -376,7 +327,4 @@ function Self:OnAddonLoaded(addonName)
     self:TriggerEvent(self.Event.AddonLoaded, addonName)
 end
 
-EventRegistry:RegisterFrameEventAndCallback("UNIT_AURA", Self.OnUnitAura, Self)
 EventRegistry:RegisterFrameEventAndCallback("ADDON_LOADED", Self.OnAddonLoaded, Self)
-
-EventRegistry:RegisterCallback("TRAIT_CONFIG_UPDATED", Self.OnTradeConfigUpdated, Self)
