@@ -1,1 +1,2 @@
+- Move crafting details up a bit if price source addon is installed
 - Fix UIs not updating when changing profession equipment

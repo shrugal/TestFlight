@@ -8,12 +8,12 @@ local Util = Addon.Util
 local Static = Addon.Cache
 
 ---@type Cache[]
-Static.caches = setmetatable({}, { __mode = 'v' })
+Static.instances = setmetatable({}, { __mode = "v" })
 
 Static.NIL = {}
 
 function Static:ClearAll()
-    for _,cache in pairs(self.caches) do cache:Clear() end
+    for _,cache in pairs(self.instances) do cache:Clear() end
 end
 
 ---@type Cache
@@ -65,7 +65,7 @@ function Self:Init(getKey, limit, priority)
     self.keys = limit and (self.keys or {}) or nil
     self.priority = priority or false
 
-    tinsert(Static.caches, self)
+    tinsert(Static.instances, self)
 end
 
 function Self:Set(key, value)

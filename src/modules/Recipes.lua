@@ -310,11 +310,11 @@ end
 ---@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
-    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
+    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", C.STATS.RC.NAME)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = C.RESOURCEFULNESS_YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
+    local yield = C.STATS.RC.YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
 
     return chance * yield
 end
@@ -323,11 +323,11 @@ end
 ---@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
-    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
+    local stat = Util:TblWhere(operationInfo.bonusStats, "bonusStatName", C.STATS.MC.NAME)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local baseYield = C.MULTICRAFT_YIELD[recipe.quantityMax] or C.MULTICRAFT_YIELD[0]
+    local baseYield = C.STATS.MC.YIELD[recipe.quantityMax] or C.STATS.MC.YIELD[0]
     local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatBonus(recipe, "mc", optionalReagents))) / 2
 
     return chance * yield

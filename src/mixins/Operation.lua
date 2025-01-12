@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Cache, Prices, Reagents, Recipes, Util = Addon.Constants, Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Buffs, C, Cache, Prices, Reagents, Recipes, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Operation.Static
 local Static = Addon.Operation
@@ -70,8 +70,9 @@ local Self = Static.Mixin
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
-function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
-    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill) --[[@as Operation]]
+---@param toolGUID? string
+function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID)
+    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID) --[[@as Operation]]
 end
 
 ---@param tx ProfessionTransaction
@@ -88,7 +89,7 @@ end
 
 ---@param allocation? RecipeAllocation
 function Self:WithAllocation(allocation)
-    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill)
+    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID)
 end
 
 ---@param reagentTypes number
@@ -157,7 +158,7 @@ function Self:WithExtraSkill(extraSkill)
     extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
     if extraSkill == self.extraSkill then return self end
 
-    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill)
+    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill, self.toolGUID)
 end
 
 ---@param quality number
@@ -204,6 +205,25 @@ function Self:WithWeight(weight, lowerWeight, upperWeight, getReagents)
     return self:WithQuality(self:GetQuality(), lowerWeight, upperWeight, weight, getReagents)
 end
 
+---@param toolGUID? string
+function Self:WithTool(toolGUID)
+    if toolGUID == self.toolGUID then return self end
+
+    local op = Util:TblCopy(self)
+    op.toolGUID = toolGUID
+
+    if self.operationInfo then
+        op.operationInfo = Util:TblCopy(self.operationInfo, true)
+
+        Buffs:ApplyTool(op.operationInfo, self.toolGUID, -1)
+        Buffs:ApplyTool(op.operationInfo, toolGUID, 1)
+
+        op.profit, op.resourcefulnessFactor, op.multicraftFactor = nil, nil, nil
+    end
+
+    return op
+end
+
 -- CLASS
 
 ---@param recipe CraftingRecipeSchematic
@@ -211,12 +231,14 @@ end
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
-function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill)
+---@param toolGUID? string
+function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID)
     self.recipe = recipe
     self.allocation = allocation or {}
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
     self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
+    self.toolGUID = toolGUID
 
     local order = self:GetOrder()
 
@@ -268,6 +290,10 @@ function Self:GetProfessionInfo()
     return self.professionInfo
 end
 
+function Self:GetAvailableTools()
+    return Buffs:GetAvailableTools(self:GetProfessionInfo().profession)
+end
+
 function Self:GetOrder()
     if type(self.orderOrRecraftGUID) == "table" then return self.orderOrRecraftGUID --[[@as CraftingOrderInfo]] end
 end
@@ -282,63 +308,19 @@ function Self:GetOperationInfo()
 
         -- Extra skill
         if self.extraSkill > 0 then
-            local op = self.operationInfo
+            Buffs:ApplyExtraSkill(self)
+        end
 
-            op.baseSkill = op.baseSkill + self.extraSkill
+        local profInfo = self:GetProfessionInfo()
 
-            if op.isQualityCraft then
-                local recipeInfo = self:GetRecipeInfo()
-                local maxQuality = recipeInfo.maxQuality ---@cast maxQuality -?
+        -- Profession tool
+        local currentTool = Buffs:GetCurrentTool(profInfo.profession)
 
-                local skill = op.baseSkill + op.bonusSkill
-                local difficulty = op.baseDifficulty + op.bonusDifficulty
-                local p = skill / difficulty
-
-                local quality = maxQuality
-                local breakpoints = C.QUALITY_BREAKPOINTS[maxQuality]
-
-                for i, v in ipairs(breakpoints) do
-                    if v > p then quality = i - 1 break end
-                end
-
-                -- Skill, quality
-                local lower, upper = breakpoints[quality], breakpoints[quality + 1] or 1
-                local qualityProgress = upper == lower and 0 or (p - lower) / (upper - lower)
-                local qualityID = recipeInfo.qualityIDs[quality]
-                local qualityChanged = op.craftingQuality ~= quality
-
-                op.quality = quality + qualityProgress
-                op.craftingQuality = quality
-                op.craftingQualityID = qualityID
-                op.lowerSkillThreshold = difficulty * lower
-                op.upperSkillTreshold = difficulty * upper
-
-                -- Concentration cost
-                if (op.concentrationCost or 0) > 0 then
-                    if quality == #breakpoints then
-                        op.concentrationCost = 0
-                    else
-                        local weight = self:GetWeight() + self.extraSkill * self:GetWeightPerSkill()
-                        local base = self:WithExtraSkill()
-
-                        if qualityChanged then
-                            local isLowerBound = qualityProgress < 0.5
-                            local weightReagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
-                            base = base:WithWeightReagents(weightReagents)
-                        end
-
-                        if base:GetQuality() ~= op.craftingQuality then
-                            op.concentrationCost = 0/0
-                        else
-                            op.concentrationCost = base:GetConcentrationCost(weight)
-                        end
-
-                        if Util:NumIsNaN(op.concentrationCost) then
-                            op.concentrationCost = -1
-                        end
-                    end
-                end
-            end
+        if not self.toolGUID then
+            self.toolGUID = currentTool
+        elseif self.toolGUID ~= currentTool then
+            Buffs:ApplyTool(self.operationInfo, currentTool, -1)
+            Buffs:ApplyTool(self.operationInfo, self.toolGUID, 1)
         end
     end
     return self.operationInfo
@@ -349,6 +331,13 @@ function Self:GetResult()
         self.result = Recipes:GetResult(self.recipe, self:GetOperationInfo(), self:GetOptionalReagents(), self:GetResultQuality()) --[[@as string | number]]
     end
     return self.result
+end
+
+function Self:GetExpansionID()
+    local result = self:GetResult()
+    if not result then return end
+
+    return select(15, C_Item.GetItemInfo(result)) --[[@as number?]]
 end
 
 -- Reagents
@@ -700,7 +689,7 @@ function Self:GetProfitPerConcentration()
 
     if (op.concentrationCost or 0) == 0 then return math.huge, 0 end
 
-    local bonusStat = Util:TblWhere(op.bonusStats, "bonusStatName", ITEM_MOD_INGENUITY_SHORT)
+    local bonusStat = Util:TblWhere(op.bonusStats, "bonusStatName", C.STATS.IG.NAME)
     local p = bonusStat and bonusStat.ratingPct / 100 or 0
     local concentration = op.concentrationCost - p * op.ingenuityRefund
 

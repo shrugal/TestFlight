@@ -13,18 +13,50 @@ Self.QUALITY_BREAKPOINTS = {
     [5] = { 0, 0.2, 0.5, 0.8, 1 }
 }
 
--- Source: CraftSim
-Self.RESOURCEFULNESS_YIELD = 0.3
-
--- Source: CraftSim
-Self.MULTICRAFT_YIELD = {
-    [0] = 2.5,
-    [1] = 2.1,
-    [2] = 1.83,
-    [5] = 1.875,
-}
-
 Self.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
+
+-- Source: CraftSim
+Self.STATS = {
+    -- Resourcefulness
+    RC = {
+        NAME = ITEM_MOD_RESOURCEFULNESS_SHORT,
+        YIELD = 0.3,
+        FACTORS = {
+            [9] = 0.00111,
+            [10] = 0.00037,
+        }
+    },
+    -- Multicraft
+    MC = {
+        NAME = ITEM_MOD_MULTICRAFT_SHORT,
+        YIELD = {
+            [0] = 2.5,
+            [1] = 2.1,
+            [2] = 1.83,
+            [5] = 1.875,
+        },
+        FACTORS = {
+            [09] = 0.0009,
+            [10] = 0.000302,
+        }
+    },
+    -- Ingenuity
+    IG = {
+        NAME = ITEM_MOD_INGENUITY_SHORT,
+        FACTORS = {
+            [09] = 0.000333,
+            [10] = 0.000333,
+        }
+    },
+    -- Crafting speed
+    CS = {
+        NAME = ITEM_MOD_CRAFTING_SPEED_SHORT,
+        FACTORS = {
+            [09] = 0.002,
+            [10] = 0.001114
+        }
+    }
+}
 
 -- Source: https://www.wowhead.com/items/miscellaneous/other/name:Knowledge/quality:3?filter=166;11;0
 ---@type number[]
@@ -725,6 +757,34 @@ Self.REAGENTS = {
 }
 
 -- Source: CraftSim
+---@type table<number, table<BonusStat, number>>
+Self.FINISHING_REAGENTS = {
+    [213762] = { rf = 6.00 },
+    [213763] = { rf = 9.00 },
+    [213764] = { rf = 12.00 },
+    [214043] = { sk = 50.00 },
+    [222511] = { mc = 12.50 },
+    [222512] = { mc = 18.75 },
+    [222513] = { mc = 25.00 },
+    [222879] = { mc = 12.50 },
+    [222880] = { mc = 18.75 },
+    [222881] = { mc = 25.00 },
+    [222885] = { rf = 12.50 },
+    [222886] = { rf = 18.75 },
+    [222887] = { rf = 25.00 },
+    [224173] = { cc = 6.00 },
+    [224174] = { cc = 8.00 },
+    [224175] = { cc = 10.00 },
+    [225670] = { sk = 5.00 },
+    [225671] = { sk = 10.00 },
+    [225672] = { sk = 20.00 },
+    [225673] = { sk = 40.00 },
+    [228404] = { mc = 12.50 },
+    [228405] = { mc = 18.75 },
+    [228406] = { mc = 25.00 },
+}
+
+-- Source: CraftSim
 ---@type table<number, number[]>
 Self.ENCHANTS = {
     [388930] = { 199957, 199999, 200041 },
@@ -829,34 +889,6 @@ Self.ENCHANTS = {
     [445401] = { 223748, 223749, 223750 },
     [445403] = { 223776, 223777, 223778 },
     [455488] = { 225652, 223664, 223665 },
-}
-
--- Source: CraftSim
----@type table<number, table<BonusStat, number>>
-Self.FINISHING_REAGENTS = {
-    [213762] = { rf = 6.00 },
-    [213763] = { rf = 9.00 },
-    [213764] = { rf = 12.00 },
-    [214043] = { sk = 50.00 },
-    [222511] = { mc = 12.50 },
-    [222512] = { mc = 18.75 },
-    [222513] = { mc = 25.00 },
-    [222879] = { mc = 12.50 },
-    [222880] = { mc = 18.75 },
-    [222881] = { mc = 25.00 },
-    [222885] = { rf = 12.50 },
-    [222886] = { rf = 18.75 },
-    [222887] = { rf = 25.00 },
-    [224173] = { cc = 6.00 },
-    [224174] = { cc = 8.00 },
-    [224175] = { cc = 10.00 },
-    [225670] = { sk = 5.00 },
-    [225671] = { sk = 10.00 },
-    [225672] = { sk = 20.00 },
-    [225673] = { sk = 40.00 },
-    [228404] = { mc = 12.50 },
-    [228405] = { mc = 18.75 },
-    [228406] = { mc = 25.00 },
 }
 
 -- Source: CraftSim

@@ -739,6 +739,10 @@ end
 
 function Self:OnBuffChanged()
     self.filterCache:Clear()
+
+    if not self.filter or not self.frame:IsVisible() then return end
+
+    self:UpdateRecipeList(true)
 end
 
 function Self:OnTrackedRecipeUpdated()
@@ -782,7 +786,7 @@ function Self:OnAddonLoaded(addonName)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_LIST_UPDATE", self.OnTradeSkillListUpdate, self)
 
-    Addon:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
 
     local OnTrackedRecipeUpdated = Util:FnDebounce(self.OnTrackedRecipeUpdated, 0)
     Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, OnTrackedRecipeUpdated, self)

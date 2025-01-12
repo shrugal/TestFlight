@@ -125,6 +125,26 @@ function Self:TblGet(tbl, path)
     end
 end
 
+---@param tbl table
+---@param path string | any
+---@param val? any
+function Self:TblSet(tbl, path, val)
+    if type(path) ~= "string" then tbl[path] = val return end ---@cast path string
+    while true do
+        if not tbl then return end
+        local i = path:find(".", nil, true)
+        if not i then tbl[path] = val return end
+        tbl, path = tbl[path:sub(1, i-1)], path:sub(i+1)
+    end
+end
+
+---@param tbl table
+---@param val? any
+function Self:TblSetAll(tbl, val)
+    for k in pairs(tbl) do tbl[k] = val end
+    return tbl
+end
+
 -- Enumerate recursively over table
 ---@param tbl table
 ---@param n? number

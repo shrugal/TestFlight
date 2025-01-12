@@ -488,6 +488,17 @@ function CreateAllocation() end
 ---@return FramePool
 function CreateFramePool(frameType, parent, template, resetFunc, forbidden, frameInitializer, capacity) end
 
+---@param location number
+---@return boolean player Equipped
+---@return boolean bank In bank
+---@return boolean bags In bags
+---@return boolean voidStorage In void storage
+---@return number slot Equipment, bank or bag slot
+---@return number bag Bag
+---@return number tab Void storage tab
+---@return number voidSlot Void storage slot
+function EquipmentManager_UnpackLocation(location) end
+
 ---@class C_TradeSkillUI
 ---@field GetRecipeItemLink fun(recipeID: number): string
 ---@field GetFilteredRecipeIDs fun(): number[]

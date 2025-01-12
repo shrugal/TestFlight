@@ -89,6 +89,18 @@ end
 
 -- Stats
 
+---@param recipeInfo TradeSkillRecipeInfo
+function Self:InitDetails(recipeInfo)
+    if not Prices:IsSourceInstalled() then return end
+    if not self.form.Details:IsVisible() then return end
+    if ProfessionsUtil.IsCraftingMinimized() or recipeInfo.isGatheringRecipe then return end
+
+    local anchor, _, _, x, y = self.form.Details:GetPoint()
+    if anchor ~= "TOPRIGHT" then return end
+
+    self.form.Details:SetPoint(anchor, x, y + 25)
+end
+
 function Self:UpdateDetailsStats()
     self:UpdateSkillSpinner()
     self:UpdateConcentrationCostSpinner()
@@ -272,11 +284,11 @@ function Self:BonusStatLineOnEnter(stat, line)
 
         ---@type number?
         local statProfit
-        if stat == ITEM_MOD_RESOURCEFULNESS_SHORT then
+        if stat == C.STATS.RC.NAME then
             statProfit = select(3, op:GetProfit()) --[[@as number?]]
-        elseif stat == ITEM_MOD_MULTICRAFT_SHORT then
+        elseif stat == C.STATS.MC.NAME then
             statProfit = select(4, op:GetProfit()) --[[@as number?]]
-        elseif stat == ITEM_MOD_INGENUITY_SHORT then
+        elseif stat == C.STATS.IG.NAME then
             statProfit = select(2, op:WithConcentration(true):GetProfitPerConcentration()) --[[@as number]]
         end
 
@@ -352,7 +364,7 @@ function Self:DetailsSetStats(frame, operationInfo, supportsQualities, isGatheri
             -- Stats tooltips
             for line in frame.statLinePool:EnumerateActive() do
                 local stat = line.LeftLabel:GetText()
-                if Util:OneOf(stat,  ITEM_MOD_RESOURCEFULNESS_SHORT, ITEM_MOD_MULTICRAFT_SHORT, ITEM_MOD_INGENUITY_SHORT) then
+                if Util:OneOf(stat,  C.STATS.RC.NAME, C.STATS.MC.NAME, C.STATS.IG.NAME) then
                     line:SetScript("OnEnter", Util:FnBind(self.BonusStatLineOnEnter, self, stat))
                 end
             end
@@ -410,8 +422,8 @@ function Self:GetOperation(refresh)
 
     -- Don't cache operations without proper bonus stats
     local stats = op:GetOperationInfo().bonusStats ---@cast stats -?
-    local hasResourcefulness = Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_RESOURCEFULNESS_SHORT)
-    local hasMulticraft = Util:TblSomeWhere(stats, "bonusStatName", ITEM_MOD_MULTICRAFT_SHORT)
+    local hasResourcefulness = Util:TblSomeWhere(stats, "bonusStatName", C.STATS.RC.NAME)
+    local hasMulticraft = Util:TblSomeWhere(stats, "bonusStatName", C.STATS.MC.NAME)
 
     if not hasResourcefulness and not hasMulticraft then
         self.operationCache:Unset(self.operationCache:Key(self))
@@ -502,6 +514,7 @@ function Self:OnAddonLoaded()
 
     hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))
+    hooksecurefunc(self.form, "InitDetails", Util:FnBind(self.InitDetails, self))
     hooksecurefunc(self.form, "UpdateDetailsStats", Util:FnBind(self.UpdateDetailsStats, self))
 
     hooksecurefunc(self.form.Details, "SetStats", Util:FnBind(self.DetailsSetStats, self))

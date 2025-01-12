@@ -164,16 +164,16 @@ function Self:GetAllocationsForMethod(operation, method)
     Promise:YieldFirst()
 
     local isQualityCraft = operation:GetOperationInfo().isQualityCraft
-    local optimizeProfit = isQualityCraft and Util:OneOf(method, Self.Method.Profit, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
+    local optimizeTools = true
+    local optimizeFinishingReagents = isQualityCraft and Util:OneOf(method, Self.Method.Profit, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
     local optimizeConcentration = isQualityCraft and Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
 
     local operations = self:GetMinCostAllocations(operation)
 
-    if operations and (optimizeConcentration or optimizeProfit) then
+    if operations then
         operations = Util:TblCopy(operations) --[=[@as Operation[]]=]
 
-        local prevQuality, prevPrice, prevName = math.huge, math.huge, nil
-        local finishingReagents = {}
+        local finishingReagents = optimizeFinishingReagents and {} or nil
 
         for quality,operation in pairs(operations) do
             local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
@@ -183,15 +183,22 @@ function Self:GetAllocationsForMethod(operation, method)
 
             local lowerWeight, upperWeight = operation:GetWeightThresholds()
 
-            if optimizeConcentration then
-                ---@diagnostic disable-next-line: cast-local-type
-                operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
+            -- Optimize tool
+            if optimizeTools then
+                operation = self:GetBestToolAllocation(operation)
             end
 
-            if optimizeProfit then
-                local profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
+            -- Optimize concentration
+            if optimizeConcentration then
+                operation, lowerWeight, upperWeight = self:GetBestConcentrationAllocation(operation, method, lowerWeight, upperWeight)
+            end
+
+            -- Optimize finishing reagents
+            if optimizeFinishingReagents then ---@cast finishingReagents -?
                 local bonusSkill = operation:GetOperationInfo().bonusSkill
-                local maxProfit, maxProfitOperation = profit, operation
+
+                local prevQuality, prevPrice, prevName = math.huge, math.huge, nil
+                local maxProfitOperation, maxProfit = operation, optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
 
                 for slotIndex,slot in pairs(operation.recipe.reagentSlotSchematics) do repeat
                     if not Reagents:IsFinishing(slot) or Reagents:IsLocked(slot, operation:GetRecipeInfo()) then break end
@@ -210,21 +217,27 @@ function Self:GetAllocationsForMethod(operation, method)
                         finishingReagents[1] = Reagents:CreateCraftingInfoFromSchematic(slot, i)
 
                         ---@type Operation, number
-                        local operation, profit = operation:WithFinishingReagents(finishingReagents, slotIndex), nil
+                        local operation = operation:WithFinishingReagents(finishingReagents, slotIndex)
                         local baseWeight = operation:GetWeight(true)
 
                         if operation:GetOperationInfo().bonusSkill ~= bonusSkill then break end
 
-                        if optimizeConcentration and (not name or name ~= prevName) then
-                            ---@diagnostic disable-next-line: cast-local-type
-                            operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
+                        -- Optimize tool
+                        if optimizeTools then
+                            operation = self:GetBestToolAllocation(operation)
+                        end
 
+                        -- Optimize concentration
+                        if optimizeConcentration and (not name or name ~= prevName) then
+                            operation, lowerWeight, upperWeight = self:GetBestConcentrationAllocation(operation, method, lowerWeight, upperWeight)
+
+                            -- If weight didn't change then it won't for lesser quality variants
                             if operation:GetWeight(true) == baseWeight then
                                 prevName = name
                             end
                         end
 
-                        profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
+                        local profit = optimizeConcentration and operation:GetProfitPerConcentration() or operation:GetProfit()
 
                         if profit > maxProfit then
                             maxProfit, maxProfitOperation = profit, operation
@@ -539,6 +552,40 @@ function Self:GetAllocationForQuality(operation, quality, method, lowerWeight, u
         getWeight[method],
         getReagents
     )
+end
+
+---@param operation Operation
+---@param method Optimization.Method
+---@param lowerWeight number
+---@param upperWeight number
+---@return Operation
+---@return number lowerWeight
+---@return number upperWeight
+function Self:GetBestConcentrationAllocation(operation, method, lowerWeight, upperWeight)
+    ---@diagnostic disable-next-line: cast-local-type
+    operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
+    return operation, lowerWeight, upperWeight
+end
+
+---@param operation Operation
+function Self:GetBestToolAllocation(operation)
+    local toolBonusSkill = operation.toolGUID and Buffs:GetToolBonus(operation.toolGUID)
+
+    local maxProfitOperation, maxProfit = operation, operation:GetProfit()
+
+    for _,toolGUID in pairs(operation:GetAvailableTools()) do repeat
+        if toolGUID == operation.toolGUID then break end
+        if Buffs:GetToolBonus(toolGUID) ~= toolBonusSkill then break end
+
+        local operation = operation:WithTool(toolGUID)
+        local profit = operation:GetProfit()
+
+        if profit > maxProfit then
+            maxProfit, maxProfitOperation = profit, operation
+        end
+    until true end
+
+    return maxProfitOperation
 end
 
 ---------------------------------------
