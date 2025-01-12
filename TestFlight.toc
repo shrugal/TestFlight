@@ -46,6 +46,7 @@ src/gui/RecipeForm/mixins/WithAmount.lua
 src/gui/RecipeForm/mixins/WithRestock.lua
 src/gui/RecipeForm/mixins/WithOptimization.lua
 src/gui/RecipeForm/mixins/WithOrder.lua
+src/gui/RecipeForm/mixins/WithDetails.lua
 src/gui/RecipeForm/mixins/WithCrafting.lua
 
 src/gui/RecipeForm/CraftingForm.lua

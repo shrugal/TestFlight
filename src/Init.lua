@@ -58,6 +58,8 @@ Addon.GUI = {
         WithOptimization = {},
         ---@type GUI.RecipeForm.WithOrder
         WithOrder = {},
+        ---@type GUI.RecipeForm.WithDetails
+        WithDetails = {},
         ---@type GUI.RecipeForm.WithCrafting
         WithCrafting = {},
         ---@type GUI.RecipeForm.CraftingForm
