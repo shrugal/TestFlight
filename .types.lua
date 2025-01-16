@@ -182,6 +182,9 @@ WorldQuestTrackerScreenPanel = nil
 ---                 WoW frames                    --
 -----------------------------------------------------
 
+---@class EquipmentFlyoutFrame: Frame
+EquipmentFlyoutFrame = nil
+
 ---@class StaticPopupFrame: Frame
 ---@field which any
 ---@field data table

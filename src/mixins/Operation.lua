@@ -29,7 +29,7 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
         order and order.orderID or 0,
         profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
         tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0,
-        toolGUID or Buffs:GetCurrentTool(profInfo.profession),
+        toolGUID or Buffs:GetCurrentTool(profInfo.profession) or "",
         Prices:GetRecipeScanTime(recipe, nil, order, recraftMods) or 0
     )
 

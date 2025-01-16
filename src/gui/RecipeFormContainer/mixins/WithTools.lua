@@ -26,6 +26,15 @@ function Self:HasPendingTool()
 end
 
 ---@param frame ItemButton
+function Self:ToolButtonOnEnterOrUpdate(frame)
+    if not self:HasPendingTool() or EquipmentFlyoutFrame:IsShown() then return end
+
+    GameTooltip:SetOwner(frame, "ANCHOR_RIGHT")
+    GameTooltip:SetItemByGUID(self.toolGUID)
+    GameTooltip:Show()
+end
+
+---@param frame ItemButton
 ---@param buttonName "LeftButton" | "RightButton"
 function Self:ToolButtonOnClick(frame, buttonName)
     if buttonName == "RightButton" then
@@ -39,7 +48,10 @@ function Self:InitToolButtons()
     for i=0,1 do
         local frame = self.frame[("Prof%dToolSlot"):format(i)] --[[@as ItemButton]]
 
-        Util:TblHookScript(frame, "OnClick", Util:FnBind(self.ToolButtonOnClick, self))
+        frame:HookScript("OnEnter", Util:FnBind(self.ToolButtonOnEnterOrUpdate, self))
+        hooksecurefunc(frame, "UpdateTooltip", Util:FnBind(self.ToolButtonOnEnterOrUpdate, self))
+
+        Util:TblHookScript(frame, "OnClick", self.ToolButtonOnClick, self)
 
         local glow = GUI:InsertElement("Frame", frame, "TestFlightItemButtonPendingTemplate")
         glow:SetAllPoints()
@@ -52,20 +64,29 @@ function Self:UpdateToolButtons()
     local frame = self:GetCurrentToolSlot()
     if not frame then return end
 
-    frame.Glow:SetShown(self:HasPendingTool())
+    local hasPendingTool = self:HasPendingTool()
+
+    frame.Glow:SetShown(hasPendingTool)
+
+    if hasPendingTool then
+        self:GetCurrentToolSlot():SetItem(C_Item.GetItemLinkByGUID(self.toolGUID))
+    else
+        -- local itemLocation = ItemLocation:CreateFromEquipmentSlot(self:GetCurrentToolSlotID())
+        -- self:GetCurrentToolSlot():SetItemLocation(itemLocation)
+    end
 end
 
 ---------------------------------------
 --             Util
 ---------------------------------------
 
-function Self:GetToolSlotID()
+function Self:GetCurrentToolSlotID()
     local profInfo = C_TradeSkillUI.GetBaseProfessionInfo()
     return Buffs:GetToolSlotID(profInfo.profession)
 end
 
 function Self:GetCurrentToolSlot()
-    local slotID = self:GetToolSlotID()
+    local slotID = self:GetCurrentToolSlotID()
     for i=0,1 do
         local frame = self.frame[("Prof%dToolSlot"):format(i)] --[[@as ItemButton]]
         if frame.slotID == slotID then return frame end

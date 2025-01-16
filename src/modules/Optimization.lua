@@ -645,7 +645,7 @@ function Self:GetOperationCacheKey(operation, applyConcentration)
         operation.orderOrRecraftGUID,
         applyConcentration,
         0,
-        "-",
+        "",
         cacheKeyReagentsFilter
     )
 end
