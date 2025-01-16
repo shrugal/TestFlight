@@ -64,18 +64,40 @@ function Self:OnTrackedOrderUpdated()
     self:OnTrackedUpdated()
 end
 
-function Self:OnTradeSkillCraftBegin()
+---@param recipeID number
+function Self:OnTradeSkillCraftBegin(recipeID)
     if not self.form:IsVisible() then return end
-    Self.craftingRecipe = self:GetRecipe()
+
+    local recipe = self:GetRecipe()
+    if not recipe or recipe.recipeID ~= recipeID then return end
+
+    Self.craftingRecipe = recipe
 end
 
 function Self:OnUpdateTradeskillCastStopped()
     Self.craftingRecipe = nil
 end
 
-function Self:OnSpellcastInterruptedOrSucceeded()
+---@param unit UnitToken
+---@param castGUID string
+---@param spellID number
+function Self:OnSpellcastInterrupted(unit, castGUID, spellID)
+    if unit ~= "player" then return end
+
     local recipe = Self.craftingRecipe
-    if not recipe then return end
+    if not recipe or recipe.recipeID ~= spellID then return end
+
+    Self.craftingRecipe = nil
+end
+
+---@param unit UnitToken
+---@param castGUID string
+---@param spellID number
+function Self:OnSpellcastSucceeded(unit, castGUID, spellID)
+    if unit ~= "player" then return end
+
+    local recipe = Self.craftingRecipe
+    if not recipe or recipe.recipeID ~= spellID then return end
 
     Self.craftingRecipe = nil
 
@@ -100,8 +122,7 @@ function Self:OnAddonLoaded()
     Service:RegisterCallback(Service.Event.TrackedAmountUpdated, self.OnTrackedUpdated, self)
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", self.OnTradeSkillCraftBegin, self)
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", self.OnSpellcastInterruptedOrSucceeded, self)
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", self.OnSpellcastInterruptedOrSucceeded, self)
+    EventRegistry:RegisterFrameEventAndCallback("UPDATE_TRADESKILL_CAST_STOPPED", self.OnUpdateTradeskillCastStopped, self)
+    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", self.OnSpellcastInterrupted, self)
+    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", self.OnSpellcastSucceeded, self)
 end
-
-EventRegistry:RegisterFrameEventAndCallback("UPDATE_TRADESKILL_CAST_STOPPED", Self.OnUpdateTradeskillCastStopped, Self)

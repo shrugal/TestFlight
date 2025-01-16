@@ -208,6 +208,59 @@ StaticPopup_OnClick = nil
 ---@field SetTextToFit fun(self: self, text?: string)
 ---@field FitToText fun(self: self)
 
+---@class ItemButton: Button
+---@field slotName string
+---@field slotID number
+---@field icon Texture
+---@field Count FontString
+---@field Stock FontString
+---@field searchOverlay Texture
+---@field ItemContextOverlay Texture
+---@field IconBorder Texture
+---@field IconOverlay Texture
+---@field IconOverlay2 Texture
+---@field NormalTexture Texture
+---@field PushedTexture Texture
+---@field HighlightTexture Texture
+---@field Glow? Frame
+---@field OnItemContextChanged fun(self: self, )
+---@field PostOnShow fun(self: self, )
+---@field PostOnHide fun(self: self, )
+---@field PostOnEvent fun(self: self, event, ...)
+---@field SetMatchesSearch fun(self: self, matchesSearch)
+---@field GetMatchesSearch fun(self: self, )
+---@field UpdateItemContextMatching fun(self: self, )
+---@field UpdateCraftedProfessionsQualityShown fun(self: self, )
+---@field GetItemContextOverlayMode fun(self: self, )
+---@field UpdateItemContextOverlay fun(self: self, )
+---@field UpdateItemContextOverlayTextures fun(self: self, contextMode)
+---@field Reset fun(self: self, )
+---@field SetItemSource fun(self: self, itemLocation)
+---@field SetItemLocation fun(self: self, itemLocation)
+---@field SetItem fun(self: self, item)
+---@field SetItemInternal fun(self: self, item)
+---@field GetItemInfo fun(self: self, )
+---@field GetItemID fun(self: self, )
+---@field GetItem fun(self: self, )
+---@field GetItemLink fun(self: self, )
+---@field GetItemLocation fun(self: self, )
+---@field SetItemButtonCount fun(self: self, count)
+---@field SetItemButtonAnchorPoint fun(self: self, point, x, y)
+---@field SetItemButtonScale fun(self: self, scale)
+---@field GetItemButtonCount fun(self: self, )
+---@field SetAlpha fun(self: self, alpha)
+---@field SetBagID fun(self: self, bagID)
+---@field GetBagID fun(self: self, )
+---@field GetSlotAndBagID fun(self: self, )
+---@field OnUpdateItemContextMatching fun(self: self, bagID)
+---@field RegisterBagButtonUpdateItemContextMatching fun(self: self, )
+---@field SetItemButtonQuality fun(self: self, quality, itemIDOrLink, suppressOverlays, isBound)
+---@field SetItemButtonBorderVertexColor fun(self: self, r, g, b)
+---@field SetItemButtonTextureVertexColor fun(self: self, r, g, b)
+---@field SetItemButtonTexture fun(self: self, texture)
+---@field GetItemButtonIconTexture fun(self: self, )
+---@field GetItemButtonBackgroundTexture fun(self: self, )
+
 ---@class DropdownButton: Button, DropdownButtonMixin
 ---@field ResetButton Button
 ---@field SetDefaultCallback fun(self: self, onDefault: function)
@@ -299,12 +352,24 @@ StaticPopup_OnClick = nil
 ---@field GetTab fun(self: self): number
 ProfessionsFrame = nil
 
----@class CraftingPage: Frame
+---@class RecipeFormContainer: Frame
+---@field InventorySlots ItemButton[]
+---@field Prof0ToolSlot ItemButton
+---@field Prof0Gear0Slot ItemButton
+---@field Prof0Gear1Slot ItemButton
+---@field Prof1ToolSlot ItemButton
+---@field Prof1Gear0Slot ItemButton
+---@field Prof1Gear1Slot ItemButton
+---@field GearSlotDivider Frame
+---@field CreateButton Button
+---@field ConfigureInventorySlots fun(self: self, info: ProfessionInfo)
+---@field HideInventorySlots fun(self: self)
+
+---@class CraftingPage: RecipeFormContainer
 ---@field vellumItemID? number
 ---@field professionInfo ProfessionInfo
 ---@field SchematicForm CraftingForm
 ---@field RecipeList RecipeList
----@field CreateButton Button
 ---@field CreateAllButton Button
 ---@field CreateMultipleInputBox NumericInputSpinner
 ---@field Init fun(self: self, professionInfo: ProfessionInfo)
@@ -334,10 +399,9 @@ ProfessionsFrame = nil
 ---@class OrdersListFrame: Frame
 ---@field NineSlice Frame
 
----@class OrdersView: Frame
+---@class OrdersView: RecipeFormContainer
 ---@field order CraftingOrderInfo
 ---@field OrderDetails OrdersDetails
----@field CreateButton Button
 ---@field CompleteOrderButton Button
 ---@field UpdateCreateButton fun(self: self)
 ---@field IsRecrafting fun(self: self): boolean
@@ -475,6 +539,9 @@ BonusObjectiveTracker = nil
 ---                 WoW methods                    --
 -----------------------------------------------------
 
+---@param ... ItemButton
+function PaperDollItemSlotButton_SetAutoEquipSlotIDs(...) end
+
 ---@type fun(reagent: ProfessionTransationReagent, quality: number): ProfessionTransactionAllocation
 function CreateAllocation() end
 
@@ -498,6 +565,15 @@ function CreateFramePool(frameType, parent, template, resetFunc, forbidden, fram
 ---@return number tab Void storage tab
 ---@return number voidSlot Void storage slot
 function EquipmentManager_UnpackLocation(location) end
+
+---@param location number
+---@param invSlot number
+---@return table
+function EquipmentManager_EquipItemByLocation(location, invSlot) end
+
+---@param action table
+---@return boolean
+function EquipmentManager_RunAction(action) end
 
 ---@class C_TradeSkillUI
 ---@field GetRecipeItemLink fun(recipeID: number): string
@@ -542,6 +618,7 @@ C_TradeSkillUI = {}
 ---@field GetReagentSlotStatus fun(reagent: CraftingReagentSlotSchematic, recipeInfo, TradeSkillRecipeInfo): boolean, string?
 ---@field IsUsingDefaultFilters fun(ignoreSkillLine?: boolean): boolean
 ---@field InLocalCraftingMode fun(): boolean
+---@field GetProfessionInfo fun(): ProfessionInfo
 Professions = {}
 
 ---@class ProfessionsUtil
@@ -1189,6 +1266,7 @@ DataProviderMixin = nil
 TreeNodeMixin = nil
 
 ---@class TreeDataProviderMixin: CallbackRegistryMixin
+---@field sortComparator? fun(a: TreeNodeMixin, b: TreeNodeMixin): boolean
 ---@field Init fun(self: self, ...: unknown): unknown
 ---@field GetChildrenNodes fun(self: self): TreeNodeMixin[]
 ---@field GetFirstChildNode fun(self: self): TreeNodeMixin?

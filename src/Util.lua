@@ -197,6 +197,19 @@ function Self:TblCopy(tbl, recursive)
     return t
 end
 
+---@generic T: table
+---@param tbl T
+---@param i number
+---@param l? number
+function Self:TblSlice(tbl, i, l)
+    if i < 0 then i = #tbl + i + 1 end
+    if not l then l = #tbl - i + 1 end
+
+    local t = {}
+    for i=i,l do tinsert(t, tbl[i]) end
+    return t
+end
+
 ---@param tbl table
 ---@param val? any
 function Self:TblFlip(tbl, val)
@@ -653,6 +666,22 @@ function Self:TblHook(tbl, key, fn, obj)
     return self.hooks[tbl][key]
 end
 
+---@param frame? Frame
+---@param key string
+---@param fn? function
+---@param obj? table
+---@return function?
+function Self:TblHookScript(frame, key, fn, obj)
+    if not frame or self.hooks[frame] and self.hooks[frame][key] then return end
+    if fn and obj then fn = self:FnBind(fn, obj) end
+
+    self.hooks[frame] = self.hooks[frame] or {}
+    self.hooks[frame][key] = frame:GetScript(key)
+    frame:SetScript(key, fn)
+
+    return self.hooks[frame][key]
+end
+
 ---@param tbl? table
 ---@param key string
 ---@return function?
@@ -662,6 +691,19 @@ function Self:TblUnhook(tbl, key)
     local fn = tbl[key]
     tbl[key] = self.hooks[tbl][key]
     self.hooks[tbl][key] = nil
+
+    return fn
+end
+
+---@param frame? Frame
+---@param key string
+---@return function?
+function Self:TblUnhookScript(frame, key)
+    if not frame or not self.hooks[frame] or not self.hooks[frame][key] then return end
+
+    local fn = frame:GetScript(key)
+    frame:SetScript(key, self.hooks[frame][key])
+    self.hooks[frame][key] = nil
 
     return fn
 end
@@ -714,6 +756,32 @@ function Self:StrAbbr(str, maxLength)
     if str:len() <= maxLength then return str end
     if self:StrEndsWith(str, "...") then str = str:sub(-3) end
     return str:sub(1, maxLength - 3) .. "..."
+end
+
+---@param length number
+---@return string
+function Self:StrRandom(length)
+    local str = ""
+    for i=1,length do
+        local s = math.random(48, 83)
+        if s > 57 then s = s + 39 end
+        str = str .. string.char(s)
+    end
+    return str
+end
+
+---@param str string
+---@param chars? string
+function Self:StrTrim(str, chars)
+    return string.trim(str, chars)
+end
+
+---@param str? string
+---@param prefix? string
+---@param postfix? string
+function Self:StrWrap(str, prefix, postfix)
+    if self:StrIsEmpty(str) then return str end
+    return (prefix or "") .. str .. (postfix or "")
 end
 
 -- Num

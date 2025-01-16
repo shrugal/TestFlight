@@ -42,8 +42,27 @@ Addon.GUI = {
         WorldQuestTracker = {},
     },
 
+    RecipeFormContainer = {
+        ---@type GUI.RecipeFormContainer.RecipeFormContainer
+        RecipeFormContainer = {},
+        ---@type GUI.RecipeFormContainer.WithTools
+        WithTools = {},
+        ---@type GUI.RecipeFormContainer.WithCrafting
+        WithCrafting = {},
+        ---@type GUI.RecipeFormContainer.WithFilterViews
+        WithFilterViews = {},
+
+        ---@type GUI.RecipeFormContainer.CraftingPage
+        CraftingPage = {},
+        ---@type GUI.RecipeFormContainer.OrdersView
+        OrdersView = {},
+    },
+
     ---@class GUI.RecipeForm
     RecipeForm = {
+        ---@type GUI.RecipeForm.OptimizationMethodDropdownMixin
+        OptimizationMethodDropdown = {},
+
         ---@type GUI.RecipeForm.RecipeForm
         RecipeForm = {},
         ---@type GUI.RecipeForm.WithExperimentation
@@ -62,22 +81,17 @@ Addon.GUI = {
         WithDetails = {},
         ---@type GUI.RecipeForm.WithCrafting
         WithCrafting = {},
+
         ---@type GUI.RecipeForm.CraftingForm
         CraftingForm = {},
         ---@type GUI.RecipeForm.OrdersForm
         OrdersForm = {},
         ---@type GUI.RecipeForm.CustomerOrderForm
         CustomerOrderForm = {},
-        ---@type GUI.RecipeForm.OptimizationMethodDropdownMixin
-        OptimizationMethodDropdown = {},
     },
 
-    ---@type GUI.CraftingPage
-    CraftingPage = {},
     ---@type GUI.OrdersPage
     OrdersPage = {},
-    ---@type GUI.OrdersView
-    OrdersView = {},
     ---@type GUI.ItemFlyout
     ItemFlyout = {}
 }

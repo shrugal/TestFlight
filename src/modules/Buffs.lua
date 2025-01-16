@@ -1,13 +1,20 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Reagents, Util = Addon.Constants, Addon.Reagents, Addon.Util
+local C, Cache, Reagents, Util = Addon.Constants, Addon.Cache, Addon.Reagents, Addon.Util
 
 ---@class Buffs: CallbackRegistryMixin
 ---@field Event Buffs.Event
 local Self = Mixin(Addon.Buffs, CallbackRegistryMixin)
 
+Self.ACTION_EQUIP_ITEM = 1
+Self.ACTION_UNEQUIP_ITEM = 2
+Self.ACTION_SWAP_ITEM = 3
+
 ---@type number[]
 Self.auraCharges = {}
+
+---@type table<Enum.Profession, { [1]: number, [2]: string }>
+Self.currentTools = {}
 
 ---------------------------------------
 --            Extra skill
@@ -84,14 +91,26 @@ function Self:GetToolSlotID(profession)
 end
 
 ---@param profession Enum.Profession
+---@return string?
 function Self:GetCurrentTool(profession)
-    local slot = self:GetToolSlotID(profession)
-    if not slot then return end
+    if not self.currentTools[profession] then self.currentTools[profession] = {} end
 
-    local location = ItemLocation:CreateFromEquipmentSlot(slot)
-    if not location then return end
+    local time, toolGUID = unpack(self.currentTools[profession])
 
-    return C_Item.GetItemGUID(location)
+    if time ~= GetTime() then
+        local slot = self:GetToolSlotID(profession)
+        if not slot then return end
+
+        local location = ItemLocation:CreateFromEquipmentSlot(slot)
+        if not location or not location:IsValid() then return end
+
+        toolGUID = C_Item.GetItemGUID(location)
+
+        self.currentTools[profession][1] = GetTime()
+        self.currentTools[profession][2] = toolGUID
+    end
+
+    return toolGUID
 end
 
 ---@param profession Enum.Profession
@@ -162,6 +181,21 @@ function Self:ApplyTool(operationInfo, toolGUID, mode)
     if not stats then return end
 
     self:ApplyStats(operationInfo, expansionID, stats, mode)
+end
+
+---@param toolGUID string
+---@param profession Enum.Profession
+function Self:EquipTool(toolGUID, profession)
+    local location = C_Item.GetItemLocation(toolGUID) ---@cast location ItemLocationMixin
+    if not location:IsBagAndSlot() then return false end
+
+    local bag, slot = location:GetBagAndSlot()
+    local type = self:GetCurrentTool(profession) and self.ACTION_SWAP_ITEM or self.ACTION_EQUIP_ITEM
+    local invSlot = self:GetToolSlotID(profession)
+
+    local action = { type = type, invSlot = invSlot, bags = true, bag = bag, slot = slot }
+
+    return EquipmentManager_RunAction(action)
 end
 
 ---------------------------------------
@@ -252,7 +286,7 @@ function Self:OnUnitAura(unit, info)
     if not auraCharges then return end
 
     self:TriggerEvent(self.Event.AuraChanged)
-    self:TriggerEvent(self.Event.BuffChanged)
+    self:TriggerEvent(self.Event.BuffChanged, self.Event.AuraChanged)
 end
 
 ---@param configID number
@@ -261,14 +295,14 @@ function Self:OnTradeConfigUpdated(configID)
     if not config or config.type ~= Enum.TraitConfigType.Profession then return end
 
     self:TriggerEvent(self.Event.TraitChanged, configID)
-    self:TriggerEvent(self.Event.BuffChanged)
+    self:TriggerEvent(self.Event.BuffChanged, self.Event.TraitChanged, configID)
 end
 
 ---@param skillLineID number
 ---@param isTool boolean
 function Self:OnProfessionEquipmentChanged(skillLineID, isTool)
     self:TriggerEvent(self.Event.EquipmentChanged, skillLineID, isTool)
-    self:TriggerEvent(self.Event.BuffChanged)
+    self:TriggerEvent(self.Event.BuffChanged, self.Event.EquipmentChanged, skillLineID, isTool)
 end
 
 function Self:OnLoaded()

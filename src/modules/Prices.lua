@@ -319,7 +319,8 @@ function Self.SOURCES.TradeSkillMaster:IsAvailable()
 end
 function Self.SOURCES.TradeSkillMaster:GetItemPrice(item)
     local itemStr = type(item) == "number" and "i:" .. item or TSM_API.ToItemString(item --[[@as string]])
-    return TSM_API.GetCustomPriceValue("first(VendorBuy, DBRecent, DBMinbuyout)", itemStr)
+    local priceStr = Addon.DB.Account.tsmPriceString or C.TSM_PRICE_STRING
+    return TSM_API.GetCustomPriceValue(priceStr, itemStr)
 end
 
 -- Auctionator

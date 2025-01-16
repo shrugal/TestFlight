@@ -2,7 +2,7 @@
 local Addon = select(2, ...)
 local Util = Addon.Util
 
----@class Cache<T, K>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Unset: fun(self: Cache, key: any), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Clear: fun(self: Cache)  }
+---@class Cache<T, K, V>: { Key: K, Set: fun(self: Cache, key: any, value?: T), Unset: fun(self: Cache, key: any), Has: (fun(self: Cache, key: any): boolean), Get: (fun(self: Cache, key: any): T?), Val: V, Clear: fun(self: Cache)  }
 
 ---@class Cache.Static
 local Static = Addon.Cache
@@ -23,24 +23,26 @@ Static.Mixin = {}
 ---@class Cache
 local Self = Static.Mixin
 
----@generic T, K: function
----@param getKey `K`
+---@generic T, K, V: function
+---@param getKey K
+---@param getVal? V
 ---@param limit? number
 ---@param priority? boolean
----@return Cache<T, K>
-function Static:Create(getKey, limit, priority)
-    return self:Unserialize({}, getKey, limit, priority)
+---@return Cache<T, K, V>
+function Static:Create(getKey, getVal, limit, priority)
+    return self:Unserialize({}, getKey, getVal, limit, priority)
 end
 
----@generic T, K: function
+---@generic T, K, V: function
 ---@param cache table
----@param getKey `K`
+---@param getKey K
+---@param getVal? V
 ---@param limit? number
 ---@param priority? boolean
----@return Cache<T, K>
-function Static:Unserialize(cache, getKey, limit, priority)
+---@return Cache<T, K, V>
+function Static:Unserialize(cache, getKey, getVal, limit, priority)
     Mixin(cache, Static.Mixin)
-    cache:Init(getKey, limit, priority)
+    cache:Init(getKey, getVal, limit, priority)
     return cache
 end
 
@@ -53,12 +55,14 @@ local function GetKey(_, ...)
 end
 
 ---@param getKey function
+---@param getVal? function
 ---@param limit? number
 ---@param priority? boolean
-function Self:Init(getKey, limit, priority)
+function Self:Init(getKey, getVal, limit, priority)
     assert(not priority or limit, "Priority cache needs a limit")
 
     self.Key = getKey or GetKey
+    self.getVal = getVal
     self.values = self.values or {}
     self.size = self.size or 0
     self.limit = limit
@@ -77,7 +81,7 @@ function Self:Set(key, value)
             if self.size > self.limit then self:Unset(self.keys[1]) end
         end
     elseif self.priority then
-        local i = Util:TblIndexOf(self.keys, key)
+        local i = Util:TblIndexOf(self.keys, key) --[[@as number]]
         if i ~= self.size then
             tinsert(self.keys, tremove(self.keys, i))
         end
@@ -91,7 +95,7 @@ function Self:Unset(key)
         self.size = self.size - 1
 
         if self.limit then
-            tremove(self.keys, Util:TblIndexOf(self.keys, key))
+            tremove(self.keys, Util:TblIndexOf(self.keys, key) --[[@as number]])
         end
     end
 
@@ -104,7 +108,7 @@ end
 
 function Self:Get(key)
     if self.priority and self:Has(key) then
-        local i = Util:TblIndexOf(self.keys, key)
+        local i = Util:TblIndexOf(self.keys, key) --[[@as number]]
         if i ~= self.size then
             tinsert(self.keys, tremove(self.keys, i))
         end
@@ -113,6 +117,12 @@ function Self:Get(key)
     local value = self.values[key]
     if value == Static.NIL then return nil end
     return value
+end
+
+function Self:Val(...)
+    local key = self:Key(...)
+    if not self:Has(key) then self:Set(key, self:getVal(...)) end
+    return self:Get(key)
 end
 
 function Self:Clear()

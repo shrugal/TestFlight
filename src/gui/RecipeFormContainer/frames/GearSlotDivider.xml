@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
+    <Frame name="TestFlightGearSlotDividerTemplate" virtual="true">
+        <Size x="5" y="37" />
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture atlas="Professions-Equipment-Divider" useAtlasSize="true" />
+            </Layer>
+        </Layers>
+    </Frame>
+</Ui>

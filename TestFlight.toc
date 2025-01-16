@@ -7,15 +7,21 @@
 ## SavedVariablesPerCharacter: TestFlightCharDB
 ## OptionalDeps: Auctionator, TradeSkillMaster, RECrystallize, OribosExchange, Auctioneer
 
+# Core
+
 src/Init.lua
 src/Constants.lua
 src/Util.lua
 src/Addon.lua
 
+# Mixins
+
 src/mixins/Promise.lua
 src/mixins/Allocations.lua
 src/mixins/Cache.lua
 src/mixins/Operation.lua
+
+# Modules
 
 src/modules/Recipes.lua
 src/modules/Reagents.lua
@@ -26,19 +32,37 @@ src/modules/Restock.lua
 src/modules/Buffs.lua
 src/modules/GUI.lua
 
-src/gui/frames/ProfessionsRecipeListProgressBar.xml
+# GUI
 
 src/gui/ItemFlyout.lua
-src/gui/CraftingPage.lua
 src/gui/OrdersPage.lua
-src/gui/OrdersView.lua
+
+# GUI - ObjectiveTracker
 
 src/gui/ObjectiveTracker/mixins/ProfessionsTrackerModule.lua
+
 src/gui/ObjectiveTracker/RecipeTracker.lua
 src/gui/ObjectiveTracker/ReagentsTracker.lua
 src/gui/ObjectiveTracker/WorldQuestTracker.lua
 
+# GUI - RecipeFormContainer
+
+src/gui/RecipeFormContainer/frames/RecipeListProgressBar.xml
+src/gui/RecipeFormContainer/frames/GearSlotDivider.xml
+src/gui/RecipeFormContainer/frames/ItemButtonPending.xml
+
+src/gui/RecipeFormContainer/mixins/RecipeFormContainer.lua
+src/gui/RecipeFormContainer/mixins/WithTools.lua
+src/gui/RecipeFormContainer/mixins/WithCrafting.lua
+src/gui/RecipeFormContainer/mixins/WithFilterViews.lua
+
+src/gui/RecipeFormContainer/CraftingPage.lua
+src/gui/RecipeFormContainer/OrdersView.lua
+
+# GUI - RecipeForm
+
 src/gui/RecipeForm/frames/OptimizationMethodDropdownButton.xml
+
 src/gui/RecipeForm/mixins/RecipeForm.lua
 src/gui/RecipeForm/mixins/WithExperimentation.lua
 src/gui/RecipeForm/mixins/WithSkill.lua

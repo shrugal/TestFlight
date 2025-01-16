@@ -1,14 +1,14 @@
 ---@class Addon
 local Addon = select(2, ...)
 
----@class GUI.ProfessionsRecipeListProgressBarMixin
+---@class GUI.RecipeListProgressBarMixin
 ---@field ProgressBar StatusBar
 ---@field CancelButton Button
 local Self = {}
 
----@class GUI.ProfessionsRecipeListProgressBar: Frame, GUI.ProfessionsRecipeListProgressBarMixin
+---@class GUI.RecipeListProgressBar: Frame, GUI.RecipeListProgressBarMixin
 
----@param self GUI.ProfessionsRecipeListProgressBar
+---@param self GUI.RecipeListProgressBar
 ---@param total number
 function Self:Start(total)
     self:Show()
@@ -17,7 +17,7 @@ function Self:Start(total)
     self.ProgressBar.Text:SetFormattedText("Scanning %d/%d", 0, total)
 end
 
----@param self GUI.ProfessionsRecipeListProgressBar
+---@param self GUI.RecipeListProgressBar
 ---@param currentCount number
 ---@param totalCount number
 function Self:Progress(currentCount, totalCount)
@@ -27,4 +27,4 @@ function Self:Progress(currentCount, totalCount)
     self.ProgressBar.Text:SetFormattedText("Scanning %d/%d", currentCount, totalCount)
 end
 
-TestFlightProfessionsRecipeListProgressBarMixin = Self
+TestFlightRecipeListProgressBarMixin = Self

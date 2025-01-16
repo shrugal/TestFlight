@@ -47,10 +47,27 @@ end
 ---@param onEnter? function
 ---@param onClick? function
 function Self:InsertButton(text, parent, onEnter, onClick, ...)
-    local input = self:InsertElement("CheckButton", parent, "UIPanelButtonTemplate", onEnter, ...) --[[@as ButtonFitToText]]
+    local input = self:InsertElement("Button", parent, "UIPanelButtonTemplate", onEnter, ...) --[[@as ButtonFitToText]]
 
     input:SetScript("OnClick", onClick)
     input:SetTextToFit(text)
+
+    return input
+end
+
+---@param slotName string
+---@param slotID number
+---@param parent Frame
+---@param ... any
+function Self:InsertItemButton(slotName, slotID, parent, ...)
+    local input = CreateFrame("ItemButton", Util:StrRandom(9) .. slotName, parent, "ProfessionsGearSlotTemplate") --[[@as ItemButton]]
+
+    if ... then input:SetPoint(...) end
+
+    input.slotName = slotName
+    input.slotID = slotID
+
+    parent[slotName] = input
 
     return input
 end
@@ -101,6 +118,24 @@ end
 ---------------------------------------
 --              Tooltip
 ---------------------------------------
+
+---@param frame Frame
+---@param text string
+---@param anchor? TooltipAnchor
+function Self:ShowInfoTooltip(frame, text, anchor)
+    GameTooltip:SetOwner(frame, anchor or "ANCHOR_RIGHT")
+    GameTooltip_AddHighlightLine(GameTooltip, text)
+    GameTooltip:Show()
+end
+
+---@param frame Frame
+---@param text string
+---@param anchor? TooltipAnchor
+function Self:ShowErrorTooltip(frame, text, anchor)
+    GameTooltip:SetOwner(frame, anchor or "ANCHOR_RIGHT")
+    GameTooltip_AddErrorLine(GameTooltip, text)
+    GameTooltip:Show()
+end
 
 -- Reagent tooltip
 

@@ -28,7 +28,7 @@ end
 ---------------------------------------
 
 function Self:GetOrder()
-    local order = GUI.OrdersView.frame and GUI.OrdersView.frame.order
+    local order = GUI.RecipeFormContainer.OrdersView.frame and GUI.RecipeFormContainer.OrdersView.frame.order
 
     -- Fulfillable state is sometimes not updated correctly
     if order and order.orderState == Enum.CraftingOrderState.Claimed and not order.isFulfillable then
@@ -54,6 +54,8 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     local ordersView = ProfessionsFrame.OrdersPage.OrderView
+
+    self.container = GUI.RecipeFormContainer.OrdersView
     self.form = ordersView.OrderDetails.SchematicForm
 
     Parent.OnAddonLoaded(self)

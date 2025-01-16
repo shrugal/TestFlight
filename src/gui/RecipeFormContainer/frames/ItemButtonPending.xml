@@ -1,0 +1,28 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
+    <Frame name="TestFlightItemButtonPendingTemplate" virtual="true">
+        <Layers>
+            <Layer level="ARTWORK">
+                <Texture parentKey="Glow" file="Interface\Transmogrify\Textures.png">
+                    <Size x="58" y="57"/>
+                    <Anchors>
+                        <Anchor point="CENTER"/>
+                    </Anchors>
+                    <TexCoords left="0.52343750" right="0.97656250" top="0.38476563" bottom="0.49609375"/>
+                </Texture>
+            </Layer>
+            <Layer level="OVERLAY">
+                <Texture parentKey="Ants" file="Interface\Transmogrify\PurpleIconAlertAnts.png">
+                    <Size x="44" y="44"/>
+                    <Anchors>
+                        <Anchor point="CENTER"/>
+                    </Anchors>
+                </Texture>
+            </Layer>
+        </Layers>
+        <Scripts>
+            <OnUpdate>
+                AnimateTexCoords(self.Ants, 256, 256, 48, 48, 22, elapsed, 0.01);
+            </OnUpdate>
+        </Scripts>
+    </Frame>
+</Ui>

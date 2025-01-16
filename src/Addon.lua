@@ -23,6 +23,8 @@ TestFlightDB = {
     knowledgeCost = 0,
     ---@type number
     currencyCost = 0,
+    ---@type string?
+    tsmPriceString = nil
 }
 
 ---@class AddonCharDB
@@ -188,6 +190,27 @@ function Self:Error(msg, ...)
     print("|cffff3333[TestFlight]|r " .. msg:format(...))
 end
 
+---@param cmd string
+---@param short? string
+---@param opts string
+---@param desc string
+---@param curr? string
+---@param ... any
+function Self:PrintOption(cmd, short, opts, desc, curr, ...)
+    local s = {}
+    if short then tinsert(s, ("Short: |cffcccccc%s|r"):format(short)) end
+    if curr then tinsert(s, ("Current: |cffcccccc%s|r"):format(curr)) end
+    s = Util(s):Join(", "):Wrap(" (", ")")()
+
+    Self:Print("  |cff00ccff%s|r |cffcccccc%s|r: %s%s", cmd, opts, desc:format(...), s)
+end
+
+---@param name string
+---@param desc string
+function Self:PrintLegend(name, desc)
+    Self:Print("  |cffcccccc%s|r: %s", name, desc)
+end
+
 SLASH_TESTFLIGHT1 = "/testflight"
 SLASH_TESTFLIGHT2 = "/tf"
 
@@ -293,12 +316,39 @@ function SlashCmdList.TESTFLIGHT(input)
         Self.Prices.SOURCE = nil
 
         Self:Print("Price source: Set to %s", args[2])
+    elseif cmd == "tsmprice" and Prices.SOURCES.TradeSkillMaster:IsAvailable() then
+        local priceStr
+
+        if args[2] ~= "default" then
+            priceStr = string.trim(input:sub(cmd:len() + 1))
+
+            local _, err = TSM_API.GetCustomPriceValue(priceStr, "i:2589")
+            if err then
+                Self:Error("TSM price: %s", err or "Invalid string")
+                return
+            end
+        end
+
+        Self.DB.Account.tsmPriceString = priceStr
+
+        Self:Print("TSM price: Set to \"%s\"", priceStr or C.TSM_PRICE_STRING)
     else
-        Self:Print("Help")
-        Self:Print("|cffcccccc/testflight recraft||rc <link>|r: Set recraft UI to an item given by link.")
-        Self:Print("|cffcccccc/testflight tooltip||tt on|off|r: Toggle reagent tooltip info. (Current: %s)", Self.DB.Account.tooltip and "on" or "off")
-        Self:Print("|cffcccccc/testflight reagents||re on|off|r: Toggle reagents tracker. (Current: %s)", Self.DB.Account.reagents and "on" or "off")
-        Self:Print("|cffcccccc/testflight pricesource||ps <name>||auto|r: Set preferred price source. (Current: %s)", Self.DB.Account.priceSource or "auto")
+        Self:Print("Command:")
+        Self:Print("  |cffcccccc/tf|r or |cffcccccc/testflight|r")
+
+        Self:Print("Options:")
+        Self:PrintOption("recraft", "rc", "<link>", "Set recraft UI to an item given by link.")
+        Self:PrintOption("tooltip", "tt", "off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip and "on" or "off")
+        Self:PrintOption("reagents", "re", "off", "Toggle reagents tracker.", Self.DB.Account.reagents and "on" or "off")
+        Self:PrintOption("pricesource", "ps", "<name>||auto", "Set price source.", Self.DB.Account.priceSource or "auto")
+
+        if Prices.SOURCES.TradeSkillMaster:IsAvailable() then
+           Self:PrintOption("tsmprice", nil, "<string>||default", "Set TSM custom price string.", Self.DB.Account.tsmPriceString or "default")
+        end
+
+        Self:Print("Legend:")
+        Self:PrintLegend("x||y", "Either x or y.")
+        Self:PrintLegend("<x>", "Item link or value.")
     end
 end
 

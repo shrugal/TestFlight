@@ -8,6 +8,7 @@ local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.Wi
 
 ---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization, GUI.RecipeForm.WithDetails
 ---@field form RecipeCraftingForm
+---@field container GUI.RecipeFormContainer.WithTools
 local Self = Mixin(NS.WithCrafting, Parent)
 
 Self.optimizationMethod = Optimization.Method.Cost
@@ -17,8 +18,12 @@ Self.optimizationMethod = Optimization.Method.Cost
 ---------------------------------------
 
 function Self:GetRecipeOperationInfo()
+    local GetRecipeOperationInfo = Util:TblGetHooks(self.form).GetRecipeOperationInfo
+
+    if not Addon.enabled and not self:GetTool() then return GetRecipeOperationInfo(self.form) end
+
     local op = self:GetOperation()
-    if not op then return Util:TblGetHooks(self.form).GetRecipeOperationInfo(self.form) end
+    if not op then return GetRecipeOperationInfo(self.form) end
 
     local opInfo = op:GetOperationInfo()
     local maxQuality = self.form:GetRecipeInfo().maxQuality ---@cast maxQuality -?
@@ -48,6 +53,10 @@ function Self:Init(_, recipe)
 
     self:Refresh()
     self:UpdateOutputIcon()
+
+    if not self.isRefreshing then
+        self.container:SetTool()
+    end
 
     if not self:CanAllocateReagents() then return end
 
@@ -130,20 +139,36 @@ function Self:CanAllocateReagents()
     return true
 end
 
+function Self:GetTool()
+    return self.container.toolGUID
+end
+
 function Self:GetOperation(refresh)
     local op = NS.RecipeForm.GetOperation(self, refresh)
-    if not op then return end
+    if not op or not op:GetRecipeInfo().supportsCraftingStats then return op end
 
     -- Don't cache operations without proper bonus stats
     local stats = op:GetOperationInfo().bonusStats ---@cast stats -?
-    local hasResourcefulness = Util:TblSomeWhere(stats, "bonusStatName", C.STATS.RC.NAME)
-    local hasMulticraft = Util:TblSomeWhere(stats, "bonusStatName", C.STATS.MC.NAME)
+    local statsMissing =
+        -- Resourcefulness
+        not Util:TblSomeWhere(stats, "bonusStatName", C.STATS.RC.NAME)
+        -- Multicraft
+        or op.recipe.recipeType == Enum.TradeskillRecipeType.Item
+            and op:GetResult() and Prices:HasItemPrice(op:GetResult())
+            and not Util:TblSomeWhere(stats, "bonusStatName", C.STATS.MC.NAME)
 
-    if not hasResourcefulness and not hasMulticraft then
+    if statsMissing then
         self.operationCache:Unset(self.operationCache:Key(self))
     end
 
     return op
+end
+
+---@param operation Operation
+function Self:SetOperation(operation)
+    self.container:SetTool(operation.toolGUID, true)
+
+    NS.RecipeForm.SetOperation(self, operation)
 end
 
 ---------------------------------------
@@ -152,8 +177,6 @@ end
 
 function Self:OnEnabled()
     if not self.form then return end
-
-    Util:TblHook(self.form, "GetRecipeOperationInfo", self.GetRecipeOperationInfo, self)
 
     Util:TblHook(self.form.Concentrate.ConcentrateToggleButton, "HasEnoughConcentration", Util.FnTrue)
     Util:TblHook(self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton, "HasEnoughConcentration", Util.FnTrue)
@@ -164,8 +187,6 @@ end
 
 function Self:OnDisabled()
     if not self.form then return end
-
-    Util:TblUnhook(self.form, "GetRecipeOperationInfo")
 
     Util:TblUnhook(self.form.Concentrate.ConcentrateToggleButton, "HasEnoughConcentration")
     Util:TblUnhook(self.form.Details.CraftingChoicesContainer.ConcentrateContainer.ConcentrateToggleButton, "HasEnoughConcentration")
@@ -225,6 +246,8 @@ function Self:OnAddonLoaded()
     )
 
     -- Hooks
+
+    Util:TblHook(self.form, "GetRecipeOperationInfo", self.GetRecipeOperationInfo, self)
 
     hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))

@@ -19,9 +19,10 @@ Self.operationCache = Cache:Create(
 
         return ("%d;%s"):format(
             order and order.orderState or 0,
-            Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled)
+            Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled, self:GetTool())
         )
     end,
+    nil,
     10,
     true
 )
@@ -57,6 +58,9 @@ function Self:GetRecipe()
     if not self.form.transaction then return end
     return self.form.transaction:GetRecipeSchematic()
 end
+
+---@return string? toolGUID
+function Self:GetTool() end
 
 ---@param minimized? boolean
 ---@param nonLocal? boolean
@@ -98,7 +102,7 @@ function Self:GetOperation(refresh)
     if order and Orders:IsClaimable(order) then ---@cast order -?
         op = Optimization:GetOrderAllocation(order, tx, Addon.enabled)
     else
-        op = Operation:FromTransaction(tx, order, Addon.enabled)
+        op = Operation:FromTransaction(tx, order, Addon.enabled, self:GetTool())
     end
 
     cache:Set(key, op)

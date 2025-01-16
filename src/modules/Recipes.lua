@@ -54,6 +54,18 @@ function Self:GetTrackedAmounts(recipeOrOrder, isRecraft)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
+---@param isRecraft? boolean
+function Self:GetTrackedAmountTotal(recipeOrOrder, isRecraft)
+    if not self:IsTracked(recipeOrOrder, isRecraft) then return end
+    local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraft)
+
+    local amounts = Addon.DB.Char.tracked[isRecraft][recipeID]
+    if type(amounts) ~= "table" then return amounts or 1 end
+
+    return Util:TblReduce(amounts, Util.FnAdd, 0)
+end
+
+---@param recipeOrOrder RecipeOrOrder
 ---@param isRecraftOrQuality? boolean|number
 ---@return Operation?
 function Self:GetTrackedAllocation(recipeOrOrder, isRecraftOrQuality)

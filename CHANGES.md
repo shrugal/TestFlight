@@ -1,2 +1,14 @@
-- Move crafting details up a bit if price source addon is installed
+- Add profession tools optimization
+- Add profession tools to order crafting form
+- Add showing pending profession tool change in crafting forms
+- Add showing crafting result stats with pending profession tool
+- Add equipping pending profession tool before crafting a recipe
+- Add command to change TSM custom price string
+- Updated default TSM custom price string
+- Moved crafting details up a bit if price source addon is installed
+- Improved crafting queue sort order
+- Improved help command output
+- Fix counting down tracked recipe amount when interrupting craft spellcast
 - Fix UIs not updating when changing profession equipment
+- Fix showing tracked recipes with zero crafts in crafting queue
+- Internal: Refactored logic for recipe form container frames

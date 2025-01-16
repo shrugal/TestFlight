@@ -7,7 +7,7 @@ local Buffs, Cache, GUI, Optimization, Orders, Promise, Util = Addon.Buffs, Addo
 local Self = GUI.OrdersPage
 
 ---@type Cache<Promise, fun(self: Cache, order: CraftingOrderInfo): number>
-Self.profitCache = Cache:Create(function (_, order) return order.orderID end, 50, true)
+Self.profitCache = Cache:Create(function (_, order) return order.orderID end, nil, 50, true)
 
 -- Orders list
 

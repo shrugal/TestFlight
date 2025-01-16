@@ -4,6 +4,8 @@ local Addon = select(2, ...)
 ---@class Constants
 local Self = Addon.Constants
 
+Self.TSM_PRICE_STRING = "min(VendorBuy, first(DBRecent, DBMinbuyout, DBMarket))"
+
 Self.AUCTION_HOUSE_CUT = 0.05
 
 -- Source: CraftSim
@@ -15,7 +17,7 @@ Self.QUALITY_BREAKPOINTS = {
 
 Self.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
 
--- Source: CraftSim
+-- Source: CraftSim (mostly)
 Self.STATS = {
     -- Resourcefulness
     RC = {
@@ -37,7 +39,7 @@ Self.STATS = {
         },
         FACTORS = {
             [09] = 0.0009,
-            [10] = 0.000302,
+            [10] = 0.000303,
         }
     },
     -- Ingenuity

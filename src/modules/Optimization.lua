@@ -592,26 +592,22 @@ end
 --               Caches
 ---------------------------------------
 
----@type fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
-local cacheKeyReagentsFilter = function (slot, allocs)
-    return Reagents:IsModifying(slot)
-        or allocs and allocs:HasAnyAllocations() and Reagents:IsUntradableBonusSkill(allocs.allocs[1].reagent)
-end
-
 Self.Cache = {
     ---@type Cache<table, fun(self: Cache, operation: Operation): string>
     WeightsAndPrices = Cache:Create(
         ---@param operation Operation
         function (_, operation)
-            return operation:GetKey(false, cacheKeyReagentsFilter)
+            return Self:GetOperationCacheKey(operation, false)
         end,
+        nil,
         5,
         true
     ),
     ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string>
     CostAllocations = Cache:Create(
         ---@param operation Operation
-        function(_, operation) return operation:GetKey(nil, cacheKeyReagentsFilter) end,
+        function(_, operation) return Self:GetOperationCacheKey(operation) end,
+        nil,
         10,
         true
     ),
@@ -624,13 +620,35 @@ Self.Cache = {
             return ("%s;;%d;%s"):format(
                 method,
                 method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0,
-                operation:GetKey(applyConcentration, cacheKeyReagentsFilter)
+                Self:GetOperationCacheKey(operation, applyConcentration)
             )
         end,
+        nil,
         10,
         true
     )
 }
+
+---@type fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
+local cacheKeyReagentsFilter = function (slot, allocs)
+    return Reagents:IsModifying(slot)
+        or allocs and allocs:HasAnyAllocations() and Reagents:IsUntradableBonusSkill(allocs.allocs[1].reagent)
+end
+
+---@param operation Operation
+function Self:GetOperationCacheKey(operation, applyConcentration)
+    if applyConcentration == nil then applyConcentration = operation.applyConcentration end
+
+    return Operation:GetKey(
+        operation.recipe,
+        operation.allocation,
+        operation.orderOrRecraftGUID,
+        applyConcentration,
+        0,
+        "-",
+        cacheKeyReagentsFilter
+    )
+end
 
 ---------------------------------------
 --               Events

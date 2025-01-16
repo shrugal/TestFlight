@@ -114,8 +114,10 @@ end
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
-    local craftingPage = ProfessionsFrame.CraftingPage
-    self.form = craftingPage.SchematicForm
+    local crafingPage = ProfessionsFrame.CraftingPage
+
+    self.container = GUI.RecipeFormContainer.CraftingPage
+    self.form = crafingPage.SchematicForm
 
     Parent.OnAddonLoaded(self)
 
@@ -133,7 +135,7 @@ function Self:OnAddonLoaded(addonName)
 
     -- Insert optimization buttons
     self:InsertOptimizationButtons(
-        craftingPage,
+        crafingPage,
         "TOPLEFT", self.form, "BOTTOMLEFT", 0, -4
     )
 end

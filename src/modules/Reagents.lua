@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Buffs, Orders, Prices, Recipes, Util = Addon.Constants, Addon.Buffs, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local Buffs, C, Cache, Orders, Prices, Recipes, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class Reagents
 local Self = Addon.Reagents
@@ -525,7 +525,7 @@ end
 
 Self.Cache = {
     ---@type Cache<number[], fun(self: Cache, recipe: CraftingRecipeSchematic, optionalReagents?: CraftingReagentInfo[], orderOrRecraftGUID?: CraftingOrderInfo | string): string>
-    SkillBounds = Addon.Cache:Create(
+    SkillBounds = Cache:Create(
         ---@param recipe CraftingRecipeSchematic
         ---@param optionalReagents? CraftingReagentInfo[]
         ---@param orderOrRecraftGUID? CraftingOrderInfo | string
@@ -545,11 +545,12 @@ Self.Cache = {
 
             return key
         end,
+        nil,
         10,
         true
     ),
     ---@type Cache<number, fun (self: Cache, recipe: CraftingRecipeSchematic): string>
-    WeightPerSkill = Addon.Cache:Create(
+    WeightPerSkill = Cache:Create(
         ---@param recipe CraftingRecipeSchematic
         function (_, recipe)
             return ("%d;%d"):format(recipe.recipeID, recipe.isRecraft and 1 or 0)
