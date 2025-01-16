@@ -378,6 +378,9 @@ ProfessionsFrame = nil
 ---@field Init fun(self: self, professionInfo: ProfessionInfo)
 ---@field ValidateControls fun(self: self)
 ---@field SetCreateButtonTooltipText fun(self: self, text: string)
+---@field OnRecipeSelected fun(self: self, recipeInfo: TradeSkillRecipeInfo, recipeList?: RecipeList)
+---@field SelectRecipe fun(self: self, recipeInfo: TradeSkillRecipeInfo, skipSelectInList?: boolean)
+---@field CheckShowHelptips fun(self: self)
 
 ---@class RecipeList: Frame
 ---@field previousRecipeID? number
@@ -622,6 +625,7 @@ C_TradeSkillUI = {}
 ---@field IsUsingDefaultFilters fun(ignoreSkillLine?: boolean): boolean
 ---@field InLocalCraftingMode fun(): boolean
 ---@field GetProfessionInfo fun(): ProfessionInfo
+---@field EraseRecraftingTransitionData fun()
 Professions = {}
 
 ---@class ProfessionsUtil

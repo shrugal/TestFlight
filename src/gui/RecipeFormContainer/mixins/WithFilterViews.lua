@@ -76,23 +76,38 @@ Self.dataProvider = CreateTreeDataProvider()
 --            RecipeList
 ---------------------------------------
 
+---@param frame RecipeList
+---@param recipeInfo TradeSkillRecipeInfo | { favoritesInstance?: boolean }
+---@param scrollToRecipe? boolean
+function Self:RecipeListSelectRecipe(frame, recipeInfo, scrollToRecipe)
+    local node = self.recipeList.selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode?]]
+    local data = node and node:GetData()
+
+    -- Skip if recipe is already selected, to prevent selecting a different quality
+    if data and data.recipeInfo and Util:TblMatch(data.recipeInfo, "recipeID", recipeInfo.recipeID, "favoritesInstance", recipeInfo.favoritesInstance) then
+        return
+    end
+
+    return Util:TblGetHooked(frame, "SelectRecipe")(frame, recipeInfo, scrollToRecipe)
+end
+
 ---@param frame ProfessionsRecipeListRecipeFrame
 ---@param node RecipeTreeNode
-function Self:InitRecipeListRecipe(frame, node)
+---@param reuse? boolean
+function Self:InitRecipeListRecipe(frame, node, reuse)
     if not frame.GetLabelColor then return end
 
     local data = node:GetData()
-    local value, amount, quality = data.value, data.amount, data.quality
-    local r, g, b = frame:GetLabelColor():GetRGB()
 
     -- Hook OnClick
-    if not frame.hooked then
-        frame.hooked = true
-
+    if not reuse then
         frame:HookScript("OnClick", function (_, buttonName)
-            if buttonName ~= "LeftButton" or not IsModifiedClick("RECIPEWATCHTOGGLE") then return end
+            if buttonName ~= "LeftButton" or not self.filter then return end
 
-            if self.filter == self.Filter.Restock then
+            if not IsModifiedClick("RECIPEWATCHTOGGLE") then
+                self.selectedRecipeID = data.recipeInfo.recipeID
+                self.selectedQuality = data.quality
+            elseif self.filter == self.Filter.Restock then
                 local operation, quality, amount = data.operation, data.quality, data.amount
                 if not operation or not amount then return end
                 local recipe = operation.recipe
@@ -105,6 +120,9 @@ function Self:InitRecipeListRecipe(frame, node)
             end
         end)
     end
+
+    local value, amount, quality = data.value, data.amount, data.quality
+    local r, g, b = frame:GetLabelColor():GetRGB()
 
     -- Set amount
     if amount then
@@ -248,14 +266,16 @@ function Self:SetFilterSelected(filter, sort)
     self.filter = filter
     self.sort = sort
 
-    self.dataProvider:GetRootNode():Flush()
-
     if filter then ---@cast sort -?
         self.recipeList:SetPoint("BOTTOMLEFT", 0, 32.5)
         self:UpdateRecipeList(true, true)
     else
         self.recipeList:SetPoint("BOTTOMLEFT", 0, 5)
         self:UpdateFilterButtons()
+
+        self.dataProvider:GetRootNode():Flush()
+        self.filterProfessionInfo, self.filterRecipeIDs = nil, nil
+        self.selectedRecipeID, self.selectedQuality = nil, nil
 
         if self.filterJob then self.filterJob:Cancel() end
         self.Cache.Filter:Clear()
@@ -269,7 +289,8 @@ end
 
 ---@param refresh? boolean
 ---@param flush? boolean
-function Self:UpdateRecipeList(refresh, flush)
+---@param updateSelected? boolean
+function Self:UpdateRecipeList(refresh, flush, updateSelected)
     if not self.filter then return end
     local filter, sort = self.filter, self:GetFilterSort(self.filter) --[[@cast filter -?]] --[[@cast sort -?]]
 
@@ -290,18 +311,18 @@ function Self:UpdateRecipeList(refresh, flush)
     local provider = self.dataProvider
     local hasCustomProvider = scrollBox:GetDataProvider() == provider
 
-    local updateSelected = professionChanged or hasCustomProvider
-    local flush = flush or professionChanged
     local refresh = refresh
         or professionChanged
         or not hasCustomProvider
         or not self.filterRecipeIDs or not Util:TblEquals(self.filterRecipeIDs, recipeIDs)
+    local flush = flush or professionChanged
+    local updateSelected = updateSelected or professionChanged or hasCustomProvider
 
     -- Update selected
     if updateSelected then
-        local selected = selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode]]
-        if selected then
-            local data = selected:GetData()
+        local node = selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode]]
+        if node then
+            local data = node:GetData()
             self.selectedRecipeID, self.selectedQuality = data.recipeInfo.recipeID, data.quality
         else
             self.selectedRecipeID, self.selectedQuality = recipeList.previousRecipeID, nil
@@ -384,7 +405,7 @@ function Self:UpdateRecipeList(refresh, flush)
                         if not node then
                             provider:Insert(data)
                         elseif frame then
-                            self:InitRecipeListRecipe(frame, node)
+                            self:InitRecipeListRecipe(frame, node, true)
                         end
 
                         datas[data] = true
@@ -432,6 +453,8 @@ function Self:UpdateRecipeList(refresh, flush)
     else
         provider:Sort()
         provider:Invalidate()
+
+        self:RestoreSelectedRecipe()
     end
 end
 
@@ -441,10 +464,16 @@ function Self:RestoreSelectedRecipe()
     local recipeID, quality = self.selectedRecipeID, self.selectedQuality
     if not recipeID then return end
 
-    self.recipeList.selectionBehavior:SelectFirstElementData(function (node) ---@cast node RecipeTreeNode
+    ---@param node RecipeTreeNode
+    local function predicate(node)
         local data = node:GetData()
         return data.recipeInfo.recipeID == recipeID and (not data.quality or not quality or data.quality == quality)
-    end)
+    end
+
+    local node = self.recipeList.selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode?]]
+    if node and predicate(node) then return end
+
+    self.recipeList.selectionBehavior:SelectFirstElementData(predicate)
 end
 
 ---@param filter RecipeFormContainer.Filter
@@ -679,6 +708,16 @@ end
 --              Events
 ---------------------------------------
 
+function Self:OnShow()
+    if not self.filter then return end
+    self:UpdateRecipeList(true)
+end
+
+function Self:OnHide()
+    if not self.filterJob then return end
+    self.filterJob:Cancel()
+end
+
 ---@param frame ProfessionsRecipeListRecipeFrame
 ---@param node RecipeTreeNode
 function Self:OnRecipeListRecipeInitialized(frame, node)
@@ -729,12 +768,15 @@ function Self:OnOwnedItemsUpdated()
     self:UpdateRecipeList(true)
 end
 
----@param addonName string
-function Self:OnAddonLoaded(addonName)
-
+function Self:OnAddonLoaded()
     self:CreateRecipeListProgressBar()
     self:ModifyRecipeListFilter()
     self:InsertFilterButtons()
+
+    self.frame:HookScript("OnShow", Util:FnBind(self.OnShow, self))
+    self.frame:HookScript("OnHide", Util:FnBind(self.OnHide, self))
+
+    Util:TblHook(self.recipeList, "SelectRecipe", self.RecipeListSelectRecipe, self)
 
     self.recipeList.ScrollBox.view:RegisterCallback(ScrollBoxListViewMixin.Event.OnInitializedFrame, self.OnRecipeListRecipeInitialized, self)
 

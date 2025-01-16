@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Restock, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Restock, Addon.Util
+local GUI, Util = Addon.GUI, Addon.Util
 local NS = GUI.RecipeFormContainer
 
 ---@type GUI.RecipeFormContainer.RecipeFormContainer | GUI.RecipeFormContainer.WithCrafting | GUI.RecipeFormContainer.WithFilterViews
@@ -15,10 +15,12 @@ local Self = Mixin(GUI.RecipeFormContainer.CraftingPage, Parent)
 --            Hooks
 ---------------------------------------
 
-function Self:Init()
+function Self:Init(_, profInfo)
     if not self.filter then return end
 
-    self:UpdateRecipeList()
+    local updateSelected = profInfo ~= self.filterProfessionInfo and profInfo.openRecipeID ~= nil
+
+    self:UpdateRecipeList(false, false, updateSelected)
 end
 
 function Self:ValidateControls()
@@ -103,18 +105,6 @@ function Self:OnSelectionChanged(node, selected)
     end
 end
 
--- Page shown
-function Self:OnRegisterUnitEvent(_, event)
-    if event ~= "UNIT_AURA" or not self.filter then return end
-    self:UpdateRecipeList(true)
-end
-
--- Page hidden
-function Self:OnUnregisterEvent(_, event)
-    if event ~= "UNIT_AURA" or not self.filterJob then return end
-    self.filterJob:Cancel()
-end
-
 function Self:OnRefresh()
     if self.frame:IsVisible() then self:ValidateControls() end
 end
@@ -134,9 +124,6 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(self.frame, "ValidateControls", Util:FnBind(self.ValidateControls, self))
 
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
-
-    hooksecurefunc(self.frame, "RegisterUnitEvent", Util:FnBind(self.OnRegisterUnitEvent, self))
-    hooksecurefunc(self.frame, "UnregisterEvent", Util:FnBind(self.OnUnregisterEvent, self))
 
     self.frame.RecipeList.selectionBehavior:RegisterCallback(SelectionBehaviorMixin.Event.OnSelectionChanged, self.OnSelectionChanged, self)
 end
