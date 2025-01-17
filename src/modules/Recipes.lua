@@ -296,13 +296,13 @@ end
 function Self:GetStatBonus(recipe, stat, optionalReagents)
     local val = 0
 
-    local perks = C.PERKS.recipes[recipe.recipeID]
+    local perks = C.TRAITS.RECIPES[recipe.recipeID]
     if perks then
         local professionInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
         local configID = C_ProfSpecs.GetConfigIDForSkillLine(professionInfo.professionID)
 
         for _,perkID in pairs(perks) do
-            local perk = C.PERKS.nodes[perkID]
+            local perk = C.TRAITS.PERKS[perkID]
             if perk[stat] and C_ProfSpecs.GetStateForPerk(perkID, configID) == Enum.ProfessionsSpecPerkState.Earned then
                 val = val + perk[stat] / 100
             end

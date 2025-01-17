@@ -338,8 +338,8 @@ function SlashCmdList.TESTFLIGHT(input)
 
         Self:Print("Options:")
         Self:PrintOption("recraft", "rc", "<link>", "Set recraft UI to an item given by link.")
-        Self:PrintOption("tooltip", "tt", "off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip and "on" or "off")
-        Self:PrintOption("reagents", "re", "off", "Toggle reagents tracker.", Self.DB.Account.reagents and "on" or "off")
+        Self:PrintOption("tooltip", "tt", "on||off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip and "on" or "off")
+        Self:PrintOption("reagents", "re", "on||off", "Toggle reagents tracker.", Self.DB.Account.reagents and "on" or "off")
         Self:PrintOption("pricesource", "ps", "<name>||auto", "Set price source.", Self.DB.Account.priceSource or "auto")
 
         if Prices.SOURCES.TradeSkillMaster:IsAvailable() then
