@@ -1,15 +1,7 @@
-- Add profession tools optimization
-- Add profession tools to order crafting form
-- Add showing pending profession tool change in crafting forms
-- Add showing crafting result stats with pending profession tool
-- Add equipping pending profession tool before crafting a recipe
-- Add command to change TSM custom price string
-- Updated default TSM custom price string
-- Move crafting details up a bit if price source addon is installed
-- Improve selection handling for filter views
-- Improve crafting queue sort order
-- Improve help command output
-- Fix counting down tracked recipe amount when interrupting craft spellcast
-- Fix UIs not updating when changing profession equipment
-- Fix showing tracked recipes with zero crafts in crafting queue
-- Internal: Refactored logic for recipe form container frames
+- Add crafting buff simulation
+- Add dropdowns to select simulated buffs to optimization and filter menus
+- Add reagent slots for possible buffs to recipe forms
+- Add applying missing simulated buffs before crafting a recipe
+- Save selected buffs between sessions
+- Fix sort order when sorting scan filter view by reagent cost
+- Fix trying to search for reagents in Auctionator while TSM auction window is open

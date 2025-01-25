@@ -5,6 +5,9 @@ local Addon = select(2, ...)
 ---@class Util
 local Self = Addon.Util
 
+Self.NIL = {}
+Self.EMPTY = {}
+
 ---@alias SearchFn<T, R, S> (fun(v: T, ...:any): R) | (fun(v: T, k: any, ...: any): R) | (fun(self: S, v: T, ...: any): R) | (fun(self: S, v: T, k: any, ...: any): R)
 
 ---@generic T
@@ -30,22 +33,6 @@ function Self:Select(val, a, b, ...)
         if val == a then return b end
     end
     return select(n - n % 2 + 1, ...)
-end
-
----@param targetAddonName string
----@param addonName string
-function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)
-    return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
-end
-
----@param name CVar
-function Self:GetCVarNum(name)
-    return tonumber(GetCVar(name))
-end
-
----@param name CVar
-function Self:GetCVarBool(name)
-    return GetCVar(name) == "1"
 end
 
 ---@generic K, T
@@ -109,6 +96,35 @@ end
 function Self:GetVal(val, ...)
     if type(val) ~= "function" then return val end
     return val(...)
+end
+
+-- WoW
+
+---@param targetAddonName string
+---@param addonName string
+function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)
+    return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
+end
+
+---@param name CVar
+function Self:GetCVarNum(name)
+    return tonumber(GetCVar(name))
+end
+
+---@param name CVar
+function Self:GetCVarBool(name)
+    return GetCVar(name) == "1"
+end
+
+---@param itemID number
+function Self:GetItemBagLocationByID(itemID)
+    for i = Enum.BagIndex.Backpack, NUM_TOTAL_EQUIPPED_BAG_SLOTS do
+        for j = 1, C_Container.GetContainerNumSlots(i) do
+            if C_Container.GetContainerItemID(i, j) == itemID then
+                return ItemLocation:CreateFromBagAndSlot(i, j)
+            end
+        end
+    end
 end
 
 -- Tbl
@@ -353,10 +369,10 @@ function Self:TblContains(tbl, ...)
     return true
 end
 
----@param tbl1 table
----@param tbl2 table
+---@param tbl1? table
+---@param tbl2? table
 function Self:TblEquals(tbl1, tbl2)
-    return tbl1 == tbl2 or self:TblContains(tbl1, tbl2) and self:TblContains(tbl2, tbl1)
+    return tbl1 == tbl2 or tbl1 and tbl2 and self:TblContains(tbl1, tbl2) and self:TblContains(tbl2, tbl1)
 end
 
 ---@generic T, R, S: table
@@ -573,24 +589,23 @@ function Self:TblIsList(tbl)
 end
 
 ---@generic T, S: table
----@param tbl T[]
+---@param tbl T[] | Enumerator<T>
 ---@param fn? SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
 ---@return number
 function Self:TblCount(tbl, fn, key, obj, ...)
-    local c, k = 0, next(tbl)
-    while k do
-        if not fn or self:FnCall(fn, tbl[k], key and k, obj, ...) then c = c + 1 end
-        k = next(tbl, k)
+    local c = 0
+    for k,v in self:Each(tbl) do
+        if not fn or self:FnCall(fn, v, key and k, obj, ...) then c = c + 1 end
     end
     return c
 end
 
----@param tbl table
+---@param tbl table | Enumerator<any>
 function Self:TblIsEmpty(tbl)
-    return not next(tbl)
+    if type(tbl) == "function" then return not tbl else return not next(tbl) end
 end
 
 ---@generic T

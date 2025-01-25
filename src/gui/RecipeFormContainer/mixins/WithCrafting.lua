@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Util = Addon.GUI, Addon.Util
+local Buffs, GUI, Util = Addon.Buffs, Addon.GUI, Addon.Util
 local NS = GUI.RecipeFormContainer
 
 local Parent = Util:TblCombineMixins(NS.WithTools)
@@ -17,6 +17,9 @@ local Self = Mixin(GUI.RecipeFormContainer.WithCrafting, Parent)
 function Self:CreateButtonOnEnter(frame)
     if self:HasPendingTool() then
         GUI:ShowInfoTooltip(frame, "Equip pending crafting tool.")
+    elseif self.form:GetMissingAura() then
+        local action, recipe, item = self.form:GetAuraAction() ---@cast action -?
+        GUI:ShowInfoTooltip(frame, Buffs:GetAuraActionTooltip(action, recipe, item))
     elseif Addon.enabled then
         GUI:ShowErrorTooltip(frame, "Experimentation mode is enabled.")
     else
@@ -28,22 +31,42 @@ end
 ---@param frame Button
 ---@param buttonName "LeftButton" | "RightButton"
 function Self:CreateButtonOnClick(frame, buttonName)
-    if buttonName == "LeftButton" and self:HasPendingTool() then
-        self:EquipTool()
-    elseif Addon.enabled then
-        return
-    else
-        Util:TblGetHooked(frame, "OnClick")(frame, buttonName)
+    if buttonName == "LeftButton" then
+        if self:HasPendingTool() then
+            return self:EquipTool()
+        elseif self.form:GetMissingAura() then
+            return self.form:CastNextAura()
+        elseif Addon.enabled then
+            return
+        end
     end
+
+    Util:TblGetHooked(frame, "OnClick")(frame, buttonName)
 end
 
 function Self:InitCreateButton()
-    Util:TblHookScript(self.frame.CreateButton, "OnClick", self.CreateButtonOnClick, self)
+    local btn = self.frame.CreateButton
+
+    Util:TblHookScript(btn, "OnClick", self.CreateButtonOnClick, self)
+
+    self.secureCreateBtn = Buffs:CreateAuraSecureButton(btn)
 end
 
 function Self:UpdateCreateButton()
+    self.secureCreateBtn:SetShown(false)
+
+    local enabled = self.frame.CreateButton:IsEnabled()
+
     if self:HasPendingTool() then
         self.frame.CreateButton:SetText("Equip")
+    elseif self.form:GetMissingAura() then
+        local action, _, item = self.form:GetAuraAction() ---@cast action -?
+        self.frame.CreateButton:SetText(Buffs:GetAuraActionLabel(action))
+
+        if enabled and action == Buffs.AuraAction.UseItem and item then
+            self.secureCreateBtn:SetShown(true)
+            self.secureCreateBtn:SetAttribute("item", (select(2, C_Item.GetItemInfo(item))))
+        end
     elseif Addon.enabled then
         self.frame.CreateButton:SetEnabled(false)
     else

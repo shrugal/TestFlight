@@ -11,6 +11,14 @@ local Self = Mixin(NS.OrdersForm, Parent)
 
 Self.optimizationMethod = Optimization.Method.Profit
 
+function Self:UpdateAuraSlots()
+    Parent.UpdateAuraSlots(self)
+
+    if not self.form.OptionalReagents:IsShown() then return end
+
+    self.auraSlotContainer:SetPoint("TOPLEFT", self.form.Reagents, "BOTTOMLEFT", 215, -20)
+end
+
 ---------------------------------------
 --              Hooks
 ---------------------------------------

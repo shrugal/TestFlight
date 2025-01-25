@@ -107,6 +107,7 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     self.frame = ProfessionsFrame.OrdersPage.OrderView
+    self.tabID = ProfessionsFrame.craftingOrdersTabID
     self.form = GUI.RecipeForm.OrdersForm
 
     self:InsertToolButtons()

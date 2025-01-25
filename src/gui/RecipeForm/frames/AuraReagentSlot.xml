@@ -1,0 +1,67 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
+    <Script file="AuraReagentSlot.lua" />
+
+	<ItemButton name="TestFlightAuraFlyoutButtonTemplate" inherits="ProfessionsItemFlyoutButtonTemplate" mixin="TestFlightAuraFlyoutButtonMixin" virtual="true">
+		<Size x="37" y="37"/>
+        <Scripts>
+			<OnLeave function="GameTooltip_Hide" />
+        </Scripts>
+	</ItemButton>
+	
+	<Frame name="TestFlightAuraFlyoutTemplate" inherits="ProfessionsItemFlyoutTemplate" mixin="TestFlightAuraFlyoutMixin" virtual="true" />
+
+	<Frame name="TestFlightAuraSlotTemplate" mixin="TestFlightAuraSlotMixin" virtual="true">
+		<Size x="50" y="50"/>
+		<Frames>
+			<ItemButton parentKey="Button" inherits="ProfessionsReagentButtonTemplate" mixin="TestFlightAuraSlotButtonMixin">
+				<Anchors>
+					<Anchor point="LEFT"/>
+				</Anchors>
+				<Layers>
+					<Layer level="OVERLAY" textureSubLevel="7">
+						<Texture parentKey="HighlightTexture" atlas="bags-newitem" useAtlasSize="false" alphaMode="ADD" alpha="0.5" hidden="true">
+							<Size x="48" y="48"/>
+							<Anchors>
+								<Anchor point="CENTER"/>
+							</Anchors>
+						</Texture>
+
+						<Texture parentKey="QualityOverlay">
+							<Anchors>
+								<Anchor point="TOPLEFT" x="-3" y="2"/>
+							</Anchors>
+						</Texture>
+					</Layer>
+				</Layers>
+				<Frames>
+					<Frame parentKey="InputOverlay" setAllPoints="true">
+						<Layers>
+							<Layer level="OVERLAY">
+								<Texture parentKey="AddIcon" atlas="Professions-Slot-Plus" useAtlasSize="true" hidden="true">
+									<Anchors>
+										<Anchor point="BOTTOMRIGHT" x="-4" y="2"/>
+									</Anchors>
+								</Texture>
+								<Texture parentKey="AddIconHighlight" atlas="Professions-Slot-Plus-Over" useAtlasSize="true" alphaMode="ADD" hidden="true">
+									<Anchors>
+										<Anchor point="CENTER" relativeKey="$parent.AddIcon"/>
+									</Anchors>
+								</Texture>
+								<Texture parentKey="LockedIcon" atlas="AdventureMapIcon-Lock" useAtlasSize="false" hidden="true">
+									<Size x="16" y="21"/>
+									<Anchors>
+										<Anchor point="CENTER" x="0" y="0"/>
+									</Anchors>
+								</Texture>
+							</Layer>
+						</Layers>
+					</Frame>
+				</Frames>
+			</ItemButton>
+		</Frames>
+        <Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnLeave function="GameTooltip_Hide" />
+        </Scripts>
+	</Frame>
+</Ui>

@@ -10,7 +10,7 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB
 TestFlightDB = {
-    v = 3,
+    v = 4,
     ---@type boolean
     tooltip = false,
     ---@type boolean
@@ -23,6 +23,8 @@ TestFlightDB = {
     knowledgeCost = 0,
     ---@type number
     currencyCost = 0,
+    ---@type number[]
+    auras = {},
     ---@type string?
     tsmPriceString = nil
 }
@@ -36,6 +38,7 @@ TestFlightCharDB = {
     tracked = { [false] = {}, [true] = {} },
     ---@type table<number, number[]>
     restock = {},
+    ---@type number[][]
     restockMinProfits = {}
 }
 
@@ -114,6 +117,10 @@ function Self:Load()
         self.DB.Account.knowledgeCost = 0
         self.DB.Account.currencyCost = 0
         self.DB.Account.v = 3
+    end
+    if self.DB.Account.v < 4 then
+        self.DB.Account.auras = {}
+        self.DB.Account.v = 4
     end
 
     -- Char

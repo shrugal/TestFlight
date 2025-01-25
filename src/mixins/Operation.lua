@@ -15,14 +15,17 @@ Static.Mixin = {}
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
+---@param auras? string
 ---@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
-function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, reagentsFilter)
+function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras, reagentsFilter)
+    if not auras then auras = Buffs:GetCurrentAuras(recipe) end
+
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
     local recraftGUID = type(orderOrRecraftGUID) == "string" and orderOrRecraftGUID or nil
     local profInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
     local recraftMods = Reagents:GetRecraftMods(order, recraftGUID)
 
-    local key = ("%d;%s;%d;%d;%d;%d;%s;%d"):format(
+    local key = ("%d;%s;%d;%d;%d;%d;%s;%s;%d"):format(
         recipe.recipeID,
         recipe.isRecraft and recraftGUID or 0,
         applyConcentration and 1 or 0,
@@ -30,9 +33,11 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
         profInfo and profInfo.skillLevel + profInfo.skillModifier or 0,
         tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0,
         toolGUID or Buffs:GetCurrentTool(profInfo.profession) or "",
+        auras or Buffs:GetCurrentAuras(recipe),
         Prices:GetRecipeScanTime(recipe, nil, order, recraftMods) or 0
     )
 
+    -- Reagents
     for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat
         key = key .. ";"
 
@@ -54,10 +59,10 @@ function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentratio
                 local amount = alloc.quantity
                 if itemID == slot.reagents[1].itemID then amount = amount + missing end
 
-                key = key .. (";%d;%d"):format(itemID, amount)
+                key = key .. (";%d:%d"):format(itemID, amount)
             until true end
         elseif missing > 0 then
-            key = key .. (";%d;%d"):format(slot.reagents[1].itemID, missing)
+            key = key .. (";%d:%d"):format(slot.reagents[1].itemID, missing)
         end
     until true end
 
@@ -80,26 +85,28 @@ local Self = Static.Mixin
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
-function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID)
-    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID) --[[@as Operation]]
+---@param auras? string
+function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
+    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras) --[[@as Operation]]
 end
 
 ---@param tx ProfessionTransaction
 ---@param order? CraftingOrderInfo
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
-function Static:FromTransaction(tx, order, extraSkill, toolGUID)
+---@param auras? string
+function Static:FromTransaction(tx, order, extraSkill, toolGUID, auras)
     local recipe = tx:GetRecipeSchematic()
     local allocation = Util:TblCopy(tx.allocationTbls, true)
     local orderOrRecraftGUID = order or tx:GetRecraftAllocation()
     local applyConcentration = tx:IsApplyingConcentration()
 
-    return self:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID)
+    return self:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
 end
 
 ---@param allocation? RecipeAllocation
 function Self:WithAllocation(allocation)
-    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID)
+    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID, self.auras)
 end
 
 ---@param reagentTypes number
@@ -168,7 +175,7 @@ function Self:WithExtraSkill(extraSkill)
     extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
     if extraSkill == self.extraSkill then return self end
 
-    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill, self.toolGUID)
+    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill, self.toolGUID, self.auras)
 end
 
 ---@param quality number
@@ -234,6 +241,25 @@ function Self:WithTool(toolGUID)
     return op
 end
 
+---@param auras? string
+function Self:WithAuras(auras)
+    if auras == self.auras then return self end
+
+    local op = Util:TblCopy(self)
+    op.auras = auras
+
+    if self.operationInfo then
+        op.operationInfo = Util:TblCopy(self.operationInfo, true)
+
+        Buffs:ApplyAuras(op.operationInfo, self.auras, -1)
+        Buffs:ApplyAuras(op.operationInfo, auras, 1)
+
+        op.profit, op.resourcefulnessFactor, op.multicraftFactor = nil, nil, nil
+    end
+
+    return op
+end
+
 -- CLASS
 
 ---@param recipe CraftingRecipeSchematic
@@ -242,13 +268,15 @@ end
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
-function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID)
+---@param auras? string
+function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
     self.recipe = recipe
     self.allocation = allocation or {}
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
     self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
     self.toolGUID = toolGUID
+    self.auras = auras
 
     local order = self:GetOrder()
 
@@ -298,6 +326,10 @@ function Self:GetProfessionInfo()
     return self.professionInfo
 end
 
+function Self:GetSkillLineInfo()
+    return C_TradeSkillUI.GetTradeSkillLineForRecipe(self.recipe.recipeID)
+end
+
 function Self:GetAvailableTools()
     return Buffs:GetAvailableTools(self:GetProfessionInfo().profession)
 end
@@ -327,6 +359,16 @@ function Self:GetOperationInfo()
         elseif self.toolGUID ~= currentTool then
             Buffs:ApplyTool(self.operationInfo, currentTool, -1)
             Buffs:ApplyTool(self.operationInfo, self.toolGUID, 1)
+        end
+
+        -- Auras
+        local currentAuras = Buffs:GetCurrentAuras(self.recipe)
+
+        if not self.auras then
+            self.auras = currentAuras
+        elseif self.auras ~= currentAuras then
+            Buffs:ApplyAuras(self.operationInfo, currentAuras, -1)
+            Buffs:ApplyAuras(self.operationInfo, self.auras, 1)
         end
     end
     return self.operationInfo
@@ -722,6 +764,24 @@ function Self:EquipTool()
     Buffs:EquipTool(self.toolGUID, self:GetProfessionInfo().profession)
 end
 
+function Self:GetMissingAura()
+    return Buffs:GetMissingAura(self.auras)
+end
+
+function Self:GetAuraAction()
+    local auraID, level = self:GetMissingAura()
+    if not auraID then return end
+
+    return Buffs:GetAuraAction(auraID, level)
+end
+
+function Self:CastNextAura()
+    local auraID, level = self:GetMissingAura()
+    if not auraID then return end
+
+    return Buffs:CastAura(auraID, level)
+end
+
 function Self:IsCraftable()
     return self:HasAllReagents() and self:HasAllRequirementsMet()
 end
@@ -752,7 +812,7 @@ Static.Cache = {
             return ("%d;%d;%d;%d"):format(
                 operation.recipe.recipeID,
                 operation:GetQuality(),
-                operation:GetStatBonus("cc") * 100,
+                operation:GetStatBonus("CC") * 100,
                 profInfo and profInfo.skillLevel + profInfo.skillModifier or 0
             )
         end,

@@ -19,7 +19,7 @@ Self.operationCache = Cache:Create(
 
         return ("%d;%s"):format(
             order and order.orderState or 0,
-            Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled, self:GetTool())
+            Operation:GetKey(recipe, tx.allocationTbls, orderOrRecraftGUID, applyConcentration, Addon.enabled, self:GetTool(), self:GetAuras())
         )
     end,
     nil,
@@ -62,6 +62,9 @@ end
 ---@return string? toolGUID
 function Self:GetTool() end
 
+---@return string? auras
+function Self:GetAuras() end
+
 ---@param minimized? boolean
 ---@param nonLocal? boolean
 function Self:ShouldShowElement(minimized, nonLocal)
@@ -102,7 +105,7 @@ function Self:GetOperation(refresh)
     if order and Orders:IsClaimable(order) then ---@cast order -?
         op = Optimization:GetOrderAllocation(order, tx, Addon.enabled)
     else
-        op = Operation:FromTransaction(tx, order, Addon.enabled, self:GetTool())
+        op = Operation:FromTransaction(tx, order, Addon.enabled, self:GetTool(), self:GetAuras())
     end
 
     cache:Set(key, op)
@@ -263,7 +266,7 @@ function Self:OnTrackedRecipeUpdated(recipeID, tracked)
     self:UpdateTracking()
 end
 
-function Self:OnBuffChanged()
+function Self:OnTraitChanged()
     self.operationCache:Clear()
 end
 
@@ -272,5 +275,5 @@ function Self:OnAddonLoaded()
 
     GUI:RegisterCallback(GUI.Event.Refresh, self.OnRefresh, self)
 
-    Buffs:RegisterCallback(Buffs.Event.BuffChanged, Self.OnBuffChanged, Self)
+    Buffs:RegisterCallback(Buffs.Event.TraitChanged, Self.OnTraitChanged, Self)
 end

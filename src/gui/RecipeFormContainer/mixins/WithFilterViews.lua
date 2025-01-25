@@ -26,6 +26,8 @@ Self.SortComparator = {
             local a, b = a:GetData(), b:GetData()
             -- Sort by name if no value
             if not a.value or not b.value then return a.recipeInfo.name < b.recipeInfo.name end
+            -- Low price before high price
+            if Self:GetFilterSort(Self.filter) == Optimization.Method.Cost then return a.value < b.value end
             -- High profit before low profit
             return a.value > b.value
         end
@@ -213,15 +215,15 @@ function Self:ModifyRecipeListFilter()
     local SetSortSelected = function (sort) self:SetFilterSelected(self.Filter.Scan, sort) return 4 end
 
     Menu.ModifyMenu("MENU_PROFESSIONS_FILTER", function (_, rootDescription)
-        if ProfessionsFrame:GetTab() ~= ProfessionsFrame.recipesTabID then return end
+        if ProfessionsFrame:GetTab() ~= self.tabID then return end
 
-        rootDescription:Insert(MenuUtil.CreateSpacer())
-        rootDescription:Insert(MenuUtil.CreateTitle("TestFlight"))
-        rootDescription:Insert(MenuUtil.CreateRadio(NONE, IsFilterSelected, SetFilterSelected))
+        rootDescription:CreateSpacer()
+        rootDescription:CreateTitle("TestFlight")
+        rootDescription:CreateRadio(NONE, IsFilterSelected, SetFilterSelected)
 
         -- Add sort menu
         if Prices:IsSourceInstalled() then
-            local sortSubmenu = rootDescription:Insert(MenuUtil.CreateRadio("Scan", IsFilterSelected, SetFilterSelected, self.Filter.Scan)) --[[@as ElementMenuDescriptionProxy]]
+            local sortSubmenu = rootDescription:CreateRadio("Scan", IsFilterSelected, SetFilterSelected, self.Filter.Scan) --[[@as ElementMenuDescriptionProxy]]
 
             for name,method in pairs(Optimization.Method) do repeat
                 if method == Optimization.Method.CostPerConcentration then
@@ -235,8 +237,11 @@ function Self:ModifyRecipeListFilter()
         end
 
         -- Add tracked and restock options
-        rootDescription:Insert(MenuUtil.CreateRadio("Queue", IsFilterSelected, SetFilterSelected, self.Filter.Queue))
-        rootDescription:Insert(MenuUtil.CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock))
+        rootDescription:CreateRadio("Queue", IsFilterSelected, SetFilterSelected, self.Filter.Queue)
+        rootDescription:CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock)
+
+        rootDescription:CreateSpacer()
+        Buffs:AddAuraFilters(rootDescription)
     end)
 
     -- Update reset filter button state
@@ -588,6 +593,27 @@ function Self:GetNextTrackedRestock()
     end, false))
 end
 
+---@param frame Frame
+function Self:CraftRestockButtonOnEnter(frame)
+    if self.filter == self.Filter.Queue then
+        local node = self:GetNextTrackedCraftable()
+        if not node then return end
+
+        local data = node:GetData()
+        local operation, amount = data.operation, data.amount
+        if not operation or not amount then return end
+
+        if not operation:IsToolEquipped() then
+            GUI:ShowInfoTooltip(frame, "Equip pending crafting tool.")
+        elseif operation:GetMissingAura() then
+            local action, recipe, item = operation:GetAuraAction() ---@cast action -?
+            GUI:ShowInfoTooltip(frame, Buffs:GetAuraActionTooltip(action, recipe, item))
+        else
+        end
+    elseif self.filter == self.Filter.Restock then
+    end
+end
+
 function Self:CraftRestockButtonOnClick()
     if self.filter == self.Filter.Queue then
         local node = self:GetNextTrackedCraftable()
@@ -599,6 +625,8 @@ function Self:CraftRestockButtonOnClick()
 
         if not operation:IsToolEquipped() then
             operation:EquipTool()
+        elseif operation:GetMissingAura() then
+            operation:CastNextAura()
         else
             self:CraftOperation(operation, min(amount, operation:GetMaxCraftAmount()))
         end
@@ -640,15 +668,16 @@ function Self:InsertFilterButtons()
     end
 
     self.craftRestockBtn = GUI:InsertButton(
-        "", self.frame, nil, Util:FnBind(self.CraftRestockButtonOnClick, self),
+        "", self.frame, Util:FnBind(self.CraftRestockButtonOnEnter, self), Util:FnBind(self.CraftRestockButtonOnClick, self),
         "TOP", self.recipeList, "BOTTOM", 0, -3.5
     )
+
+    self.secureCraftRestockBtn = Buffs:CreateAuraSecureButton(self.craftRestockBtn)
 
     self.prevFilterBtn = GUI:InsertButton(
         "<", self.frame, nil, Util:FnBind(self.PrevFilterButtonOnClick, self),
         "TOPLEFT", self.recipeList, "BOTTOMLEFT", 1, -3.5
     )
-
 
     self.nextFilterBtn = GUI:InsertButton(
         ">", self.frame, nil, Util:FnBind(self.NextFilterButtonOnClick, self),
@@ -661,6 +690,8 @@ function Self:InsertFilterButtons()
 end
 
 function Self:UpdateFilterButtons()
+    self.secureCraftRestockBtn:SetShown(false)
+
     local shown = Util:OneOf(self.filter, self.Filter.Queue, self.Filter.Restock)
     local enabled = shown and not self.filterJob
     local text = ""
@@ -672,6 +703,7 @@ function Self:UpdateFilterButtons()
         elseif self.filter == self.Filter.Queue then
             local empty = self.dataProvider:IsEmpty()
             local next = not empty and self:GetNextTrackedCraftable()
+            local op = next and next:GetData().operation
 
             enabled = enabled and not not next
 
@@ -679,8 +711,16 @@ function Self:UpdateFilterButtons()
                 text = "Queue"
             elseif not next then
                 text = "Buy mats"
-            elseif not next:GetData().operation:IsToolEquipped() then
+            elseif op and not op:IsToolEquipped() then
                 text = "Equip tool"
+            elseif op and op:GetMissingAura() then
+                local action, _, item = op:GetAuraAction() ---@cast action -?
+                text = Buffs:GetAuraActionLabel(action)
+
+                if enabled and action == Buffs.AuraAction.UseItem and item then
+                    self.secureCraftRestockBtn:SetShown(true)
+                    self.secureCraftRestockBtn:SetAttribute("item", (select(2, C_Item.GetItemInfo(item))))
+                end
             else
                 text = "Create Next"
             end
@@ -770,7 +810,6 @@ end
 
 function Self:OnAddonLoaded()
     self:CreateRecipeListProgressBar()
-    self:ModifyRecipeListFilter()
     self:InsertFilterButtons()
 
     self.frame:HookScript("OnShow", Util:FnBind(self.OnShow, self))
@@ -813,13 +852,11 @@ Self.Cache = {
         return ("%s;;%s"):format(method, recipe.recipeID)
     end),
     ---@type Cache<number, (fun(self: self, data: RecipeTreeNodeData): string), (fun(self: self, data: RecipeTreeNodeData): number)>
-    CurrentCraftAmount = Cache:Create(
+    CurrentCraftAmount = Cache:PerFrame(
         ---@param data RecipeTreeNodeData
-        function (_, data) return ("%d;;%d;;%.3f"):format(data.recipeInfo.recipeID, data.quality or 0, GetTime()) end,
+        function (_, data) return ("%d;%d"):format(data.recipeInfo.recipeID, data.quality or 0) end,
         ---@param data RecipeTreeNodeData
-        function (_, data) return data.operation:GetMaxCraftAmount() end,
-        100,
-        true
+        function (_, data) return data.operation:GetMaxCraftAmount() end
     )
 }
 

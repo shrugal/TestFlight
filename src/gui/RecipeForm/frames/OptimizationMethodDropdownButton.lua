@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Optimization, Util = Addon.GUI, Addon.Optimization, Addon.Util
+local Buffs, GUI, Optimization, Util = Addon.Buffs, Addon.GUI, Addon.Optimization, Addon.Util
 local NS = GUI.RecipeForm
 
 local Parent = ButtonStateBehaviorMixin
@@ -40,6 +40,9 @@ function Self:OnLoad()
             local radio = rootDescription:CreateRadio(name, IsSelected, SetSelected, method)
             radio:AddInitializer(function(frame) frame.fontString:SetFontObject("GameFontHighlightOutline") end)
         end
+
+        rootDescription:Insert(MenuUtil.CreateSpacer())
+        Buffs:AddAuraFilters(rootDescription)
 
         rootDescription:SetMinimumWidth(200)
     end)

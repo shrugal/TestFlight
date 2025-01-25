@@ -127,13 +127,11 @@ function Self:AddReagents(key, header, reagents, providedOrTotal)
 
     block:SetHeader(header)
 
-    local itemIDs = Util(reagents):Keys():Sort()()
+    local itemIDs = Util(reagents):Keys():Sort()() --[=[@as number[]]=]
 
     for _,itemID in pairs(itemIDs) do
         local name = C_Item.GetItemInfo(itemID)
-        local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
-        local qualityIcon = quality and C_Texture.GetCraftingReagentQualityChatIcon(quality)
-        local label = name .. (qualityIcon and " " .. qualityIcon or "")
+        local label = Reagents:GetName(itemID)
 
         local quantity = reagents[itemID]
 
@@ -276,6 +274,8 @@ function Self:InsertSearchButton()
     )
 
     function self.SearchButton:SearchButtonClicked()
+        if TSM_API and TSM_API.IsUIVisible("AUCTION") then return end
+
         local searchTerms = {}
 
         for itemID,amount in pairs(select(2, Reagents:GetTrackedBySource())) do

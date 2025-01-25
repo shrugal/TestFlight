@@ -5,6 +5,16 @@ local Buffs, C, Cache, Orders, Prices, Recipes, Util = Addon.Buffs, Addon.Consta
 ---@class Reagents
 local Self = Addon.Reagents
 
+---@param item number | string
+function Self:GetName(item)
+    local name = C_Item.GetItemInfo(item)
+
+    local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(item)
+    if not quality then return name end
+
+    return ("%s %s"):format(name, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+end
+
 ---@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation | number
 ---@param characterInventoryOnly? boolean
 function Self:GetQuantity(reagent, characterInventoryOnly)
@@ -73,8 +83,8 @@ function Self:GetWeight(reagent, weightPerSkill)
         do reagent = reagent.itemID end
     end ---@cast reagent number
 
-    if self:HasStatBonus(reagent, "sk") then
-        return floor(self:GetStatBonus(reagent, "sk") * weightPerSkill)
+    if self:HasStatBonus(reagent, "SK") then
+        return floor(self:GetStatBonus(reagent, "SK") * weightPerSkill)
     else
         return C.REAGENTS[reagent] or 0
     end
@@ -409,12 +419,12 @@ end
 
 ---@param reagent CraftingReagentSlotSchematic
 function Self:IsBonusSkill(reagent)
-    return self:IsFinishing(reagent) and Util:TblEvery(reagent.reagents, self.HasStatBonus, false, self, "sk")
+    return self:IsFinishing(reagent) and Util:TblEvery(reagent.reagents, self.HasStatBonus, false, self, "SK")
 end
 
 ---@param reagent CraftingReagentInfo | CraftingReagent | number
 function Self:IsUntradableBonusSkill(reagent)
-    return self:HasStatBonus(reagent, "sk") and not Prices:HasReagentPrice(reagent)
+    return self:HasStatBonus(reagent, "SK") and not Prices:HasReagentPrice(reagent)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -500,7 +510,7 @@ function Self:GetStatBonus(reagent, stat)
     local stats = C.FINISHING_REAGENTS[reagent]
     local val = stats and stats[stat] or 0
 
-    return stat == "sk" and val or val / 100
+    return stat == "SK" and val or val / 100
 end
 
 ---@param reagent CraftingReagentInfo | CraftingReagent | number
@@ -512,8 +522,8 @@ end
 function Self:GetMaxBonusSkill()
     local maxSkill = 0
     for itemID, stats in pairs(C.FINISHING_REAGENTS) do
-        if (stats.sk or 0) > maxSkill and Prices:HasReagentPrice(itemID) then
-            maxSkill = stats.sk
+        if (stats.SK or 0) > maxSkill and Prices:HasReagentPrice(itemID) then
+            maxSkill = stats.SK
         end
     end
     return maxSkill
@@ -562,12 +572,12 @@ Self.Cache = {
 --              Events
 ---------------------------------------
 
-function Self:OnBuffChanged()
+function Self:OnTraitChanged()
     self.Cache.SkillBounds:Clear()
 end
 
 function Self:OnLoaded()
-    Buffs:RegisterCallback(Buffs.Event.AuraChanged, self.OnBuffChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.TraitChanged, self.OnTraitChanged, self)
 end
 
 Addon:RegisterCallback(Addon.Event.Loaded, Self.OnLoaded, Self)

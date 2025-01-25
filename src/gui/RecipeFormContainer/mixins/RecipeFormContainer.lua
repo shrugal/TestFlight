@@ -1,12 +1,24 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Reagents = Addon.GUI, Addon.Reagents
+local Buffs, GUI, Reagents = Addon.Buffs, Addon.GUI, Addon.Reagents
 local NS = GUI.RecipeFormContainer
 
 ---@class GUI.RecipeFormContainer.RecipeFormContainer
 ---@field frame RecipeFormContainer
+---@field tabID number
 ---@field form GUI.RecipeForm.RecipeForm
 local Self = NS.RecipeFormContainer
+
+function Self:ModifyRecipeListFilter()
+    Menu.ModifyMenu("MENU_PROFESSIONS_FILTER", function (_, rootDescription)
+        if ProfessionsFrame:GetTab() ~= self.tabID then return end
+
+        rootDescription:Insert(MenuUtil.CreateSpacer())
+        rootDescription:Insert(MenuUtil.CreateTitle("TestFlight"))
+
+        Buffs:AddAuraFilters(rootDescription)
+    end)
+end
 
 ---------------------------------------
 --              Util
@@ -34,4 +46,8 @@ function Self:CraftOperation(operation, amount)
     end
 
     operation:Craft(amount)
+end
+
+function Self:OnAddonLoaded()
+    self:ModifyRecipeListFilter()
 end

@@ -68,12 +68,9 @@ function Self:UpdateToolButtons()
 
     frame.Glow:SetShown(hasPendingTool)
 
-    if hasPendingTool then
-        self:GetCurrentToolSlot():SetItem(C_Item.GetItemLinkByGUID(self.toolGUID))
-    else
-        -- local itemLocation = ItemLocation:CreateFromEquipmentSlot(self:GetCurrentToolSlotID())
-        -- self:GetCurrentToolSlot():SetItemLocation(itemLocation)
-    end
+    if not hasPendingTool then return end
+
+    self:GetCurrentToolSlot():SetItem(C_Item.GetItemLinkByGUID(self.toolGUID))
 end
 
 ---------------------------------------

@@ -17,12 +17,14 @@
 
 ---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 
--- mc: Multicraft yield
--- rf: Resourcefulness yield
--- cc: Concentration cost reduction
--- ig: Ingenuity refund
--- sk: Skill
----@alias BonusStat "mc" | "rf" | "cc" | "ig" | "sk"
+---@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStat, number>[], STATS?: table<BonusStat, number>[] }
+
+-- MC: Multicraft stat or yield
+-- RF: Resourcefulness stat or yield
+-- CC: Concentration cost reduction
+-- IG: Ingenuity stat or refund amount
+-- SK: Skill
+---@alias BonusStat "MC" | "RF" | "CC" | "IG" | "SK"
 
 -----------------------------------------------------
 ---                   Globals                      --
@@ -185,6 +187,13 @@ WorldQuestTrackerScreenPanel = nil
 ---@class EquipmentFlyoutFrame: Frame
 EquipmentFlyoutFrame = nil
 
+---@class FlyoutElementData
+---@field item ItemMixin | SpellMixin | { enabled?: boolean, auraID: number, level: number }
+---@field itemGUID? string
+---@field itemLocation? ItemLocationMixin
+---@field onlyCountStack? boolean
+---@field forceAccumulateInventory? boolean
+
 ---@class StaticPopupFrame: Frame
 ---@field which any
 ---@field data table
@@ -211,7 +220,7 @@ StaticPopup_OnClick = nil
 ---@field SetTextToFit fun(self: self, text?: string)
 ---@field FitToText fun(self: self)
 
----@class ItemButton: Button
+---@class ItemButtonMixin
 ---@field slotName string
 ---@field slotID number
 ---@field icon Texture
@@ -226,43 +235,46 @@ StaticPopup_OnClick = nil
 ---@field PushedTexture Texture
 ---@field HighlightTexture Texture
 ---@field Glow? Frame
----@field OnItemContextChanged fun(self: self, )
----@field PostOnShow fun(self: self, )
----@field PostOnHide fun(self: self, )
+---@field OnItemContextChanged fun(self: self)
+---@field PostOnShow fun(self: self)
+---@field PostOnHide fun(self: self)
 ---@field PostOnEvent fun(self: self, event, ...)
 ---@field SetMatchesSearch fun(self: self, matchesSearch)
----@field GetMatchesSearch fun(self: self, )
----@field UpdateItemContextMatching fun(self: self, )
----@field UpdateCraftedProfessionsQualityShown fun(self: self, )
----@field GetItemContextOverlayMode fun(self: self, )
----@field UpdateItemContextOverlay fun(self: self, )
+---@field GetMatchesSearch fun(self: self)
+---@field UpdateItemContextMatching fun(self: self)
+---@field UpdateCraftedProfessionsQualityShown fun(self: self)
+---@field GetItemContextOverlayMode fun(self: self)
+---@field UpdateItemContextOverlay fun(self: self)
 ---@field UpdateItemContextOverlayTextures fun(self: self, contextMode)
----@field Reset fun(self: self, )
+---@field Reset fun(self: self)
 ---@field SetItemSource fun(self: self, itemLocation)
 ---@field SetItemLocation fun(self: self, itemLocation)
 ---@field SetItem fun(self: self, item)
 ---@field SetItemInternal fun(self: self, item)
----@field GetItemInfo fun(self: self, )
----@field GetItemID fun(self: self, )
----@field GetItem fun(self: self, )
----@field GetItemLink fun(self: self, )
----@field GetItemLocation fun(self: self, )
+---@field GetItemInfo fun(self: self)
+---@field GetItemID fun(self: self)
+---@field GetItem fun(self: self)
+---@field GetItemLink fun(self: self)
+---@field GetItemLocation fun(self: self)
 ---@field SetItemButtonCount fun(self: self, count)
 ---@field SetItemButtonAnchorPoint fun(self: self, point, x, y)
 ---@field SetItemButtonScale fun(self: self, scale)
----@field GetItemButtonCount fun(self: self, )
+---@field GetItemButtonCount fun(self: self)
 ---@field SetAlpha fun(self: self, alpha)
 ---@field SetBagID fun(self: self, bagID)
----@field GetBagID fun(self: self, )
----@field GetSlotAndBagID fun(self: self, )
+---@field GetBagID fun(self: self)
+---@field GetSlotAndBagID fun(self: self)
 ---@field OnUpdateItemContextMatching fun(self: self, bagID)
----@field RegisterBagButtonUpdateItemContextMatching fun(self: self, )
+---@field RegisterBagButtonUpdateItemContextMatching fun(self: self)
 ---@field SetItemButtonQuality fun(self: self, quality, itemIDOrLink, suppressOverlays, isBound)
 ---@field SetItemButtonBorderVertexColor fun(self: self, r, g, b)
 ---@field SetItemButtonTextureVertexColor fun(self: self, r, g, b)
 ---@field SetItemButtonTexture fun(self: self, texture)
----@field GetItemButtonIconTexture fun(self: self, )
----@field GetItemButtonBackgroundTexture fun(self: self, )
+---@field GetItemButtonIconTexture fun(self: self)
+---@field GetItemButtonBackgroundTexture fun(self: self)
+ItemButtonMixin = nil
+
+---@class ItemButton: Button, ItemButtonMixin
 
 ---@class DropdownButton: Button, DropdownButtonMixin
 ---@field ResetButton Button
@@ -356,6 +368,7 @@ StaticPopup_OnClick = nil
 ProfessionsFrame = nil
 
 ---@class RecipeFormContainer: Frame
+---@field RankBar RankBar
 ---@field InventorySlots ItemButton[]
 ---@field Prof0ToolSlot ItemButton
 ---@field Prof0Gear0Slot ItemButton
@@ -381,6 +394,18 @@ ProfessionsFrame = nil
 ---@field OnRecipeSelected fun(self: self, recipeInfo: TradeSkillRecipeInfo, recipeList?: RecipeList)
 ---@field SelectRecipe fun(self: self, recipeInfo: TradeSkillRecipeInfo, skipSelectInList?: boolean)
 ---@field CheckShowHelptips fun(self: self)
+
+---@class RankBar: Frame
+---@field Background Texture
+---@field Fill Texture
+---@field Flare Texture
+---@field Mask MaskTexture
+---@field Border Texture
+---@field Rank Frame
+---@field ExpansionDropdownButton DropdownButton
+---@field Texture Texture
+---@field BarAnimation AnimationGroup
+---@field FlareFadeOut AnimationGroup
 
 ---@class RecipeList: Frame
 ---@field previousRecipeID? number
@@ -423,6 +448,9 @@ ProfessionsFrame = nil
 ---@field Details RecipeFormDetails
 ---@field TrackRecipeCheckbox CheckButton
 ---@field RequiredTools FontString
+---@field Reagents ProfessionsReagentContainer
+---@field OptionalReagents ProfessionsReagentContainer
+---@field RecraftingDescription FontString
 ---@field UpdateRequiredTools fun()
 ---@field currentRecipeInfo TradeSkillRecipeInfo
 ---@field recraftSlot RecraftSlot
@@ -481,25 +509,110 @@ ProfessionsFrame = nil
 ---@field OnElementEnabledImplementation fun(): boolean
 ---@field GetElementValidImplementation function
 
----@class ReagentSlot: Frame
+---@class ProfessionsReagentContainer: Frame
+---@field Label FontString
+---@field SetText fun(self: self, text: string)
+
+---@class ReagentSlot: Frame, ProfessionsReagentSlotMixin
+
+---@class ProfessionsReagentSlotButtonMixin
+---@field locked? boolean
+---@field Icon Texture
+---@field QualityOverlay Texture
+---@field InputOverlay ProfessionsReagentSlotButtonInputOverlay
+---@field SetItem fun(self: self, item)
+---@field SetCurrency fun(self: self, currencyID: number)
+---@field GetCurrencyID fun(self: self)
+---@field Reset fun(self: self)
+---@field Update fun(self: self)
+---@field SetLocked fun(self: self, locked: boolean)
+---@field SetCropOverlayShown fun(self: self, shown)
+---@field SetModifyingRequired fun(self: self, isModifyingRequired: boolean)
+---@field IsModifyingRequired fun(self: self)
+---@field UpdateOverlay fun(self: self)
+---@field UpdateCursor fun(self: self)
+---@field SetSlotQuality fun(self: self, quality?: Enum.ItemQuality)
+---@field SetItemInternal fun(self: self, item)
+ProfessionsReagentSlotButtonMixin = nil
+
+---@class ProfessionsReagentSlotButtonInputOverlay: Frame
+---@field LockedIcon Texture
+---@field AddIcon Texture
+
+---@class ProfessionsReagentSlotMixin
+---@field Button ProfessionsReagentSlotButtonMixin
+---@field Name FontString
 ---@field item? ItemMixin
 ---@field originalItem? ItemMixin
 ---@field reagentSlotSchematic CraftingReagentSlotSchematic
 ---@field Checkbox CheckButton
+---@field Reset fun(self: self)
+---@field SetSlotBehaviorModifyingRequired fun(self: self, isModifyingRequired: boolean)
+---@field Init fun(self: self, transaction, reagentSlotSchematic)
+---@field SetOverrideNameColor fun(self: self, color, skipUpdate)
+---@field SetOverrideQuantity fun(self: self, quantity, skipUpdate)
+---@field GetNameColor fun(self: self)
 ---@field Update fun(self: self)
----@field GetSlotIndex fun(self: self): number
----@field GetReagentSlotSchematic fun(self: self): CraftingReagentSlotSchematic
----@field IsUnallocatable fun(self: self): boolean
+---@field SetShowOnlyRequired fun(self: self, value, skipUpdate)
+---@field UpdateAllocationText fun(self: self)
+---@field GetAllocationDetails fun(self: self)
+---@field GetInventoryDetails fun(self: self)
+---@field UpdateQualityOverlay fun(self: self)
+---@field SetNameText fun(self: self, text)
 ---@field SetUnallocatable fun(self: self, val: boolean)
----@field GetOriginalItem fun(self: self): ItemMixin?
----@field IsOriginalItemSet fun(self: self): boolean
----@field RestoreOriginalItem fun(self: self)
----@field SetItem fun(self: self, item?: ItemMixin)
+---@field IsUnallocatable fun(self: self): boolean
 ---@field ClearItem fun(self: self)
----@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
----@field SetTransaction fun(self: self, tx: ProfessionTransaction)
----@field GetTransaction fun(self: self): ProfessionTransaction
+---@field RestoreOriginalItem fun(self: self)
+---@field IsOriginalItemSet fun(self: self): boolean
+---@field SetOriginalItem fun(self: self, item)
+---@field GetOriginalItem fun(self: self): ItemMixin?
+---@field ApplySlotInfo fun(self: self)
+---@field SetItem fun(self: self, item?: ItemMixin)
+---@field SetCurrency fun(self: self, currencyID)
+---@field GetSlotIndex fun(self: self): number
 ---@field GetReagentType fun(self: self): Enum.CraftingReagentType
+---@field SetTransaction fun(self: self, transaction: ProfessionTransaction)
+---@field GetTransaction fun(self: self): ProfessionTransaction
+---@field SetReagentSlotSchematic fun(self: self, reagentSlotSchematic: CraftingReagentSlotSchematic)
+---@field GetReagentSlotSchematic fun(self: self): CraftingReagentSlotSchematic
+---@field SetAllocateIconShown fun(self: self, shown)
+---@field SetCheckboxShown fun(self: self, shown)
+---@field SetCheckboxChecked fun(self: self, checked)
+---@field SetCheckboxEnabled fun(self: self, enabled)
+---@field SetCheckboxCallback fun(self: self, cb: fun(checked: boolean))
+---@field SetCheckboxTooltipText fun(self: self, text)
+---@field SetHighlightShown fun(self: self, shown)
+---@field SetCheckmarkShown fun(self: self, shown)
+---@field SetCheckmarkAtlas fun(self: self, atlas)
+---@field SetCheckmarkTooltipText fun(self: self, text)
+---@field SetColorOverlay fun(self: self, color, alpha)
+---@field SetAddIconDesaturated fun(self: self, desaturated)
+ProfessionsReagentSlotMixin = nil
+
+---@class ProfessionsItemFlyoutButtonMixin
+---@field Init fun(self: self, elementData, onElementEnabledImplementation, onElementValidImplementation)
+ProfessionsItemFlyoutButtonMixin = nil
+
+---@class ProfessionsItemFlyoutMixin: CallbackRegistryMixin
+---@field Event { UndoClicked: "UndoClicked", ItemSelected: "ItemSelected", ShiftClicked: "ShiftClicked" }
+---@field Text FontString
+---@field UndoItem ItemButton
+---@field UndoButton Button
+---@field ScrollBox Frame
+---@field ScrollBar EventFrame
+---@field HideUnownedCheckbox CheckButton
+---@field OnElementEnterImplementation? function
+---@field GetElementValidImplementation? function
+---@field OnElementEnabledImplementation? function
+---@field owner? Frame
+---@field OnLoad fun(self: self)
+---@field OnShow fun(self: self)
+---@field OnHide fun(self: self)
+---@field ClearHandlers fun(self: self)
+---@field OnEvent fun(self: self, event, ...)
+---@field InitializeContents fun(self: self)
+---@field Init fun(self: self, owner, transaction, canModifyFilter)
+ProfessionsItemFlyoutMixin = nil
 
 ---@class OutputSlot: Frame
 
@@ -626,6 +739,7 @@ C_TradeSkillUI = {}
 ---@field InLocalCraftingMode fun(): boolean
 ---@field GetProfessionInfo fun(): ProfessionInfo
 ---@field EraseRecraftingTransitionData fun()
+---@field LayoutAndShowReagentSlotContainer fun(slots, container)
 Professions = {}
 
 ---@class ProfessionsUtil

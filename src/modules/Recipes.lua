@@ -326,7 +326,7 @@ function Self:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
     if not stat then return 0 end
 
     local chance = stat.ratingPct / 100
-    local yield = C.STATS.RC.YIELD * (1 + self:GetStatBonus(recipe, "rf", optionalReagents))
+    local yield = C.STATS.RC.YIELD * (1 + self:GetStatBonus(recipe, "RF", optionalReagents))
 
     return chance * yield
 end
@@ -340,7 +340,7 @@ function Self:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
 
     local chance = stat.ratingPct / 100
     local baseYield = C.STATS.MC.YIELD[recipe.quantityMax] or C.STATS.MC.YIELD[0]
-    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatBonus(recipe, "mc", optionalReagents))) / 2
+    local yield = (1 + baseYield * recipe.quantityMax * (1 + self:GetStatBonus(recipe, "MC", optionalReagents))) / 2
 
     return chance * yield
 end
@@ -424,12 +424,24 @@ function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
     if operationInfo then
         local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
         return data.hyperlink or data.itemID
-    else
-        if recipe.outputItemID then return recipe.outputItemID end
-        local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
-        if not recipeInfo or not recipeInfo.qualityItemIDs then return end
+    end
+
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
+    if recipeInfo and recipeInfo.qualityItemIDs then
         return recipeInfo.qualityItemIDs[qualityID]
     end
+
+    return recipe.outputItemID
+end
+
+---@param item number | string
+function Self:GetResultName(item)
+    local name = C_Item.GetItemInfo(item)
+
+    local quality = C_TradeSkillUI.GetItemCraftedQualityByItemInfo(item)
+    if not quality then return name end
+
+    return ("%s %s"):format(name, C_Texture.GetCraftingReagentQualityChatIcon(quality))
 end
 
 ---@todo Recraft allocations

@@ -114,6 +114,7 @@ function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
     self.frame = ProfessionsFrame.CraftingPage
+    self.tabID = ProfessionsFrame.recipesTabID
     self.form = GUI.RecipeForm.CraftingForm
 
     self.recipeList = self.frame.RecipeList

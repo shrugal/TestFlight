@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, Cache, Operation, Prices, Promise, Reagents, Util = Addon.Buffs, Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Util
+local Buffs, C, Cache, Operation, Prices, Promise, Reagents, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -176,6 +176,10 @@ function Self:GetAllocationsForMethod(operation, method)
         local finishingReagents = optimizeFinishingReagents and {} or nil
 
         for quality,operation in pairs(operations) do
+            -- Auras
+            operation = operation:WithAuras(Buffs:GetCurrentAndEnabledAuras(operation.recipe))
+
+            -- Concentration
             local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
             operation = operation:WithConcentration(optimizeConcentration)
 
@@ -205,7 +209,7 @@ function Self:GetAllocationsForMethod(operation, method)
                     if operation:HasAllocation(slotIndex) then break end
 
                     for i,item in ipairs_reverse(slot.reagents) do repeat
-                        if Reagents:GetStatBonus(item, "sk") > 0 then break end
+                        if Reagents:GetStatBonus(item, "SK") > 0 then break end
 
                         local itemID = item.itemID ---@cast itemID -?
                         local name, quality = C_Item.GetItemInfo(itemID), C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
@@ -567,6 +571,10 @@ function Self:GetBestConcentrationAllocation(operation, method, lowerWeight, upp
     return operation, lowerWeight, upperWeight
 end
 
+---------------------------------------
+--               Buffs
+---------------------------------------
+
 ---@param operation Operation
 function Self:GetBestToolAllocation(operation)
     local toolBonusSkill = operation.toolGUID and Buffs:GetToolBonus(operation.toolGUID)
@@ -620,13 +628,13 @@ Self.Cache = {
             return ("%s;;%d;%s"):format(
                 method,
                 method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0,
-                Self:GetOperationCacheKey(operation, applyConcentration)
+                Self:GetOperationCacheKey(operation, applyConcentration, true)
             )
         end,
         nil,
         10,
         true
-    )
+    ),
 }
 
 ---@type fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
@@ -636,7 +644,9 @@ local cacheKeyReagentsFilter = function (slot, allocs)
 end
 
 ---@param operation Operation
-function Self:GetOperationCacheKey(operation, applyConcentration)
+---@param applyConcentration? boolean
+---@param applyAuras? boolean
+function Self:GetOperationCacheKey(operation, applyConcentration, applyAuras)
     if applyConcentration == nil then applyConcentration = operation.applyConcentration end
 
     return Operation:GetKey(
@@ -646,6 +656,7 @@ function Self:GetOperationCacheKey(operation, applyConcentration)
         applyConcentration,
         0,
         "",
+        applyAuras and Buffs:GetCurrentAndEnabledAuras(operation.recipe) or nil,
         cacheKeyReagentsFilter
     )
 end
@@ -654,18 +665,12 @@ end
 --               Events
 ---------------------------------------
 
-function Self:OnAuraChanged()
-    self.Cache.ProfitAllocations:Clear()
-end
-
-function Self:OnTraitOrEquipmentChanged()
+function Self:OnTraitChanged()
     for _,cache in pairs(self.Cache) do cache:Clear() end
 end
 
 function Self:OnLoaded()
-    Buffs:RegisterCallback(Buffs.Event.AuraChanged, self.OnAuraChanged, self)
-    Buffs:RegisterCallback(Buffs.Event.TraitChanged, self.OnTraitOrEquipmentChanged, self)
-    Buffs:RegisterCallback(Buffs.Event.EquipmentChanged, self.OnTraitOrEquipmentChanged, self)
+    Buffs:RegisterCallback(Buffs.Event.TraitChanged, self.OnTraitChanged, self)
 end
 
 Addon:RegisterCallback(Addon.Event.Loaded, Self.OnLoaded, Self)

@@ -3,10 +3,10 @@ local Addon = select(2, ...)
 local C, GUI, Optimization, Orders, Prices, Recipes, Util = Addon.Constants, Addon.GUI, Addon.Optimization, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 local NS = GUI.RecipeForm
 
----@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization | GUI.RecipeForm.WithDetails
-local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.WithOptimization, NS.WithDetails)
+---@type GUI.RecipeForm.WithExperimentation | GUI.RecipeForm.WithSkill | GUI.RecipeForm.WithOptimization | GUI.RecipeForm.WithDetails | GUI.RecipeForm.WithAuras
+local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.WithOptimization, NS.WithDetails, NS.WithAuras)
 
----@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization, GUI.RecipeForm.WithDetails
+---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization, GUI.RecipeForm.WithDetails, GUI.RecipeForm.WithAuras
 ---@field form RecipeCraftingForm
 ---@field container GUI.RecipeFormContainer.WithTools
 local Self = Mixin(NS.WithCrafting, Parent)
@@ -20,7 +20,8 @@ Self.optimizationMethod = Optimization.Method.Cost
 function Self:GetRecipeOperationInfo()
     local GetRecipeOperationInfo = Util:TblGetHooks(self.form).GetRecipeOperationInfo
 
-    if not Addon.enabled and not self:GetTool() then return GetRecipeOperationInfo(self.form) end
+    local simulate = Addon.enabled or self:GetTool() or self:GetAuras()
+    if not simulate then return GetRecipeOperationInfo(self.form) end
 
     local op = self:GetOperation()
     if not op then return GetRecipeOperationInfo(self.form) end
@@ -56,6 +57,7 @@ function Self:Init(_, recipe)
 
     if not self.isRefreshing then
         self.container:SetTool()
+        self:SetAuras()
     end
 
     if not self:CanAllocateReagents() then return end
@@ -79,20 +81,39 @@ function Self:Refresh()
     self:UpdateSkillSpinner()
     self:UpdateConcentrationCostSpinner()
     self:UpdateOptimizationButtons()
+    self:UpdateAuraSlots()
 end
 
 function Self:UpdateOutputIcon()
-    local origOnEnter = self.form.OutputIcon:GetScript("OnEnter")
+    local recipe = self:GetRecipe()
+    if not recipe or not C.ENCHANTS[recipe.recipeID] then return end
 
-    self.form.OutputIcon:SetScript("OnEnter", function (...)
+    local function GetResult()
         local item = self.form.transaction:GetEnchantAllocation()
-        if not item or not item:IsStackable() then return origOnEnter(...) end
+        if item and not item:IsStackable() then return end
 
         local operation = self:GetOperation()
-        if not operation then return origOnEnter(...) end
+        if not operation then return end
+
+        return operation:GetResult()
+    end
+
+    local origOnEnter = self.form.OutputIcon:GetScript("OnEnter")
+    self.form.OutputIcon:SetScript("OnEnter", function (...)
+        local itemID = GetResult()
+        if not itemID then return origOnEnter(...) end
 
 		GameTooltip:SetOwner(self.form.OutputIcon, "ANCHOR_RIGHT")
-        GameTooltip:SetItemByID(operation:GetResult())
+        GameTooltip:SetItemByID(itemID)
+    end)
+
+    local origOnClick = self.form.OutputIcon:GetScript("OnClick")
+    self.form.OutputIcon:SetScript("OnClick", function (...)
+        local itemID = GetResult()
+        local link = itemID and select(2, C_Item.GetItemInfo(itemID))
+        if not link then return origOnClick(...) end
+
+		HandleModifiedItemClick(link)
     end)
 end
 
@@ -168,7 +189,7 @@ end
 function Self:SetOperation(operation)
     self.container:SetTool(operation.toolGUID, true)
 
-    NS.RecipeForm.SetOperation(self, operation)
+    Parent.SetOperation(self, operation)
 end
 
 ---------------------------------------
