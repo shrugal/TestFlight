@@ -340,6 +340,14 @@ function Self:GetNumCurrencyReward(order)
     return n
 end
 
+---@param a? CraftingOrderInfo
+---@param b? CraftingOrderInfo
+function Self:IsEqual(a, b)
+    if a == b then return true end
+    if (a == nil) ~= (b == nil) then return false end --[[@cast a -?]] --[[@cast b - ?]]
+    return a.orderID == b.orderID and a.orderState == b.orderState and a.isFulfillable == b.isFulfillable
+end
+
 ---------------------------------------
 --              Events
 ---------------------------------------

@@ -57,10 +57,14 @@
 						</Layers>
 					</Frame>
 				</Frames>
+				<Scripts>
+					<OnEnter method="OnEnter" />
+					<OnLeave function="GameTooltip_Hide" />
+				</Scripts>
 			</ItemButton>
 		</Frames>
         <Scripts>
-			<OnLoad method="OnLoad"/>
+			<OnLoad method="OnLoad" />
 			<OnLeave function="GameTooltip_Hide" />
         </Scripts>
 	</Frame>

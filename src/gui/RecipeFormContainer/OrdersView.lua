@@ -81,8 +81,10 @@ function Self:CreateButtonOnClick(frame, buttonName)
     end
 end
 
-function Self:UpdateCreateButton()
+function Self:UpdateCreateButton(frame)
     Parent.UpdateCreateButton(self)
+
+    if type(frame) ~= "table" then return end
 
     Util:TblHookScript(self.frame.CreateButton, "OnEnter", self.CreateButtonOnEnter, self)
 end

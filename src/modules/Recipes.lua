@@ -404,7 +404,7 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
         res = C_TradeSkillUI.GetCraftingOperationInfo(recipe.recipeID, reagents, orderOrRecraftGUID, applyConcentration)
     end
 
-    Promise:YieldTime()
+    if Promise:CanYield() then Promise:YieldTime() end
 
     return res
 end
@@ -465,6 +465,14 @@ function Self:LoadAllocations()
             until true end
         until true end
     end)
+end
+
+---@param a? CraftingRecipeSchematic | TradeSkillRecipeInfo
+---@param b? CraftingRecipeSchematic | TradeSkillRecipeInfo
+function Self:IsEqual(a, b)
+    if a == b then return true end
+    if (a == nil) ~= (b == nil) then return false end --[[@cast a -?]] --[[@cast b -?]]
+    return a.recipeID == b.recipeID and a.isRecraft == b.isRecraft and a.nextRecipeID == b.nextRecipeID
 end
 
 ---------------------------------------

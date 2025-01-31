@@ -55,17 +55,22 @@ end
 function Self:UpdateCreateButton()
     self.secureCreateBtn:SetShown(false)
 
-    local enabled = self.frame.CreateButton:IsEnabled()
-
     if self:HasPendingTool() then
+        self.frame.CreateButton:SetEnabled(true)
         self.frame.CreateButton:SetText("Equip")
     elseif self.form:GetMissingAura() then
         local action, _, item = self.form:GetAuraAction() ---@cast action -?
         self.frame.CreateButton:SetText(Buffs:GetAuraActionLabel(action))
 
-        if enabled and action == Buffs.AuraAction.UseItem and item then
-            self.secureCreateBtn:SetShown(true)
-            self.secureCreateBtn:SetAttribute("item", (select(2, C_Item.GetItemInfo(item))))
+        if Util:OneOf(action, Buffs.AuraAction.BuyItem, Buffs.AuraAction.BuyMats) then
+            self.frame.CreateButton:SetEnabled(false)
+        else
+            self.frame.CreateButton:SetEnabled(true)
+
+            if action == Buffs.AuraAction.UseItem and item then
+                self.secureCreateBtn:SetShown(true)
+                self.secureCreateBtn:SetAttribute("item", (select(2, C_Item.GetItemInfo(item))))
+            end
         end
     elseif Addon.enabled then
         self.frame.CreateButton:SetEnabled(false)
@@ -78,9 +83,16 @@ end
 --              Events
 ---------------------------------------
 
+function Self:OnAuraChanged()
+    if not self.frame:IsVisible() then return end
+    self:UpdateCreateButton()
+end
+
 function Self:OnAddonLoaded()
     Parent.OnAddonLoaded(self)
 
     self:InitCreateButton()
+
+    Buffs:RegisterCallback(Buffs.Event.AuraChanged, self.OnAuraChanged, self)
 end
 

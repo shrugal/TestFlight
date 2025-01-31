@@ -44,22 +44,27 @@ Self.SortComparator = {
     [Self.Filter.Queue] = function (a, b)
         if a and b then
             local a, b = a:GetData(), b:GetData()
-            local currentTool = Buffs:GetCurrentTool(a.operation:GetProfessionInfo().profession)
             local amounts = Self.Cache.CurrentCraftAmount
             local aMaxAmount, bMaxAmount = amounts:Val(a), amounts:Val(b)
 
+            -- Craftable before non craftable
+            local aCraftable, bCraftable = aMaxAmount > 0, bMaxAmount > 0
+            if aCraftable ~= bCraftable then return aCraftable end
+
+            -- Non missing aura before missing aura
+            local auras = Self.Cache.CurrentMissingAura
+            local aAura, bAura = auras:Val(a), auras:Val(b)
+            if (not aAura ~= not bAura) then return not aAura end
+
+            -- Has tool before not has tool
+            local currentTool = Buffs:GetCurrentTool(a.operation:GetProfessionInfo().profession)
             local aHasTool = (a.operation.toolGUID or currentTool) == currentTool
             local bHasTool = (b.operation.toolGUID or currentTool) == currentTool
-            local aCraftable = aMaxAmount > 0
-            local bCraftable = bMaxAmount > 0
+            if aHasTool ~= bHasTool then return aHasTool end
+
+            -- Full craftable before non full craftable
             local aFullCraftable = aCraftable and a.amount <= aMaxAmount
             local bFullCraftable = bCraftable and b.amount <= bMaxAmount
-
-            -- Craftable before non craftable
-            if aCraftable ~= bCraftable then return aCraftable end
-            -- Has tool before not has tool
-            if aHasTool ~= bHasTool then return aHasTool end
-            -- Full craftable before non full craftable
             if aFullCraftable ~= bFullCraftable then return aFullCraftable end
         end
         return Self.SortComparator[Self.Filter.Restock](a, b)
@@ -717,7 +722,9 @@ function Self:UpdateFilterButtons()
                 local action, _, item = op:GetAuraAction() ---@cast action -?
                 text = Buffs:GetAuraActionLabel(action)
 
-                if enabled and action == Buffs.AuraAction.UseItem and item then
+                if Util:OneOf(action, Buffs.AuraAction.BuyItem, Buffs.AuraAction.BuyMats) then
+                    enabled = false
+                elseif action == Buffs.AuraAction.UseItem and item then
                     self.secureCraftRestockBtn:SetShown(true)
                     self.secureCraftRestockBtn:SetAttribute("item", (select(2, C_Item.GetItemInfo(item))))
                 end
@@ -857,6 +864,13 @@ Self.Cache = {
         function (_, data) return ("%d;%d"):format(data.recipeInfo.recipeID, data.quality or 0) end,
         ---@param data RecipeTreeNodeData
         function (_, data) return data.operation:GetMaxCraftAmount() end
+    ),
+    ---@type Cache<number, (fun(self: self, data: RecipeTreeNodeData): string), (fun(self: self, data: RecipeTreeNodeData): number)>
+    CurrentMissingAura = Cache:PerFrame(
+        ---@param data RecipeTreeNodeData
+        function (_, data) return ("%d;%d"):format(data.recipeInfo.recipeID, data.quality or 0) end,
+        ---@param data RecipeTreeNodeData
+        function (_, data) return data.operation:GetMissingAura() end
     )
 }
 

@@ -23,7 +23,6 @@ Self.AuraSlot = {
 Self.AuraAction = {
     UseItem = "UseItem",
     BuyItem = "BuyItem",
-    LearnRecipe = "LearnRecipe",
     BuyMats = "BuyMats",
     EquipTool = "EquipTool",
     CraftRecipe = "CraftRecipe",
@@ -377,10 +376,8 @@ function Self:GetAuraAction(auraID, level)
     local action
     if item and C_Item.GetItemCount(item) > 0 then
         action = self.AuraAction.UseItem
-    elseif not recipe then
+    elseif not recipe or not C_TradeSkillUI.GetRecipeInfo(recipe.recipeID).learned then
         action = self.AuraAction.BuyItem
-    elseif not C_TradeSkillUI.GetRecipeInfo(recipe.recipeID).learned then
-        action = item and Prices:HasItemPrice(item) and self.AuraAction.BuyItem or self.AuraAction.LearnRecipe
     elseif recipe.recipeType == Enum.TradeskillRecipeType.Salvage then
         ---@todo Make operations work with salvage recipes
 
@@ -421,8 +418,6 @@ function Self:GetAuraActionLabel(action)
         return "Use Buff"
     elseif action == self.AuraAction.BuyItem then
         return "Buy Buff"
-    elseif action == self.AuraAction.LearnRecipe then
-        return "Learn Buff"
     elseif action == self.AuraAction.BuyMats then
         return "Buy Mats"
     elseif action == self.AuraAction.EquipTool then
@@ -440,8 +435,6 @@ function Self:GetAuraActionTooltip(action, recipe, item)
         return ("Use buff item: %s"):format(Recipes:GetResultName(item))
     elseif action == self.AuraAction.BuyItem then ---@cast item - ?
         return ("Buy buff item: %s"):format(Recipes:GetResultName(item))
-    elseif action == self.AuraAction.LearnRecipe then ---@cast recipe -?
-        return ("Learn buff recipe: %s"):format(recipe.name)
     elseif action == self.AuraAction.BuyMats then ---@cast recipe -?
         return ("Buy mats for buff recipe: %s"):format(recipe.name)
     elseif action == self.AuraAction.EquipTool then ---@cast recipe -?
@@ -468,7 +461,7 @@ function Self:CastAura(auraID, level)
     level = level or 1
 
     local action, recipe, item = self:GetAuraAction(auraID, level)
-    if not action or Util:OneOf(action, self.AuraAction.BuyItem, self.AuraAction.LearnRecipe, self.AuraAction.BuyMats) then return end
+    if not action or Util:OneOf(action, self.AuraAction.BuyItem, self.AuraAction.BuyMats) then return end
 
     if action == self.AuraAction.UseItem then ---@cast item -?
         -- This is actually handled by a secure action button
@@ -575,20 +568,20 @@ end
 ---@param filterAvailable? boolean
 function Self:GetAuraContinuables(slot, filterAvailable)
     local items = {}
-    for auraID, _, info in self:EnumerateAuras(nil, slot) do
+
+    for auraID, level, info in self:EnumerateAuraLevels(slot) do repeat
         if info.ITEM then
-            for quality=1,5 do repeat
-                local itemInfo = self:GetAuraItem(auraID, quality) ---@cast itemInfo -?
-                if not itemInfo then break end
+            local itemInfo = self:GetAuraItem(auraID, level) ---@cast itemInfo -?
+            if not itemInfo then break end
 
-                if filterAvailable and C_Item.GetItemCount(itemInfo) == 0 then break end
+            if filterAvailable and C_Item.GetItemCount(itemInfo) == 0 then break end
 
-                tinsert(items, self:GetAuraContinuable(auraID, quality))
-            until true end
+            tinsert(items, self:GetAuraContinuable(auraID, level))
         else
             tinsert(items, self:GetAuraContinuable(auraID))
         end
-    end
+    until true end
+
     return items
 end
 
@@ -735,15 +728,6 @@ function Self:SetAura(auras, auraID, level)
     else
         return self:MergeAuras(auras, value)
     end
-end
-
----@param auras string
----@param auraID number
----@param level? number
-function Self:AddAura(auras, auraID, level)
-    local curr = self:GetAuraLevel(auraID, auras)
-    if curr >= (level or 1) then return auras end
-    return self:SetAura(auras, auraID, level)
 end
 
 ---@param source? true | string | number | CraftingRecipeSchematic All or auras or skillLineID or recipe

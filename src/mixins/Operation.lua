@@ -770,16 +770,12 @@ end
 
 function Self:GetAuraAction()
     local auraID, level = self:GetMissingAura()
-    if not auraID then return end
-
-    return Buffs:GetAuraAction(auraID, level)
+    if auraID then return Buffs:GetAuraAction(auraID, level) end
 end
 
 function Self:CastNextAura()
     local auraID, level = self:GetMissingAura()
-    if not auraID then return end
-
-    return Buffs:CastAura(auraID, level)
+    if auraID then return Buffs:CastAura(auraID, level) end
 end
 
 function Self:IsCraftable()

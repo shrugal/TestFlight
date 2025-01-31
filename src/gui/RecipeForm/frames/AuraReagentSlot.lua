@@ -135,6 +135,7 @@ end
 TestFlightAuraFlyoutMixin = Self
 
 function NS.CloseAuraFlyout()
+    if not NS.flyout then return end
 	NS.flyout:ClearAllPoints()
 	NS.flyout:Hide()
 end
@@ -200,6 +201,19 @@ end
 function Self:UpdateOverlay()
     self.InputOverlay.LockedIcon:Hide()
     self.InputOverlay.AddIcon:SetShown(not self:GetItemID() and not self:GetSpellID())
+end
+
+---@param self GUI.RecipeForm.AuraSlotButton
+function Self:OnEnter()
+    if self:GetSpellID() then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetSpellByID(self:GetSpellID())
+        GameTooltip:Show()
+    elseif self:GetItemID() then
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetItemByID(self:GetItemID())
+        GameTooltip:Show()
+    end
 end
 
 TestFlightAuraSlotButtonMixin = Self
@@ -285,9 +299,6 @@ function Self:OnLoad()
             local auraID = self.form:GetAura(self.slot)
             if auraID then self.form:SetAura(auraID, 0) end
         end
-    end)
-
-    self.Button:SetScript("OnEnter", function(button)
     end)
 end
 

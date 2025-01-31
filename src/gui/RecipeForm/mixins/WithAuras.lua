@@ -7,6 +7,7 @@ local Parent = NS.RecipeForm
 
 ---@class GUI.RecipeForm.WithAuras: GUI.RecipeForm.RecipeForm
 ---@field form RecipeCraftingForm
+---@field container GUI.RecipeFormContainer.WithCrafting
 local Self = NS.WithAuras
 
 ---@type Buffs.AuraSlot[]
@@ -27,6 +28,7 @@ function Self:SetAuras(auras, silent)
     self.auras = auras
 
     self:UpdateAuraSlots()
+    self.container:UpdateCreateButton()
 
     if silent then return end
 
@@ -51,24 +53,17 @@ function Self:GetAura(slotType)
 end
 
 function Self:GetMissingAura()
-    local op = self:GetOperation()
-    if not op then return end
-
-    return op:GetMissingAura()
+    return Buffs:GetMissingAura(self.auras)
 end
 
 function Self:GetAuraAction()
-    local op = self:GetOperation()
-    if not op then return end
-
-    return op:GetAuraAction()
+    local auraID, level = self:GetMissingAura()
+    if auraID then return Buffs:GetAuraAction(auraID, level) end
 end
 
 function Self:CastNextAura()
-    local op = self:GetOperation()
-    if not op then return end
-
-    return op:CastNextAura()
+    local auraID, level = self:GetMissingAura()
+    if auraID then return Buffs:CastAura(auraID, level) end
 end
 
 function Self:UpdateAuraSlots()

@@ -8,10 +8,10 @@ local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.Wi
 
 ---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization, GUI.RecipeForm.WithDetails, GUI.RecipeForm.WithAuras
 ---@field form RecipeCraftingForm
----@field container GUI.RecipeFormContainer.WithTools
+---@field container GUI.RecipeFormContainer.WithCrafting
 local Self = Mixin(NS.WithCrafting, Parent)
 
-Self.optimizationMethod = Optimization.Method.Cost
+Self.optimizationMethod = Optimization.Method.Profit
 
 ---------------------------------------
 --               Hooks
@@ -48,14 +48,22 @@ function Self:GetRecipeOperationInfo()
     return opInfo
 end
 
----@param recipe CraftingRecipeSchematic
-function Self:Init(_, recipe)
-    if not recipe then return end
+---@param recipeInfo TradeSkillRecipeInfo
+function Self:Init(_, recipeInfo)
+    if not recipeInfo then self.prevRecipeInfo = nil return end
+
+    local order = self:GetOrder()
+
+    local recipeChanged = not Recipes:IsEqual(self.prevRecipeInfo, recipeInfo)
+    local orderChanged = self.prevOrder ~= order
+
+    self.prevRecipeInfo = recipeInfo
+    self.prevOrder = order
 
     self:Refresh()
     self:UpdateOutputIcon()
 
-    if not self.isRefreshing then
+    if recipeChanged or orderChanged then
         self.container:SetTool()
         self:SetAuras()
     end
@@ -63,7 +71,7 @@ function Self:Init(_, recipe)
     if not self:CanAllocateReagents() then return end
 
     -- Set or update tracked allocation
-    if not self.isRefreshing then
+    if recipeChanged or orderChanged then
         local Service, model = self:GetTracking()
         local operation = model and Service:GetTrackedAllocation(model)
 
@@ -221,9 +229,7 @@ function Self:OnRefresh()
 
     if not self.form:IsVisible() then return end
 
-    self.isRefreshing = true
     self.form:Refresh()
-    self.isRefreshing = nil
 end
 
 function Self:OnExtraSkillUpdated()
@@ -241,6 +247,10 @@ end
 function Self:OnTransactionUpdated()
     if not self.form:IsVisible() then return end
     self:UpdateTracking()
+end
+
+function Self:OnHide()
+    self.prevRecipeInfo, self.prevOrder = nil, nil
 end
 
 function Self:OnAddonLoaded()
@@ -273,6 +283,8 @@ function Self:OnAddonLoaded()
     hooksecurefunc(self.form, "Init", Util:FnBind(self.Init, self))
     hooksecurefunc(self.form, "Refresh", Util:FnBind(self.Refresh, self))
     hooksecurefunc(self.form, "UpdateDetailsStats", Util:FnBind(self.UpdateDetailsStats, self))
+
+    self.form:HookScript("OnHide", Util:FnBind(self.OnHide, self))
 
     -- Events
 

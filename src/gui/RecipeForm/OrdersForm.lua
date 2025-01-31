@@ -9,8 +9,6 @@ local Parent = Util:TblCombineMixins(NS.RecipeForm, NS.WithCrafting, NS.WithOrde
 ---@class GUI.RecipeForm.OrdersForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithOrder
 local Self = Mixin(NS.OrdersForm, Parent)
 
-Self.optimizationMethod = Optimization.Method.Profit
-
 function Self:UpdateAuraSlots()
     Parent.UpdateAuraSlots(self)
 
@@ -24,9 +22,9 @@ end
 ---------------------------------------
 
 ---@param _ RecipeCraftingForm
----@param recipe CraftingRecipeSchematic
-function Self:Init(_, recipe)
-    Parent.Init(self, _, recipe)
+---@param recipeInfo TradeSkillRecipeInfo
+function Self:Init(_, recipeInfo)
+    Parent.Init(self, _, recipeInfo)
 
     self:UpdateTrackOrderBox()
 end
@@ -36,11 +34,12 @@ end
 ---------------------------------------
 
 function Self:GetOrder()
-    local order = GUI.RecipeFormContainer.OrdersView.frame and GUI.RecipeFormContainer.OrdersView.frame.order
+    local order = self.container.frame and self.container.frame.order
 
     -- Fulfillable state is sometimes not updated correctly
     if order and order.orderState == Enum.CraftingOrderState.Claimed and not order.isFulfillable then
-        order = C_CraftingOrders.GetClaimedOrder() or order
+        local claimed = C_CraftingOrders.GetClaimedOrder()
+        if claimed and claimed.isFulfillable then order = claimed end
     end
 
     return order

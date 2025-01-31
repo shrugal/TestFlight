@@ -368,15 +368,14 @@ function Self:GetWeightsAndPrices(operation)
         else
             local p1, p2, p3 = Prices:GetReagentPrices(slot)
             local itemWeight = Reagents:GetWeight(slot)
-            local s = math.min(0, 1 - itemWeight)
 
             for j=0, 2*slot.quantityRequired do
                 local q1, q2, q3 = self:GetReagentQuantitiesForWeight(slot, j)
                 local price = p1 * q1 + p2 * q2 + p3 * q3
-                local contribution = j * itemWeight
+                local c = j * itemWeight
 
-                for k=s, #prices[0] do
-                    local w = k + contribution
+                for k=-c, #prices[0] do
+                    local w = k + c
                     local newPrice = prices[0][math.max(0, k)] + price
                     local oldPrice = prices[1][w] or math.huge
 

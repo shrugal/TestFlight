@@ -109,7 +109,11 @@ end
 ---@param isTool boolean
 function Self:OnEquipmentChanged(skillLineID, isTool)
     if not isTool or not self.frame:IsVisible() then return end
-    if skillLineID ~= C_TradeSkillUI.GetProfessionChildSkillLineID() then return end
+
+    local isChildSkillLine = skillLineID == C_TradeSkillUI.GetProfessionChildSkillLineID()
+    local isParentSkillLine = skillLineID == C_TradeSkillUI.GetBaseProfessionInfo().professionID
+
+    if not isChildSkillLine and not isParentSkillLine then return end
 
     self:SetTool()
 end

@@ -515,7 +515,7 @@ ProfessionsFrame = nil
 
 ---@class ReagentSlot: Frame, ProfessionsReagentSlotMixin
 
----@class ProfessionsReagentSlotButtonMixin
+---@class ProfessionsReagentSlotButtonMixin: ItemButtonMixin
 ---@field locked? boolean
 ---@field Icon Texture
 ---@field QualityOverlay Texture

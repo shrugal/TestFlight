@@ -65,6 +65,14 @@ function Static:GetCurrent()
     return Static.stack[#Static.stack]
 end
 
+-- Check if currently in a coroutine and yielding is possible
+---@param level? number
+function Static:CanYield(level)
+    if not coroutine.running() then return false end
+    if debugstack((level or 2) + 1):match("=%[C%]") then return false end
+    return true
+end
+
 -- Yield if currently in a coroutine, do nothing if not
 ---@vararg any
 function Static:Yield(...)
