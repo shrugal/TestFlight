@@ -81,10 +81,13 @@ function Self:CreateButtonOnClick(frame, buttonName)
     end
 end
 
+---@param frame? OrdersView
 function Self:UpdateCreateButton(frame)
-    Parent.UpdateCreateButton(self)
+    if not frame then
+        self.frame.UpdateCreateButton(self.frame)
+    end
 
-    if type(frame) ~= "table" then return end
+    Parent.UpdateCreateButton(self)
 
     Util:TblHookScript(self.frame.CreateButton, "OnEnter", self.CreateButtonOnEnter, self)
 end

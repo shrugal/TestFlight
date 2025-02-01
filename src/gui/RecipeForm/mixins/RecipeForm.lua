@@ -148,7 +148,7 @@ function Self:AllocateReagent(slot, allocations, silent)
     self.form.transaction:OverwriteAllocations(slot:GetSlotIndex(), allocations)
     self.form.transaction:SetManuallyAllocated(true)
 
-    if Reagents:IsFinishing(slot:GetReagentSlotSchematic()) then
+    if Reagents:IsOptional(slot:GetReagentSlotSchematic()) then
         local alloc = allocations:SelectFirst()
         if alloc and alloc.quantity > 0 then
             slot:SetItem(Item:CreateFromItemID(alloc.reagent.itemID))

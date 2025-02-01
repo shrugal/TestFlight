@@ -61,17 +61,17 @@ function Self:RecraftOutputSlotOnClick(frame)
     end
 end
 
----@param recipe CraftingRecipeSchematic
-function Self:Init(_, recipe)
-    Parent.Init(self, _, recipe)
+---@param recipeInfo TradeSkillRecipeInfo
+function Self:Init(_, recipeInfo)
+    Parent.Init(self, _, recipeInfo)
 
-    if not recipe then return end
+    if not recipeInfo then return end
 
     self.form.recraftSlot.InputSlot:SetScript("OnEnter", Util:FnBind(self.RecraftInputSlotOnEnter, self))
     self.form.recraftSlot.OutputSlot:SetScript("OnClick", Util:FnBind(self.RecraftOutputSlotOnClick, self))
 
     if self.recraftRecipeID then
-        local same = self.recraftRecipeID == recipe.recipeID
+        local same = self.recraftRecipeID == recipeInfo.recipeID
         self:SetRecraftRecipe(same and self.recraftRecipeID or nil, same and self.recraftItemLink or nil)
     end
 end

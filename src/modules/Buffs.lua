@@ -304,7 +304,7 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 function Self:GetCurrentAndEnabledAuras(recipe)
-    return self:MergeAuras(self:GetCurrentAuras(recipe), self:GetEnabledAuras(recipe))
+    return self:MergeAuras(self:GetCurrentAuras(recipe), self:GetEnabledAuras(recipe), true)
 end
 
 ---@param auraID number
@@ -601,6 +601,8 @@ function Self:CreateAuraSecureButton(parent)
         GUI:ShowInfoTooltip(frame, self:GetAuraActionTooltip(action, nil, frame:GetAttribute("item")))
     end)
 
+    btn:SetMotionScriptsWhileDisabled(true)
+
     return btn
 end
 
@@ -659,57 +661,29 @@ function Self:BuildAuras(source, fn, s, ...)
     return auras:sub(2)
 end
 
----@param ... string
-function Self:MergeAuras(...)
-    local auras, n = "", select("#", ...)
+---@param aAuras string
+---@param bAuras string
+---@param useMax? boolean
+function Self:MergeAuras(aAuras, bAuras, useMax)
+    local auras = ""
 
     for _,slot in pairs(self.AuraSlot) do
-        local auraID, level
-        for i=1,n do
-            local iAuraID, iLevel = Util:TblFind(self:EnumerateAuras(select(i, ...), slot))
+        local aAuraID, aLevel = Util:TblFind(self:EnumerateAuras(aAuras, slot))
+        local bAuraID, bLevel = Util:TblFind(self:EnumerateAuras(bAuras, slot))
 
-            if iAuraID ~= auraID then
-                auraID, level = iAuraID or auraID, iLevel or level
-            elseif iAuraID and iLevel and auraID and level then
-                auraID, level = iAuraID, max(iLevel, level)
-            end
+        local auraID = bAuraID or aAuraID
+        local level = bLevel or aLevel
+
+        if useMax and aAuraID == bAuraID then
+            level = max(aLevel or 0, bLevel or 0)
         end
 
-        if auraID then auras = auras .. (";%d:%d"):format(auraID, level) end
+        if auraID and level > 0 then
+            auras = auras .. (";%d:%d"):format(auraID, level)
+        end
     end
 
     return auras:sub(2)
-end
-
----@param aura number | Buffs.AuraSlot
----@param level number?
----@param auras? string
-function Self:HasAura(aura, level, auras)
-    return self:GetAuraLevel(aura, auras) >= (level or 1)
-end
-
----@param check? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
----@param auras? string
-function Self:GetMissingAura(check, auras)
-    if (check or "") == "" then return end
-    if not auras then auras = self:GetCurrentAuras() end
-
-    for auraID, level, info in self:EnumerateAuras(check) do
-        if not self:HasAura(auraID, level, auras) then return auraID, level, info end
-    end
-end
-
----@param auras string
----@param aura number | Buffs.AuraSlot
-function Self:SubAura(auras, aura)
-    if type(aura) == "number" then
-        auras = auras:gsub((";?%d:%%d+"):format(aura), "", 1):gsub("^;", "", 1)
-    else
-        for auraID in self:EnumerateAuras(true, aura) do
-            auras = self:SubAura(auras, auraID)
-        end
-    end
-    return auras
 end
 
 ---@param auras string
@@ -727,6 +701,37 @@ function Self:SetAura(auras, auraID, level)
         return (auras:gsub(pattern, value, 1))
     else
         return self:MergeAuras(auras, value)
+    end
+end
+
+---@param auras string
+---@param aura number | Buffs.AuraSlot
+function Self:SubAura(auras, aura)
+    if type(aura) == "number" then
+        auras = auras:gsub((";?%d:%%d+"):format(aura), "", 1):gsub("^;", "", 1)
+    else
+        for auraID in self:EnumerateAuras(true, aura) do
+            auras = self:SubAura(auras, auraID)
+        end
+    end
+    return auras
+end
+
+---@param aura number | Buffs.AuraSlot
+---@param level number?
+---@param auras? string
+function Self:HasAura(aura, level, auras)
+    return self:GetAuraLevel(aura, auras) >= (level or 1)
+end
+
+---@param check? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
+---@param auras? string
+function Self:GetMissingAura(check, auras)
+    if (check or "") == "" then return end
+    if not auras then auras = self:GetCurrentAuras() end
+
+    for auraID, level, info in self:EnumerateAuras(check) do
+        if not self:HasAura(auraID, level, auras) then return auraID, level, info end
     end
 end
 
@@ -858,7 +863,7 @@ function Self:OnLoaded()
     end, true)
 
     EventRegistry:RegisterFrameEventAndCallback("UNIT_AURA", self.OnUnitAura, self)
-    EventRegistry:RegisterCallback("TRAIT_CONFIG_UPDATED", self.OnTradeConfigUpdated, self)
+    EventRegistry:RegisterFrameEventAndCallback("TRAIT_CONFIG_UPDATED", self.OnTradeConfigUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("PROFESSION_EQUIPMENT_CHANGED", self.OnProfessionEquipmentChanged, self)
 end
 

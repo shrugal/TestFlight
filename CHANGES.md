@@ -5,3 +5,6 @@
 - Save selected buffs between sessions
 - Fix sort order when sorting scan filter view by reagent cost
 - Fix trying to search for reagents in Auctionator while TSM auction window is open
+- Fix sometimes ignoring cheaper higher tier reagents
+- Fix clearing caches when crafting traits change
+- Fix allocating optional reagents

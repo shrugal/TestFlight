@@ -23,8 +23,9 @@ function Self:Init(_, profInfo)
     self:UpdateRecipeList(false, false, updateSelected)
 end
 
-function Self:ValidateControls()
-    self:UpdateCreateButton()
+---@param frame CraftingPage
+function Self:ValidateControls(frame)
+    self:UpdateCreateButton(frame)
 end
 
 ---------------------------------------
@@ -37,7 +38,12 @@ function Self:InitCreateButton()
     Util:TblHookScript(self.frame.CreateButton, "OnEnter", self.CreateButtonOnEnter, self)
 end
 
-function Self:UpdateCreateButton()
+---@param frame? CraftingPage
+function Self:UpdateCreateButton(frame)
+    if not frame then
+        self.frame.ValidateControls(self.frame)
+    end
+
     local craft = Parent.UpdateCreateButton(self)
     if craft then return end
 
@@ -106,7 +112,7 @@ function Self:OnSelectionChanged(node, selected)
 end
 
 function Self:OnRefresh()
-    if self.frame:IsVisible() then self:ValidateControls() end
+    if self.frame:IsVisible() then self.frame:ValidateControls() end
 end
 
 ---@param addonName string

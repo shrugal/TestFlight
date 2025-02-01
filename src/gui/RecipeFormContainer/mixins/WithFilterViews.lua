@@ -677,6 +677,8 @@ function Self:InsertFilterButtons()
         "TOP", self.recipeList, "BOTTOM", 0, -3.5
     )
 
+    self.craftRestockBtn:SetMotionScriptsWhileDisabled(true)
+
     self.secureCraftRestockBtn = Buffs:CreateAuraSecureButton(self.craftRestockBtn)
 
     self.prevFilterBtn = GUI:InsertButton(
