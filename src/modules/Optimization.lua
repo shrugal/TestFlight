@@ -352,12 +352,10 @@ function Self:GetWeightsAndPrices(operation)
                 local price = Prices:GetReagentPrice(reagent)
                 if price == 0 then break end
 
-                local itemWeight = Reagents:GetWeight(reagent, weightPerSkill)
-                local s = math.min(0, 1 - itemWeight)
+                local c = Reagents:GetWeight(reagent, weightPerSkill)
 
-                for k=s, #prices[0] do
-                    local w = k + itemWeight
-                    local newPrice = prices[0][math.max(0, k)] + price
+                for w=0, #prices[0] + c do
+                    local newPrice = prices[0][max(0, w - c)] + price
                     local oldPrice = prices[1][w] or prices[0][w] or math.huge
 
                     if newPrice < oldPrice then
@@ -374,9 +372,8 @@ function Self:GetWeightsAndPrices(operation)
                 local price = p1 * q1 + p2 * q2 + p3 * q3
                 local c = j * itemWeight
 
-                for k=-c, #prices[0] do
-                    local w = k + c
-                    local newPrice = prices[0][math.max(0, k)] + price
+                for w=0, #prices[0] + c do
+                    local newPrice = prices[0][max(0, w - c)] + price
                     local oldPrice = prices[1][w] or math.huge
 
                     if newPrice < oldPrice then
