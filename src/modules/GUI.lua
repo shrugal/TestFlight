@@ -1,3 +1,5 @@
+---@type string
+local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
 local C, Reagents, Util = Addon.Constants, Addon.Reagents, Addon.Util
@@ -113,6 +115,17 @@ function Self:InsertFontString(parent, drawLayer, templateName, text, onEnter, .
     if ... then font:SetPoint(...) end
 
     return font
+end
+
+---@param menuDescription BaseMenuDescriptionMixin | SharedMenuDescriptionProxy
+function Self:CreateMenuTitle(menuDescription)
+    menuDescription:CreateTitle(Name):AddInitializer(function(frame) ---@cast frame { fontString: FontString }
+        local fontString = frame.fontString
+        fontString:SetPoint("RIGHT")
+        fontString:SetPoint("LEFT")
+        fontString:SetFontObject("GameFontNormal")
+        fontString:SetJustifyH("CENTER")
+    end)
 end
 
 ---------------------------------------

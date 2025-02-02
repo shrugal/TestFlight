@@ -498,7 +498,8 @@ function Self:CastAura(auraID, level)
 end
 
 ---@param menuDescription BaseMenuDescriptionMixin | SharedMenuDescriptionProxy
-function Self:AddAuraFilters(menuDescription)
+---@param addAddonTitle? boolean
+function Self:AddAuraFilters(menuDescription, addAddonTitle)
     if self:GetSkillLineID() == 0 then return end
 
     local IsAuraSelected = function (data)
@@ -513,16 +514,32 @@ function Self:AddAuraFilters(menuDescription)
         self:SetAuraLevel(aura, not curr and level or 0)
     end
 
-    for _,slot in pairs(self.AuraSlot) do
+    local title
+
+    for _,slot in pairs(self.AuraSlot) do repeat
         local enumerate = self:EnumerateAuraLevels(slot)
         local n = Util:TblCount(enumerate)
+
+        if n == 0 then break end
+
+        if not title then
+            title = true
+            
+            menuDescription:CreateSpacer()
+
+            if addAddonTitle then
+                GUI:CreateMenuTitle(menuDescription)
+            end
+
+            menuDescription:CreateTitle("Buffs")
+        end
 
         if n == 1 then
             ---@type number, number, BuffAuraInfo
             local auraID, level, info = enumerate() --[[@as any]]
             local name = C_TradeSkillUI.GetRecipeSchematic(info.RECIPE, false).name
             menuDescription:CreateCheckbox(name, IsAuraSelected, SetAuraSelected, { auraID, level })
-        elseif n > 0 then
+        else
             local name = Util:StrUcFirst(slot:lower())
             local slotSubmenu = menuDescription:CreateCheckbox(name, IsAuraSelected, SetAuraSelected, { slot })
 
@@ -530,7 +547,7 @@ function Self:AddAuraFilters(menuDescription)
                 slotSubmenu:CreateRadio(self:GetAuraName(auraID, level), IsAuraSelected, SetAuraSelected, { auraID, level })
             end
         end
-    end
+    until true end
 end
 
 ---@param auraID number

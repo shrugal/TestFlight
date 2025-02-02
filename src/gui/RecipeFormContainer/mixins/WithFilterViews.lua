@@ -223,7 +223,9 @@ function Self:ModifyRecipeListFilter()
         if ProfessionsFrame:GetTab() ~= self.tabID then return end
 
         rootDescription:CreateSpacer()
-        rootDescription:CreateTitle("TestFlight")
+
+        GUI:CreateMenuTitle(rootDescription)
+
         rootDescription:CreateRadio(NONE, IsFilterSelected, SetFilterSelected)
 
         -- Add sort menu
@@ -245,7 +247,6 @@ function Self:ModifyRecipeListFilter()
         rootDescription:CreateRadio("Queue", IsFilterSelected, SetFilterSelected, self.Filter.Queue)
         rootDescription:CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock)
 
-        rootDescription:CreateSpacer()
         Buffs:AddAuraFilters(rootDescription)
     end)
 

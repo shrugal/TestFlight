@@ -13,10 +13,7 @@ function Self:ModifyRecipeListFilter()
     Menu.ModifyMenu("MENU_PROFESSIONS_FILTER", function (_, rootDescription)
         if ProfessionsFrame:GetTab() ~= self.tabID then return end
 
-        rootDescription:Insert(MenuUtil.CreateSpacer())
-        rootDescription:Insert(MenuUtil.CreateTitle("TestFlight"))
-
-        Buffs:AddAuraFilters(rootDescription)
+        Buffs:AddAuraFilters(rootDescription, true)
     end)
 end
 

@@ -18,14 +18,7 @@ function Self:OnLoad()
     self:SetupMenu(function(dropdown, rootDescription)
         rootDescription:SetTag("MENU_PROFESSIONS_RANK_BAR")
 
-        local title = rootDescription:CreateTitle("Optimization target")
-        title:AddInitializer(function(frame, description, menu)
-            local fontString = frame.fontString
-            fontString:SetPoint("RIGHT")
-            fontString:SetPoint("LEFT")
-            fontString:SetFontObject("GameFontNormal")
-            fontString:SetJustifyH("CENTER")
-        end)
+        GUI:CreateMenuTitle(rootDescription)
 
         local IsSelected = Util:FnBind(self.IsSelected, self)
         local SetSelected = Util:FnBind(self.SetSelected, self)
@@ -41,7 +34,6 @@ function Self:OnLoad()
             radio:AddInitializer(function(frame) frame.fontString:SetFontObject("GameFontHighlightOutline") end)
         end
 
-        rootDescription:Insert(MenuUtil.CreateSpacer())
         Buffs:AddAuraFilters(rootDescription)
 
         rootDescription:SetMinimumWidth(200)
