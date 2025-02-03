@@ -37,9 +37,9 @@ function Self:GetTrackedOwned(recipe, quality)
     if not self:IsTracked(recipe, quality) then return end
 
     if quality then
-        local itemID = Recipes:GetResult(recipe, nil, nil, quality)
-        if not itemID then return end
-        return self:GetItemCount(itemID)
+        local item = Recipes:GetResult(recipe, nil, nil, quality)
+        if not item then return end
+        return self:GetItemCount(item)
     end
 
     local owned = 0
@@ -145,21 +145,26 @@ function Self:Enumerate(key)
     return Util:TblEnum(Addon.DB.Char.restock, 1, key)
 end
 
-function Self:GetItemCount(itemID)
-    local count = C_Item.GetItemCount(itemID, true, false, true, true)
+---@param item string | number
+function Self:GetItemCount(item)
+    if type(item) == "string" then item = C_Item.GetItemInfoInstant(item) end
+
+    local count = C_Item.GetItemCount(item, true, false, true, true)
 
     if C_AddOns.IsAddOnLoaded("TradeSkillMaster") then
-        local itemStr = "i:" .. itemID
+        if type(item) == "string" then item = C_Item.GetItemInfoInstant(item) end
+
+        local itemStr = "i:" .. item
         count = count + TSM_API.GetAuctionQuantity(itemStr)
         count = count + TSM_API.GetMailQuantity(itemStr)
     elseif C_AddOns.IsAddOnLoaded("Syndicator") and Syndicator.API.IsReady() then
-        local info = Syndicator.API.GetInventoryInfoByItemID(itemID, true, true)
+        local info = Syndicator.API.GetInventoryInfoByItemID(item, true, true)
         local char = Util:TblWhere(info.characters, "character", UnitName("player"), "realmNormalized", GetNormalizedRealmName())
         if char then count = count + char.auctions + char.mail end
     elseif C_AddOns.IsAddOnLoaded("DataStore_Auctions") and C_AddOns.IsAddOnLoaded("DataStore_Mails") then
         local charID = DataStore.ThisCharID
-        count = count + DataStore.GetAuctionHouseItemCount(charID, itemID)
-        count = count + DataStore.GetMailItemCount(charID, itemID)
+        count = count + DataStore.GetAuctionHouseItemCount(charID, item)
+        count = count + DataStore.GetMailItemCount(charID, item)
     end
 
     return count

@@ -1,10 +1,2 @@
-- Add crafting buff simulation
-- Add dropdowns to select simulated buffs to optimization and filter menus
-- Add reagent slots for possible buffs to recipe forms
-- Add applying missing simulated buffs before crafting a recipe
-- Save selected buffs between sessions
-- Fix sort order when sorting scan filter view by reagent cost
-- Fix trying to search for reagents in Auctionator while TSM auction window is open
-- Fix sometimes ignoring cheaper higher tier reagents
-- Fix clearing caches when crafting traits change
-- Fix allocating optional reagents
+- Fix restocking wrong quality for some recipes
+- Fix missing built-in mixins on load

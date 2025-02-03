@@ -99,3 +99,7 @@ Addon.GUI = {
 }
 
 TestFlight = Addon
+
+if not C_AddOns.IsAddOnLoaded("Blizzard_Professions") then
+    C_AddOns.LoadAddOn("Blizzard_Professions")
+end

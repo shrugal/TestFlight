@@ -90,7 +90,6 @@ DevTool = nil
 ---@field GetBagQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
 ---@field GetBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
 ---@field GetReagentBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
----@field GetBankQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
 ---@field GetAuctionQuantity fun(itemStr: string, character?: string, factionrealm?: string): number
 ---@field GetMailQuantity fun(itemString: string, character?: string, factionrealm?: string): number
 ---@field GetWarbankQuantity fun(itemStr: string): number

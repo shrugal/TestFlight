@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, C, GUI, Util = Addon.Buffs, Addon.Constants, Addon.GUI, Addon.Util
+local Buffs, GUI, Util = Addon.Buffs, Addon.GUI, Addon.Util
 local NS = GUI.RecipeForm
 
 ---------------------------------------
@@ -267,14 +267,6 @@ function Self:FlyoutGetElementsImplementation(flyout, filterAvailable)
     return { items = items, forceAccumulateInventory = true }
 end
 
-function Self:FlyoutOnUndoClicked(flyout)
-    print("FlyoutOnUndoClicked", self.slot)
-end
-
-function Self:FlyoutOnItemShiftClicked(flyout, elementData)
-    print("FlyoutOnItemShiftClicked", self.slot)
-end
-
 ---@param flyout Flyout
 ---@param elementData FlyoutElementData
 function Self:FlyoutOnItemSelected(flyout, elementData)
@@ -292,8 +284,6 @@ function Self:OnLoad()
 
             flyout:Init(self.Button)
             flyout:RegisterCallback(ProfessionsItemFlyoutMixin.Event.ItemSelected, self.FlyoutOnItemSelected, self)
-            flyout:RegisterCallback(ProfessionsItemFlyoutMixin.Event.ShiftClicked, self.FlyoutOnItemShiftClicked, self)
-            flyout:RegisterCallback(ProfessionsItemFlyoutMixin.Event.UndoClicked, self.FlyoutOnUndoClicked, self)
         else
             NS.CloseAuraFlyout()
             local auraID = self.form:GetAura(self.slot)

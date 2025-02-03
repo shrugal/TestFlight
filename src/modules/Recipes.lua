@@ -421,8 +421,8 @@ function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
         return C.ENCHANTS[recipe.recipeID][qualityID]
     end
 
-    if operationInfo then
-        local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+    local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+    if data then
         return data.hyperlink or data.itemID
     end
 
