@@ -118,8 +118,9 @@ function Self:InsertFontString(parent, drawLayer, templateName, text, onEnter, .
 end
 
 ---@param menuDescription BaseMenuDescriptionMixin | SharedMenuDescriptionProxy
-function Self:CreateMenuTitle(menuDescription)
-    menuDescription:CreateTitle(Name):AddInitializer(function(frame) ---@cast frame { fontString: FontString }
+---@param title? string
+function Self:CreateMenuTitle(menuDescription, title)
+    menuDescription:CreateTitle(title or Name):AddInitializer(function(frame) ---@cast frame { fontString: FontString }
         local fontString = frame.fontString
         fontString:SetPoint("RIGHT")
         fontString:SetPoint("LEFT")

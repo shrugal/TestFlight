@@ -18,7 +18,7 @@ function Self:OnLoad()
     self:SetupMenu(function(dropdown, rootDescription)
         rootDescription:SetTag("MENU_PROFESSIONS_RANK_BAR")
 
-        GUI:CreateMenuTitle(rootDescription)
+        GUI:CreateMenuTitle(rootDescription, "Optimization target")
 
         local IsSelected = Util:FnBind(self.IsSelected, self)
         local SetSelected = Util:FnBind(self.SetSelected, self)
