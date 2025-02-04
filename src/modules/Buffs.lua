@@ -31,11 +31,6 @@ Self.AuraAction = {
 ---@type number[]
 Self.auraCharges = {}
 
----@type Cache<string, fun(self: self, profession: Enum.Profession): string>
-Self.currentTools = Cache:PerFrame()
----@type Cache<string, fun(self: self, skillLineID: number): string>
-Self.currentAuras = Cache:PerFrame()
-
 ---------------------------------------
 --            Extra skill
 ---------------------------------------
@@ -113,7 +108,7 @@ end
 ---@param profession Enum.Profession
 ---@return string?
 function Self:GetCurrentTool(profession)
-    local cache = self.currentTools
+    local cache = self.Cache.CurrentTools
     local key = cache:Key(profession)
 
     if not cache:Has(key) then
@@ -131,26 +126,34 @@ end
 
 ---@param profession Enum.Profession
 function Self:GetAvailableTools(profession)
-    ---@type string[]
-    local items = {}
+    local cache = self.Cache.AvailableTools
+    local key = cache:Key(profession)
 
-    local slot = self:GetToolSlotID(profession)
-    if not slot then return items end
+    if not cache:Has(key) then repeat
+        ---@type string[]
+        local items = {}
 
-    GetInventoryItemsForSlot(slot, items)
+        cache:Set(key, items)
 
-    for loc in pairs(items) do
-        local player, _, bags, _, slot, bag = EquipmentManager_UnpackLocation(loc)
-        if player and bags then
+        local slot = self:GetToolSlotID(profession)
+        if not slot then break end
+
+        GetInventoryItemsForSlot(slot, items)
+
+        for loc,link in pairs(items) do repeat
+            local expansionID = select(15, C_Item.GetItemInfo(link))
+            if (expansionID or 0) < LE_EXPANSION_DRAGONFLIGHT then items[loc] = nil break end
+
+            local player, _, bags, _, slot, bag = EquipmentManager_UnpackLocation(loc)
+            if not player or not bags then items[loc] = nil break end
+
             items[loc] = C_Item.GetItemGUID(ItemLocation:CreateFromBagAndSlot(bag, slot))
-        else
-            items[loc] = nil
-        end
-    end
+        until true end
 
-    items[ITEM_INVENTORY_LOCATION_PLAYER + slot] = self:GetCurrentTool(profession)
+        items[ITEM_INVENTORY_LOCATION_PLAYER + slot] = self:GetCurrentTool(profession)
+    until true end
 
-    return items
+    return cache:Get(key)
 end
 
 ---@param toolGUID string
@@ -191,7 +194,7 @@ function Self:ApplyTool(operationInfo, toolGUID, mode)
     if not toolGUID then return end
 
     local expansionID = select(15, C_Item.GetItemInfo(toolGUID))
-    if not expansionID then return end
+    if (expansionID or 0) < LE_EXPANSION_DRAGONFLIGHT then return end
 
     local _, stats = self:GetToolBonus(toolGUID)
     if not stats then return end
@@ -270,7 +273,7 @@ end
 ---@param recipe? CraftingRecipeSchematic
 ---@return string
 function Self:GetCurrentAuras(recipe)
-    local cache = self.currentAuras
+    local cache = self.Cache.CurrentAuras
     local key = cache:Key(self:GetSkillLineID(recipe))
 
     if not cache:Has(key) then
@@ -645,6 +648,8 @@ end
 function Self:ApplyStats(operationInfo, expansionID, stats, mode)
     if not mode then mode = 1 end
 
+    if expansionID < LE_EXPANSION_DRAGONFLIGHT then return end
+
     for _,line in pairs(operationInfo.bonusStats) do repeat
         for s,stat in pairs(C.STATS) do
             if line.bonusStatName == stat.NAME then
@@ -809,6 +814,19 @@ function Self:EnumerateAuraLevels(aura)
         end until false
     end
 end
+
+---------------------------------------
+--              Cache
+---------------------------------------
+
+Self.Cache = {
+    ---@type Cache<string, fun(self: self, profession: Enum.Profession): number>
+    CurrentTools = Cache:PerFrame(),
+    ---@type Cache<string[], fun(self: self, profession: Enum.Profession): number>
+    AvailableTools = Cache:PerFrame(),
+    ---@type Cache<string, fun(self: self, skillLineID: number): number>
+    CurrentAuras = Cache:PerFrame(),
+}
 
 ---------------------------------------
 --              Events

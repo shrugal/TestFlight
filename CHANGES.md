@@ -1,1 +1,2 @@
 - Add option to not auto enable experimentation mode when opening tracked recipe
+- Ignore pre dragonflight crafting tools
