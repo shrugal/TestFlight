@@ -31,7 +31,7 @@ function Self:CraftOperation(operation, amount)
     local recipe = operation.recipe
     local form = GUI.RecipeForm.CraftingForm
 
-    form:SetOperation(operation)
+    if not form:SetOperation(operation, true) then return end
 
     if recipe.recipeType == Enum.TradeskillRecipeType.Enchant then
         local item = Reagents:GetEnchantVellum(recipe)

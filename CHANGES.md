@@ -1,2 +1,1 @@
-- Fix restocking wrong quality for some recipes
-- Fix missing built-in mixins on load
+- Add option to not auto enable experimentation mode when opening tracked recipe

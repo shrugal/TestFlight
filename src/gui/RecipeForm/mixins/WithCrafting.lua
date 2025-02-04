@@ -194,10 +194,11 @@ function Self:GetOperation(refresh)
 end
 
 ---@param operation Operation
-function Self:SetOperation(operation)
+---@param owned? boolean
+function Self:SetOperation(operation, owned)
     self.container:SetTool(operation.toolGUID, true)
 
-    Parent.SetOperation(self, operation)
+    return Parent.SetOperation(self, operation, owned)
 end
 
 ---------------------------------------

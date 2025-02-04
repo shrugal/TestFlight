@@ -10,23 +10,25 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB
 TestFlightDB = {
-    v = 4,
-    ---@type boolean
+    v = 5,
+    ---@type boolean Enable reagent weight in tooltip
     tooltip = false,
-    ---@type boolean
+    ---@type boolean Enable reagents tracker
     reagents = true,
-    ---@type string?
+    ---@type string? Preferred price source addon
     priceSource = nil,
-    ---@type number
+    ---@type number Cost per concentration point (in copper)
     concentrationCost = 50000,
-    ---@type number
+    ---@type number Cost per knowledge point (in copper)
     knowledgeCost = 0,
-    ---@type number
+    ---@type number Cost per artisan currency unit (in copper)
     currencyCost = 0,
-    ---@type number[]
+    ---@type number[] Default auras and their quality/stack levels
     auras = {},
-    ---@type string?
-    tsmPriceString = nil
+    ---@type string? String used to lookup TSM prices
+    tsmPriceString = nil,
+    ---@type boolean Automatically enable experimentation mode when needed
+    autoEnable = true,
 }
 
 ---@class AddonCharDB
@@ -122,6 +124,10 @@ function Self:Load()
         self.DB.Account.auras = {}
         self.DB.Account.v = 4
     end
+    if self.DB.Account.v < 5 then
+        self.DB.Account.autoEnable = true
+        self.DB.Account.v = 5
+    end
 
     -- Char
     if self.DB.Char.v < 2 then
@@ -141,6 +147,7 @@ end
 
 function Self:Enable()
     if self.enabled then return end
+
     self.enabled = true
 
     self:TriggerEvent(self.Event.Enabled)
@@ -149,6 +156,7 @@ end
 
 function Self:Disable()
     if not self.enabled then return end
+
     self.enabled = false
 
     self:SetExtraSkill(0)
@@ -201,9 +209,11 @@ end
 ---@param short? string
 ---@param opts string
 ---@param desc string
----@param curr? string
+---@param curr? string | boolean
 ---@param ... any
 function Self:PrintOption(cmd, short, opts, desc, curr, ...)
+    if type(curr) == "boolean" then curr = curr and "on" or "off" end
+
     local s = {}
     if short then tinsert(s, ("Short: |cffcccccc%s|r"):format(short)) end
     if curr then tinsert(s, ("Current: |cffcccccc%s|r"):format(curr)) end
@@ -251,13 +261,16 @@ function SlashCmdList.TESTFLIGHT(input)
     local cmd = args[1]
 
     -- Shorthands
+    if cmd == "ae" then cmd = "autoenable" end
     if cmd == "tt" then cmd = "tooltip" end
     if cmd == "re" then cmd = "reagents" end
     if cmd == "rc" then cmd = "recraft" end
     if cmd == "ps" then cmd = "pricesource" end
 
-    if cmd == "tooltip" or cmd == "reagents" then
-        local name = Util:StrUcFirst(cmd)
+    if Util:OneOf(cmd, "tooltip", "reagents", "autoenable") then
+        if cmd == "autoenable" then cmd = "autoEnable" end
+
+        local name = Util(cmd):StartCase():Lower():UcFirst()()
 
         if not args[2] then
             args[2] = Self.DB.Account[cmd] and "off" or "on"
@@ -345,10 +358,11 @@ function SlashCmdList.TESTFLIGHT(input)
 
         Self:Print("Options:")
         Self:PrintOption("recraft", "rc", "<link>", "Set recraft UI to an item given by link.")
-        Self:PrintOption("tooltip", "tt", "on||off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip and "on" or "off")
-        Self:PrintOption("reagents", "re", "on||off", "Toggle reagents tracker.", Self.DB.Account.reagents and "on" or "off")
+        Self:PrintOption("autoenable", "ae", "on||off", "Enable experimentation mode if needed when opening tracked recipes.", Self.DB.Account.autoEnable)
+        Self:PrintOption("tooltip", "tt", "on||off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip)
+        Self:PrintOption("reagents", "re", "on||off", "Toggle reagents tracker.", Self.DB.Account.reagents)
         Self:PrintOption("pricesource", "ps", "<name>||auto", "Set price source.", Self.DB.Account.priceSource or "auto")
-
+        
         if Prices.SOURCES.TradeSkillMaster:IsAvailable() then
            Self:PrintOption("tsmprice", nil, "<string>||default", "Set TSM custom price string.", Self.DB.Account.tsmPriceString or "default")
         end

@@ -99,7 +99,7 @@ function Self:OnSelectionChanged(node, selected)
     local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
 
     if data.operation then
-        form:SetOperation(data.operation)
+        form:SetOperation(data.operation, false)
 
         local amount = min(data.amount or 1, data.operation:GetMaxCraftAmount())
         if amount <= 1 then return end

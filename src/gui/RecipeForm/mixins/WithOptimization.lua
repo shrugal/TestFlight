@@ -146,7 +146,7 @@ function Self:SetQuality(quality, exact)
         local operation = operations[quality] or not exact and operations[quality + 1]
         if not operation then return end
 
-        self:SetOperation(operation)
+        self:SetOperation(operation, false)
     end):Start(function ()
         self.isOptimizing = true
         self.increaseBtn:SetEnabled(false)

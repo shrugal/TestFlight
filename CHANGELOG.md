@@ -1,3 +1,8 @@
+Version 4.18
+
+- Fix restocking wrong quality for some recipes
+- Fix missing built-in mixins on load
+
 Version 4.17
 
 - Add crafting buff simulation

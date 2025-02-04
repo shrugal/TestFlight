@@ -744,6 +744,7 @@ end
 
 -- Str
 
+---@param str? string
 function Self:StrIsEmpty(str)
     return not str or str == "" or str:gsub("%s+", "") == ""
 end
@@ -751,6 +752,11 @@ end
 ---@param str string
 function Self:StrUcFirst(str)
     return str:sub(1, 1):upper() .. str:sub(2)
+end
+
+---@param str string
+function Self:StrStartCase(str)
+    return str:gsub("%p+", " "):gsub("[A-Z]", " %1"):gsub("%s+", " ")
 end
 
 ---@param str string
@@ -1215,9 +1221,16 @@ local CHAIN_PREFIX = {
 
 local chainKey, chainVal
 local chainFn = function (self, ...)
-    local prefix = CHAIN_PREFIX[type(chainVal)]
-    local fn = prefix and Self[prefix .. chainKey] or Self[chainKey]
-    return Self(fn(Self, chainVal, ...))
+    local t = type(chainVal)
+    local p = CHAIN_PREFIX[t] or ""
+
+    local fn = p and Self[p .. chainKey] or Self[chainKey]
+    if fn then return Self(fn(Self, chainVal, ...)) end
+
+    local fn = _G[t] and _G[t][chainKey:lower()]
+    if fn then return Self(fn(chainVal, ...)) end
+
+    error(("Unknown function \"%s\""):format(chainKey))
 end
 
 local Chain = setmetatable({}, {

@@ -113,10 +113,12 @@ end
 --               Util
 ---------------------------------------
 
-function Self:SetOperation(operation)
+---@param operation Operation
+---@param owned? boolean
+function Self:SetOperation(operation, owned)
     self:SetAuras(operation.auras, true)
 
-    Parent.SetOperation(self, operation)
+    return Parent.SetOperation(self, operation, owned)
 end
 
 ---------------------------------------
