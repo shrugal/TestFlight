@@ -25,8 +25,14 @@ end
 -- Claim order button
 
 function Self:ClaimOrderButtonOnClick()
-    local order = self:GetNextOrder()
-    if order then self:ClaimOrder(order) end
+    local orders = C_CraftingOrders.GetCrafterOrders()
+
+    if #orders == 0 then
+        self.frame:StartDefaultSearch()
+    else
+        local order = self:GetNextOrder()
+        if order then self:ClaimOrder(order) end
+    end
 end
 
 function Self:InsertClaimOrderButton()
@@ -35,7 +41,15 @@ function Self:InsertClaimOrderButton()
 end
 
 function Self:UpdateClaimOrderButton()
-    self.claimOrderBtn:SetEnabled(self:HasNextOrder())
+    local orders = C_CraftingOrders.GetCrafterOrders()
+
+    if #orders == 0 then
+        self.claimOrderBtn:SetEnabled(true)
+        self.claimOrderBtn:SetTextToFit("Search")
+    else
+        self.claimOrderBtn:SetEnabled(self:HasNextOrder())
+        self.claimOrderBtn:SetTextToFit("Start Next")
+    end
 end
 
 -- Track all orders checkbox

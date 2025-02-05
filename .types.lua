@@ -421,6 +421,7 @@ ProfessionsFrame = nil
 ---@field OrderView OrdersView
 ---@field BrowseFrame OrdersBrowseFrame
 ---@field ViewOrder fun(self: self, order: CraftingOrderInfo)
+---@field StartDefaultSearch fun(self: self)
 
 ---@class OrdersBrowseFrame: Frame
 ---@field OrderList OrdersListFrame
