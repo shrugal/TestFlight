@@ -1,3 +1,9 @@
+Version 4.19
+
+- Add option to not auto enable experimentation mode when opening tracked recipe
+- Ignore pre dragonflight crafting tools
+- Fix optimization target menu title
+
 Version 4.18
 
 - Fix restocking wrong quality for some recipes

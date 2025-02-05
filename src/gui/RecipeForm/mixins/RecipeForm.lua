@@ -118,12 +118,14 @@ end
 function Self:SetOperation(operation, owned)
     local res = self:AllocateBasicReagents()
 
-    for slot in self.form.reagentSlotPool:EnumerateActive() do
+    for slot in self.form.reagentSlotPool:EnumerateActive() do repeat
+        if slot:IsUnallocatable() then break end
+
         local allocs = operation.allocation[slot:GetSlotIndex()]
-        if allocs then
-            res = res and self:AllocateReagent(slot, allocs, owned, true)
-        end
-    end
+        if not allocs then break end
+
+        res = self:AllocateReagent(slot, allocs, owned, true) and res
+    until true end
 
     self.form.transaction:SetApplyConcentration(operation.applyConcentration)
 
@@ -178,11 +180,12 @@ function Self:AllocateBasicReagents()
 
     local res = true
 
-    for slot in self.form.reagentSlotPool:EnumerateActive() do
-        if Reagents:IsBasic(slot:GetReagentSlotSchematic()) then
-            res = res and self:AllocateBasicReagent(slot)
-        end
-    end
+    for slot in self.form.reagentSlotPool:EnumerateActive() do repeat
+        if slot:IsUnallocatable() then break end
+        if not Reagents:IsBasic(slot:GetReagentSlotSchematic()) then break end
+
+        res = self:AllocateBasicReagent(slot) and res
+    until true end
 
     return res
 end
