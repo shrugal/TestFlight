@@ -650,7 +650,7 @@ function Self:GetOperationCacheKey(operation, applyConcentration, applyAuras)
         operation.allocation,
         operation.orderOrRecraftGUID,
         applyConcentration,
-        0,
+        operation.extraSkill,
         "",
         applyAuras and Buffs:GetCurrentAndEnabledAuras(operation.recipe) or nil,
         cacheKeyReagentsFilter

@@ -1,3 +1,8 @@
+Version 4.20
+
+- Switch "Start Next" button to a search button if no orders are shown on the orders page
+- Fix not allocating reagents for orders with some reagents provided
+
 Version 4.19
 
 - Add option to not auto enable experimentation mode when opening tracked recipe
