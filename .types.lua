@@ -98,9 +98,13 @@ DevTool = nil
 ---@field IsUIVisible fun(ui: "AUCTION" | "CRAFTING" | "MAILING" | "VENDORING"): boolean
 TSM_API = nil
 
+---@type string
+AUCTIONATOR_L_TEMPORARY_LOWER_CASE = nil
+
 ---@class Auctionator
 ---@field API { v1: AuctionatorAPIV1 }
 ---@field SavedState { TimeOfLastGetAllScan: number? }
+---@field Config AuctionatorConfig
 Auctionator = nil
 
 ---@class AuctionatorAPIV1
@@ -111,6 +115,106 @@ Auctionator = nil
 ---@field GetAuctionPriceByItemLink fun(callerID: string, itemLink: string): number?
 ---@field GetAuctionAgeByItemLink fun(callerID: string, itemLink: string): number?
 ---@field MultiSearchAdvanced fun(callerID: string, searchTerms: table)
+---@field ConvertToSearchString fun(callerID: string, searchTerm: table): string
+---@field GetShoppingListItems fun(callerID: string, shoppingListName: string): string[]
+---@field DeleteShoppingListItem fun(callerID: string, shoppingListName: string, itemSearchString: string)
+
+---@class AuctionatorConfig
+---@field Get fun(key: string): unknown
+---@field Options { AUTO_LIST_SEARCH: string }
+
+---@class AuctionatorInitalizeMainlineFrame: Frame
+---@field AuctionHouseShown function
+AuctionatorInitalizeMainlineFrame = nil
+
+---@class AuctionatorResultsListingContainer: Frame
+---@field ResultsListing AuctionatorResultsListing
+---@field DataProvider AuctionatorDataProviderMixin
+
+---@class AuctionatorResultsListing: Frame
+---@field tableBuilder TableBuilderMixin
+---@field dataProvider AuctionatorDataProviderMixin
+
+---@class AuctionatorDataProviderMixin
+---@field results table
+---@field entriesToProcess table
+---@field OnLoad fun(self:self): unknown
+---@field OnUpdate fun(self:self, elapsed): unknown
+---@field Reset fun(self:self): unknown
+---@field UniqueKey fun(self:self, entry): unknown
+---@field Sort fun(self:self, fieldName, sortDirection): unknown
+---@field SetPresetSort fun(self:self, fieldName, sortDirection): unknown
+---@field ClearSort fun(self:self): unknown
+---@field GetTableLayout fun(self:self): unknown
+---@field GetColumnHideStates fun(self:self): unknown
+---@field GetRowTemplate fun(self:self): unknown
+---@field GetEntryAt fun(self:self, index): unknown
+---@field GetCount fun(self:self): unknown
+---@field SetOnEntryProcessedCallback fun(self:self, onEntryProcessedCallback): unknown
+---@field SetOnUpdateCallback fun(self:self, onUpdateCallback): unknown
+---@field SetOnSearchStartedCallback fun(self:self, onSearchStartedCallback): unknown
+---@field SetOnSearchEndedCallback fun(self:self, onSearchEndedCallback): unknown
+---@field NotifyCacheUsed fun(self:self): unknown
+---@field SetDirty fun(self:self): unknown
+---@field SetOnPreserveScrollCallback fun(self:self, onPreserveScrollCallback): unknown
+---@field SetOnResetScrollCallback fun(self:self, onResetScrollCallback): unknown
+---@field AppendEntries fun(self:self, entries, isLastSetOfResults): unknown
+---@field CheckForEntriesToProcess fun(self:self): unknown
+---@field GetCSV fun(self:self, callback): unknown
+
+---@class AuctionatorShoppingFrame: AuctionatorResultsListingContainer
+---@field SearchOptions AuctionatorShoppingFrameSearchOptions
+---@field ListsContainer AuctionatorShoppingTabListsContainer
+AuctionatorShoppingFrame = nil
+
+---@class AuctionatorShoppingFrameSearchOptions: Frame
+---@field AddToListButton Button
+
+---@class AuctionatorShoppingList
+---@field data table
+---@field manager table
+---@field Init fun(self: self, data, manager): unknown
+---@field GetName fun(self: self): string
+---@field Rename fun(self: self, newName): unknown
+---@field IsTemporary fun(self: self): unknown
+---@field MakePermanent fun(self: self): unknown
+---@field GetItemCount fun(self: self): unknown
+---@field GetItemByIndex fun(self: self, index): unknown
+---@field GetIndexForItem fun(self: self, item): unknown
+---@field GetAllItems fun(self: self): unknown
+---@field DeleteItem fun(self: self, index): unknown
+---@field AlterItem fun(self: self, index, newItem): unknown
+---@field InsertItem fun(self: self, newItem, index): unknown
+---@field AppendItems fun(self: self, newItems): unknown
+---@field Sort fun(self: self): unknown
+
+---@class AuctionatorShoppingTabListsContainer: Frame
+---@field GetExpandedList fun(self: self): AuctionatorShoppingList?
+
+---@class AuctionatorBuyCommodityFrame: AuctionatorResultsListingContainer
+---@field itemKey ItemKey
+---@field FinalConfirmationDialog AuctionatorBuyCommodityFinalConfirmationDialog
+---@field WidePriceRangeWarningDialog AuctionatorBuyCommodityWidePriceRangeWarningDialog
+---@field QuantityCheckConfirmationDialog AuctionatorBuyCommodityQuantityCheckConfirmationDialog
+---@field BuyClicked fun(self: self)
+AuctionatorBuyCommodityFrame = nil
+
+---@class AuctionatorBuyCommodityFinalConfirmationDialog: Frame
+---@field AcceptButton Button
+
+---@class AuctionatorBuyCommodityWidePriceRangeWarningDialog: Frame
+---@field ContinueButton Button
+
+---@class AuctionatorBuyCommodityQuantityCheckConfirmationDialog: Frame
+---@field AcceptButton Button
+
+---@class AuctionatorBuyItemFrame: AuctionatorResultsListingContainer
+---@field expectedItemKey ItemKey
+---@field BuyDialog AuctionatorBuyItemDialog
+AuctionatorBuyItemFrame = nil
+
+---@class AuctionatorBuyItemDialog: Frame
+---@field Buy Button
 
 ---@class RECrystallize
 ---@field Config { LastScan: number }
@@ -1557,6 +1661,7 @@ SelectionBehaviorMixin = nil
 ---@field OnLineLeave fun(self: self, ...: unknown): unknown
 
 ---@class TableBuilderMixin
+---@field rows table
 ---@field Init fun(self: self, ...: unknown): unknown
 ---@field GetDataProvider fun(self: self, ...: unknown): unknown
 ---@field SetDataProvider fun(self: self, ...: unknown): unknown

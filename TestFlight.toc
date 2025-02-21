@@ -36,6 +36,7 @@ src/modules/GUI.lua
 
 src/gui/ItemFlyout.lua
 src/gui/OrdersPage.lua
+src/gui/Auctionator.lua
 
 # GUI - ObjectiveTracker
 

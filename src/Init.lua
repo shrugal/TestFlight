@@ -95,7 +95,9 @@ Addon.GUI = {
     ---@type GUI.OrdersPage
     OrdersPage = {},
     ---@type GUI.ItemFlyout
-    ItemFlyout = {}
+    ItemFlyout = {},
+    ---@type GUI.Auctionator
+    Auctionator = {}
 }
 
 TestFlight = Addon
