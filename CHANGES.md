@@ -1,2 +1,1 @@
-- Fix not updating optimizated allocation when changing extra skill
-- Fix stack overflow error after pressing the optimize button
+- Add filter setting for max cost per artisan material bag to NPC orders page

@@ -317,27 +317,17 @@ function Self:IsClaimable(order)
 end
 
 ---@param order CraftingOrderInfo
-function Self:GetNumKnowledgeReward(order)
+function Self:GetNumNpcRewards(order)
     if order.orderType ~= Enum.CraftingOrderType.Npc then return 0 end
 
-    local n = 0
+    local knowledge, currency, payout = 0, 0, 0
     for _,reward in pairs(order.npcOrderRewards) do
         local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
-        n = n + (C.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
+        knowledge = knowledge + (C.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
+        currency = currency + (C.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
+        payout = payout + (C.ARTISAN_PAYOUT[itemID] and 1 or 0) * reward.count
     end
-    return n
-end
-
----@param order CraftingOrderInfo
-function Self:GetNumCurrencyReward(order)
-    if order.orderType ~= Enum.CraftingOrderType.Npc then return 0 end
-
-    local n = 0
-    for _,reward in pairs(order.npcOrderRewards) do
-        local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
-        n = n + (C.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
-    end
-    return n
+    return knowledge, currency, payout
 end
 
 ---@param a? CraftingOrderInfo

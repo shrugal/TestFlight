@@ -10,7 +10,7 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB
 TestFlightDB = {
-    v = 5,
+    v = 6,
     ---@type boolean Enable reagent weight in tooltip
     tooltip = false,
     ---@type boolean Enable reagents tracker
@@ -23,6 +23,8 @@ TestFlightDB = {
     knowledgeCost = 0,
     ---@type number Cost per artisan currency unit (in copper)
     currencyCost = 0,
+    ---@type number Cost per artisan payout bag (in copper)
+    payoutCost = 0,
     ---@type number[] Default auras and their quality/stack levels
     auras = {},
     ---@type string? String used to lookup TSM prices
@@ -93,6 +95,17 @@ function Self:SetCurrencyCost(value)
     self:TriggerEvent(self.Event.CurrencyCostUpdated)
 end
 
+---@param value number
+function Self:SetPayoutCost(value)
+    value = max(0, value)
+
+    if self.DB.Account.payoutCost == value then return end
+
+    self.DB.Account.payoutCost = value
+
+    self:TriggerEvent(self.Event.CurrencyCostUpdated)
+end
+
 ---------------------------------------
 --             Lifecycle
 ---------------------------------------
@@ -127,6 +140,10 @@ function Self:Load()
     if self.DB.Account.v < 5 then
         self.DB.Account.autoEnable = true
         self.DB.Account.v = 5
+    end
+    if self.DB.Account.v < 6 then
+        self.DB.Account.payoutCost = 0
+        self.DB.Account.v = 6
     end
 
     -- Char
@@ -387,8 +404,9 @@ end
 ---@field ConcentrationCostUpdated "ConcentrationCostUpdated"
 ---@field KnowledgeCostUpdated "KnowledgeCostUpdated"
 ---@field CurrencyCostUpdated "CurrencyCostUpdated"
+---@field PayoutCostUpdated "PayoutCostUpdated"
 
-Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated" })
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated", "PayoutCostUpdated" })
 Self:OnLoad()
 
 ---@param addonName string

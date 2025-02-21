@@ -104,6 +104,7 @@ end
 
 -- Track all filters
 
+---@param frame NumericInputSpinner
 function Self:TrackAllKnowledgeFiltersOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
     GameTooltip_AddColoredLine(GameTooltip, "Cost per Knowledge Point", HIGHLIGHT_FONT_COLOR)
@@ -111,10 +112,19 @@ function Self:TrackAllKnowledgeFiltersOnEnter(frame)
     GameTooltip:Show()
 end
 
+---@param frame NumericInputSpinner
 function Self:TrackAllCurrencyFiltersOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
     GameTooltip_AddColoredLine(GameTooltip, "Cost per Artisan Currency", HIGHLIGHT_FONT_COLOR)
     GameTooltip_AddNormalLine(GameTooltip, "Amount of gold you are willing to spend per artisan currency item.")
+    GameTooltip:Show()
+end
+
+---@param frame NumericInputSpinner
+function Self:TrackAllPayoutFiltersOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip_AddColoredLine(GameTooltip, "Cost per Artisan Bag", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Amount of gold you are willing to spend per artisan material bag.")
     GameTooltip:Show()
 end
 
@@ -130,65 +140,70 @@ function Self:TrackAllCurrencyFiltersOnChange(frame, value)
     Addon:SetCurrencyCost(value * 10000)
 end
 
+---@param frame NumericInputSpinner
+---@param value number
+function Self:TrackAllPayoutFiltersOnChange(frame, value)
+    Addon:SetPayoutCost(value * 10000)
+end
+
 function Self:InsertTrackAllFilters()
     -- Knowledge
 
-    local input = GUI:InsertNumericSpinner(
-        self.frame.BrowseFrame,
-        Util:FnBind(self.TrackAllKnowledgeFiltersOnEnter, self),
-        Util:FnBind(self.TrackAllKnowledgeFiltersOnChange, self),
+    self.trackAllKnowledgeFilter, self.trackAllKnowledgeFilterText = self:InsertTrackAllFilter(
+        "Inv_cosmicvoid_orb",
+        self.TrackAllKnowledgeFiltersOnEnter,
+        self.TrackAllKnowledgeFiltersOnChange,
         "BOTTOMLEFT", self.frame.BrowseFrame.RecipeList, "BOTTOMRIGHT", 125, 3
-    )
-    self.trackAllKnowledgeFilter = input
-
-    input:SetShown(true)
-    input:SetWidth(32)
-    input:SetMaxLetters(4)
-    input.DecrementButton:SetAlpha(0.8)
-    input.IncrementButton:SetAlpha(0.8)
-
-    self.trackAllKnowledgeFilterText = GUI:InsertFontString(
-        self.frame.BrowseFrame,
-        nil, "GameFontHighlight",
-        ("|T%s|t / |T%s|t"):format(
-            "Interface\\MoneyFrame\\UI-GoldIcon:15",
-            "Interface\\Icons\\Inv_cosmicvoid_orb:15:15:0:0:64:64:4:60:4:60"
-        ),
-        Util:FnBind(self.TrackAllKnowledgeFiltersOnEnter, self),
-        "LEFT", input.IncrementButton, "RIGHT", 0, 0
     )
 
     -- Artisan currency
 
-    local input = GUI:InsertNumericSpinner(
-        self.frame.BrowseFrame,
-        Util:FnBind(self.TrackAllCurrencyFiltersOnEnter, self),
-        Util:FnBind(self.TrackAllCurrencyFiltersOnChange, self),
+    self.trackAllCurrencyFilter, self.trackAllCurrencyFilterText = self:InsertTrackAllFilter(
+        "Inv_10_gearcraft_artisansmettle_color3",
+        self.TrackAllCurrencyFiltersOnEnter,
+        self.TrackAllCurrencyFiltersOnChange,
         "LEFT", self.trackAllKnowledgeFilterText, "RIGHT", 45, 0
     )
-    self.trackAllCurrencyFilter = input
 
-    input:SetShown(true)
-    input:SetWidth(32)
-    input:SetMaxLetters(4)
-    input.DecrementButton:SetAlpha(0.8)
-    input.IncrementButton:SetAlpha(0.8)
+    -- Artisan payout
 
-    self.trackAllCurrencyFilterText = GUI:InsertFontString(
-        self.frame.BrowseFrame,
-        nil, "GameFontHighlight",
-        ("|T%s|t / |T%s|t"):format(
-            "Interface\\MoneyFrame\\UI-GoldIcon:15",
-            "Interface\\Icons\\Inv_10_gearcraft_artisansmettle_color3:15:15:0:0:64:64:4:60:4:60"
-        ),
-        Util:FnBind(self.TrackAllCurrencyFiltersOnEnter, self),
-        "LEFT", input.IncrementButton, "RIGHT", 0, 0
+    self.trackAllPayoutFilter, self.trackAllPayoutFilterText = self:InsertTrackAllFilter(
+        "Inv_misc_bag_14",
+        self.TrackAllPayoutFiltersOnEnter,
+        self.TrackAllPayoutFiltersOnChange,
+        "LEFT", self.trackAllCurrencyFilterText, "RIGHT", 45, 0
     )
 
     self:UpdateTrackAllFilters()
 
     self.trackAllKnowledgeFilter:SetMinMaxValues(0, 9999)
     self.trackAllCurrencyFilter:SetMinMaxValues(0, 9999)
+    self.trackAllPayoutFilter:SetMinMaxValues(0, 9999)
+end
+
+---@param icon string
+---@param onEnter fun(frame: NumericInputSpinner)
+---@param onValueChanged fun(frame: NumericInputSpinner, value: number)
+---@param ... any
+function Self:InsertTrackAllFilter(icon, onEnter, onValueChanged, ...)
+    local icon = ("|TInterface\\MoneyFrame\\UI-GoldIcon:15|t / |TInterface\\Icons\\%s:15:15:0:0:64:64:4:60:4:60|t"):format(icon)
+    local onEnter = Util:FnBind(onEnter, self)
+    local onValueChanged = Util:FnBind(onValueChanged, self)
+
+    local input = GUI:InsertNumericSpinner(self.frame.BrowseFrame, onEnter, onValueChanged, ...)
+
+    input:SetShown(true)
+    input:SetWidth(32)
+    input:SetMaxLetters(4)
+    input.DecrementButton:SetAlpha(0.8)
+    input.IncrementButton:SetAlpha(0.8)
+
+    local text = GUI:InsertFontString(
+        self.frame.BrowseFrame, nil, "GameFontHighlight", icon, onEnter,
+        "LEFT", input.IncrementButton, "RIGHT", 0, 0
+    )
+
+    return input, text
 end
 
 function Self:UpdateTrackAllFilters()
@@ -198,9 +213,12 @@ function Self:UpdateTrackAllFilters()
     self.trackAllKnowledgeFilterText:SetShown(shown)
     self.trackAllCurrencyFilter:SetShown(shown)
     self.trackAllCurrencyFilterText:SetShown(shown)
+    self.trackAllPayoutFilter:SetShown(shown)
+    self.trackAllPayoutFilterText:SetShown(shown)
 
     self.trackAllKnowledgeFilter:SetValue(floor(Addon.DB.Account.knowledgeCost / 10000))
     self.trackAllCurrencyFilter:SetValue(floor(Addon.DB.Account.currencyCost / 10000))
+    self.trackAllPayoutFilter:SetValue(floor(Addon.DB.Account.payoutCost / 10000))
 end
 
 ---------------------------------------
@@ -379,11 +397,15 @@ function Self:ShouldTrackOrder(order)
     local profit = self:GetOrderProfit(order):Result() --[[@as number?]]
     if not profit then return false end
 
-    local maxCost =
-        -Addon.DB.Account.knowledgeCost * Orders:GetNumKnowledgeReward(order) +
-        -Addon.DB.Account.currencyCost * Orders:GetNumCurrencyReward(order)
+    local knowledge, currency, payout = Orders:GetNumNpcRewards(order)
 
-    if profit < maxCost then return false end
+    knowledge = Addon.DB.Account.knowledgeCost * knowledge
+    currency = Addon.DB.Account.currencyCost * currency
+    payout = Addon.DB.Account.payoutCost * payout
+
+    local maxCost = knowledge + currency + payout
+
+    if profit < -maxCost then return false end
 
     return true
 end
@@ -483,6 +505,8 @@ function Self:OnAddonLoaded(addonName)
 
     Addon:RegisterCallback(Addon.Event.KnowledgeCostUpdated, self.OnTrackAllFilterCostUpdated, self)
     Addon:RegisterCallback(Addon.Event.CurrencyCostUpdated, self.OnTrackAllFilterCostUpdated, self)
+    Addon:RegisterCallback(Addon.Event.PayoutCostUpdated, self.OnTrackAllFilterCostUpdated, self)
+
     Buffs:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
 end
 

@@ -180,6 +180,12 @@ Self.ARTISAN_CURRENCY = {
     [190456] = true,
 }
 
+-- Source: https://www.wowhead.com/items/name:Artisan+Payout
+---@type true[]
+Self.ARTISAN_PAYOUT = {
+    [227713] = true,
+}
+
 -- Source: CraftSim
 ---@type table<number, number>
 Self.REAGENTS = {

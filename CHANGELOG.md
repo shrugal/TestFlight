@@ -1,3 +1,8 @@
+Version 4.21
+
+- Fix not updating optimizated allocation when changing extra skill
+- Fix stack overflow error after pressing the optimize button
+
 Version 4.20
 
 - Switch "Start Next" button to a search button if no orders are shown on the orders page
