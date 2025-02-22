@@ -12,14 +12,11 @@ local Self = GUI.Auctionator
 ---------------------------------------
 
 function Self:BuyButtonOnClick()
-    local shoppingFrame = AuctionatorShoppingFrame
-    local commodityFrame = AuctionatorBuyCommodityFrame
-    local itemFrame = AuctionatorBuyItemFrame
+    ---@type AuctionatorShoppingFrame, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
+    local shoppingFrame, commodityFrame, itemFrame = unpack(self.buyFrames)
 
-    local confirmDialog = commodityFrame.FinalConfirmationDialog
-    local priceDialog = commodityFrame.WidePriceRangeWarningDialog
-    local quantityDialog = commodityFrame.QuantityCheckConfirmationDialog
-    local buyDialog = itemFrame.BuyDialog
+    ---@type AuctionatorBuyCommodityFinalConfirmationDialog, AuctionatorBuyCommodityWidePriceRangeWarningDialog, AuctionatorBuyCommodityQuantityCheckConfirmationDialog, AuctionatorBuyItemDialog
+    local confirmDialog, priceDialog, quantityDialog, buyDialog = unpack(self.buyDialogs)
 
     if confirmDialog:IsShown() or priceDialog:IsShown() or quantityDialog:IsShown() then
         self.buyingItemKey = commodityFrame.itemKey
@@ -31,12 +28,12 @@ function Self:BuyButtonOnClick()
         elseif quantityDialog:IsShown() then
             quantityDialog.AcceptButton:Click()
         end
+    elseif commodityFrame:IsShown() then
+        commodityFrame:BuyClicked()
     elseif buyDialog:IsShown() then
         self.buyingItemKey = itemFrame.expectedItemKey
 
         buyDialog.Buy:Click()
-    elseif commodityFrame:IsShown() then
-        commodityFrame:BuyClicked()
     else
         local resultsListing = (itemFrame:IsShown() and itemFrame or shoppingFrame).ResultsListing
         local row = resultsListing.tableBuilder.rows[1]
@@ -45,35 +42,28 @@ function Self:BuyButtonOnClick()
 end
 
 function Self:InsertBuyButton()
-    self.buyButton = GUI:InsertButton("Buy Next", AuctionatorShoppingFrame.SearchOptions, nil, Util:FnBind(self.BuyButtonOnClick, self))
-    self.buyButton:SetPoint("LEFT", AuctionatorShoppingFrame.SearchOptions.AddToListButton, "RIGHT", 5, 0)
+    local parent = AuctionatorShoppingFrame.SearchOptions
+    self.buyButton = GUI:InsertButton("Buy Next", parent, nil, Util:FnBind(self.BuyButtonOnClick, self))
+    self.buyButton:SetPoint("LEFT", parent.AddToListButton, "RIGHT", 5, 0)
     self.buyButton:SetPoint("RIGHT", -5, 0)
 end
 
-function Self:UpdateBuyButton()
-    local shoppingFrame = AuctionatorShoppingFrame
-    local commodityFrame = AuctionatorBuyCommodityFrame
-    local itemFrame = AuctionatorBuyItemFrame
+---@param frame Frame
+local function IsShown (frame) return frame:IsShown() end
 
-    local confirmDialog = commodityFrame.FinalConfirmationDialog
-    local priceDialog = commodityFrame.WidePriceRangeWarningDialog
-    local quantityDialog = commodityFrame.QuantityCheckConfirmationDialog
-    local buyDialog = itemFrame.BuyDialog
+function Self:UpdateBuyButton()
+    ---@type AuctionatorShoppingFrame, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
+    local shoppingFrame, commodityFrame, itemFrame = unpack(self.buyFrames)
 
     local enabled, text = true, nil
 
-    if confirmDialog:IsShown() or priceDialog:IsShown() or quantityDialog:IsShown() or buyDialog:IsShown() then
+    if Util:TblSome(self.buyDialogs, IsShown) then
         text = "Confirm"
     elseif commodityFrame:IsShown() then
         text = "Buy"
     else
+        enabled = (itemFrame:IsShown() and itemFrame or shoppingFrame).DataProvider:GetCount() > 0
         text = "Buy Next"
-
-        if itemFrame:IsShown() then
-            enabled = itemFrame.DataProvider:GetCount() > 0
-        else
-            enabled = shoppingFrame.DataProvider:GetCount() > 0
-        end
     end
 
     self.buyButton:SetEnabled(enabled)
@@ -130,8 +120,8 @@ function Self:OnAuctionHousePurchaseCompleted(auctionID)
     local itemKey = self:ForgetItemKey()
     if not itemKey then return end
 
-    local commodityFrame = AuctionatorBuyCommodityFrame
-    local itemFrame = AuctionatorBuyItemFrame
+    ---@type _, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
+    local _, commodityFrame, itemFrame = unpack(self.buyFrames)
 
     if commodityFrame:IsShown() then
         if not Util:TblEquals(commodityFrame.itemKey, itemKey) then return end
@@ -146,10 +136,6 @@ end
 
 function Self:OnAuctionHousePurchaseFailed()
     self:ForgetItemKey()
-end
-
-function Self:OnShoppingStateChanged()
-    self:UpdateBuyButton()
 end
 
 function Self:OnShoppingListExpand()
@@ -169,25 +155,30 @@ end
 function Self:OnAuctionHouseShown()
     if self.buyButton then return end
 
+    self.buyFrames = {
+        AuctionatorShoppingFrame,
+        AuctionatorBuyCommodityFrame,
+        AuctionatorBuyItemFrame
+    }
+
+    self.buyDialogs = {
+        AuctionatorBuyCommodityFrame.FinalConfirmationDialog,
+        AuctionatorBuyCommodityFrame.WidePriceRangeWarningDialog,
+        AuctionatorBuyCommodityFrame.QuantityCheckConfirmationDialog,
+        AuctionatorBuyItemFrame.BuyDialog
+    }
+
     self:InsertBuyButton()
 
-    local OnShoppingStateChanged = Util:FnBind(self.OnShoppingStateChanged, self)
-
-    hooksecurefunc(AuctionatorShoppingFrame.DataProvider, "onUpdate", OnShoppingStateChanged)
-    hooksecurefunc(AuctionatorBuyCommodityFrame.DataProvider, "onUpdate", OnShoppingStateChanged)
-    hooksecurefunc(AuctionatorBuyItemFrame.DataProvider, "onUpdate", OnShoppingStateChanged)
-
-    AuctionatorBuyCommodityFrame:HookScript("OnHide", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.FinalConfirmationDialog:HookScript("OnShow", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.FinalConfirmationDialog:HookScript("OnHide", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.WidePriceRangeWarningDialog:HookScript("OnShow", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.WidePriceRangeWarningDialog:HookScript("OnHide", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.QuantityCheckConfirmationDialog:HookScript("OnShow", OnShoppingStateChanged)
-    AuctionatorBuyCommodityFrame.QuantityCheckConfirmationDialog:HookScript("OnHide", OnShoppingStateChanged)
-
-    AuctionatorBuyItemFrame:HookScript("OnHide", OnShoppingStateChanged)
-    AuctionatorBuyItemFrame.BuyDialog:HookScript("OnShow", OnShoppingStateChanged)
-    AuctionatorBuyItemFrame.BuyDialog:HookScript("OnHide", OnShoppingStateChanged)
+    local UpdateBuyButton = Util:FnBind(self.UpdateBuyButton, self)
+    for i,frame in pairs(self.buyFrames) do
+        hooksecurefunc(frame.DataProvider, "onUpdate", UpdateBuyButton)
+        if i > 1 then frame:HookScript("OnHide", UpdateBuyButton) end
+    end
+    for _,frame in pairs(self.buyDialogs) do
+        frame:HookScript("OnShow", UpdateBuyButton)
+        frame:HookScript("OnHide", UpdateBuyButton)
+    end
 
     hooksecurefunc(AuctionatorShoppingFrame.ListsContainer, "onListExpanded", Util:FnBind(self.OnShoppingListExpand, self))
     hooksecurefunc(AuctionatorShoppingFrame.ListsContainer, "onListSearch", Util:FnBind(self.OnShoppingListSearch, self))
@@ -200,11 +191,10 @@ function Self:OnAddonLoaded(addonName)
 
     hooksecurefunc(AuctionatorInitalizeMainlineFrame, "AuctionHouseShown", Util:FnBind(self.OnAuctionHouseShown, self))
 
-    local OnAuctionHousePurchaseFailed = Util:FnBind(self.OnAuctionHousePurchaseFailed, self)
-    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UPDATED", OnAuctionHousePurchaseFailed)
-    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UNAVAILABLE", OnAuctionHousePurchaseFailed)
-    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PURCHASE_FAILED", OnAuctionHousePurchaseFailed)
-    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_ERROR", OnAuctionHousePurchaseFailed)
+    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UPDATED", self.OnAuctionHousePurchaseFailed, self)
+    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UNAVAILABLE", self.OnAuctionHousePurchaseFailed, self)
+    EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PURCHASE_FAILED", self.OnAuctionHousePurchaseFailed, self)
+    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_ERROR", self.OnAuctionHousePurchaseFailed, self)
 
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_PURCHASE_COMPLETED", self.OnAuctionHousePurchaseCompleted, self)
 end
