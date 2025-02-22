@@ -931,6 +931,7 @@ end
 ---@param ... any
 ---@return function
 function Self:FnBind(fn, ...)
+    if select("#", ...) == 0 then return fn end
     return GenerateClosure(fn, ...)
 end
 
@@ -1054,6 +1055,12 @@ end
 ---@param update? boolean
 function Self:FnDelayedUpdate(fn, n, update)
     return self:FnCombine(self:FnThrottle(fn, n, nil, nil, update), self:FnDebounce(fn, n, true, nil, update))
+end
+
+---@param fn function
+function Self:FnOnce(fn)
+    local call = true
+    return function (...) if call then call = false return fn(...) end end
 end
 
 -- DEBUG

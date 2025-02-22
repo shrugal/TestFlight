@@ -318,7 +318,7 @@ end
 
 ---@param order CraftingOrderInfo
 function Self:GetNumNpcRewards(order)
-    if order.orderType ~= Enum.CraftingOrderType.Npc then return 0 end
+    if order.orderType ~= Enum.CraftingOrderType.Npc then return 0, 0, 0 end
 
     local knowledge, currency, payout = 0, 0, 0
     for _,reward in pairs(order.npcOrderRewards) do

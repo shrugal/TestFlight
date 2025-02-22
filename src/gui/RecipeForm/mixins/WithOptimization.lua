@@ -146,7 +146,7 @@ function Self:SetQuality(quality, exact)
         local operation = operations[quality] or not exact and operations[quality + 1]
         if not operation then return end
 
-        C_Timer.After(0, Util:FnBind(self.SetOperation(self, operation, false)))
+        C_Timer.After(0, Util:FnBind(self.SetOperation, self, operation, false))
     end):Start(function ()
         self.isOptimizing = true
         self.increaseBtn:SetEnabled(false)

@@ -19,7 +19,7 @@ function Self:BuyButtonOnClick()
     local confirmDialog, priceDialog, quantityDialog, buyDialog = unpack(self.buyDialogs)
 
     if confirmDialog:IsShown() or priceDialog:IsShown() or quantityDialog:IsShown() then
-        self.buyingItemKey = commodityFrame.itemKey
+        self.buyItemKey = commodityFrame.itemKey
 
         if confirmDialog:IsShown() then
             confirmDialog.AcceptButton:Click()
@@ -31,7 +31,7 @@ function Self:BuyButtonOnClick()
     elseif commodityFrame:IsShown() then
         commodityFrame:BuyClicked()
     elseif buyDialog:IsShown() then
-        self.buyingItemKey = itemFrame.expectedItemKey
+        self.buyItemKey = itemFrame.expectedItemKey
 
         buyDialog.Buy:Click()
     else
@@ -43,9 +43,12 @@ end
 
 function Self:InsertBuyButton()
     local parent = AuctionatorShoppingFrame.SearchOptions
-    self.buyButton = GUI:InsertButton("Buy Next", parent, nil, Util:FnBind(self.BuyButtonOnClick, self))
+
+    self.buyButton = GUI:InsertButton("", parent, nil, Util:FnBind(self.BuyButtonOnClick, self))
     self.buyButton:SetPoint("LEFT", parent.AddToListButton, "RIGHT", 5, 0)
     self.buyButton:SetPoint("RIGHT", -5, 0)
+
+    self:UpdateBuyButton()
 end
 
 ---@param frame Frame
@@ -74,9 +77,9 @@ end
 --              Util
 ---------------------------------------
 
-function Self:ForgetItemKey()
-    local itemKey = self.buyingItemKey
-    self.buyingItemKey = nil
+function Self:ForgetBuyItemKey()
+    local itemKey = self.buyItemKey
+    self.buyItemKey = nil
     return itemKey
 end
 
@@ -117,7 +120,7 @@ end
 
 ---@param auctionID? number
 function Self:OnAuctionHousePurchaseCompleted(auctionID)
-    local itemKey = self:ForgetItemKey()
+    local itemKey = self:ForgetBuyItemKey()
     if not itemKey then return end
 
     ---@type _, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
@@ -127,6 +130,7 @@ function Self:OnAuctionHousePurchaseCompleted(auctionID)
         if not Util:TblEquals(commodityFrame.itemKey, itemKey) then return end
         commodityFrame:Hide()
     elseif itemFrame:IsShown() then
+        do return end ---@todo
         if not Util:TblEquals(itemFrame.expectedItemKey, itemKey) then return end
         itemFrame:Hide()
     end
@@ -135,7 +139,7 @@ function Self:OnAuctionHousePurchaseCompleted(auctionID)
 end
 
 function Self:OnAuctionHousePurchaseFailed()
-    self:ForgetItemKey()
+    self:ForgetBuyItemKey()
 end
 
 function Self:OnShoppingListExpand()
@@ -152,8 +156,9 @@ function Self:OnShoppingSearch()
     self.buyingList = nil
 end
 
-function Self:OnAuctionHouseShown()
-    if self.buyButton then return end
+function Self:OnShow()
+    if not AuctionatorBuyCommodityFrame then return end
+    if self.buyFrames then return end
 
     self.buyFrames = {
         AuctionatorShoppingFrame,
@@ -189,7 +194,7 @@ end
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Auctionator", addonName) then return end
 
-    hooksecurefunc(AuctionatorInitalizeMainlineFrame, "AuctionHouseShown", Util:FnBind(self.OnAuctionHouseShown, self))
+    hooksecurefunc(AuctionatorAHFrameMixin, "OnShow", Util:FnBind(self.OnShow, self))
 
     EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UPDATED", self.OnAuctionHousePurchaseFailed, self)
     EventRegistry:RegisterFrameEventAndCallback("COMMODITY_PRICE_UNAVAILABLE", self.OnAuctionHousePurchaseFailed, self)

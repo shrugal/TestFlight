@@ -127,6 +127,13 @@ Auctionator = nil
 ---@field AuctionHouseShown function
 AuctionatorInitalizeMainlineFrame = nil
 
+---@class AuctionatorAHFrame: Frame
+AuctionatorAHFrame = nil
+
+---@class AuctionatorAHFrameMixin
+---@field OnShow function
+AuctionatorAHFrameMixin = nil
+
 ---@class AuctionatorResultsListingContainer: Frame
 ---@field ResultsListing AuctionatorResultsListing
 ---@field DataProvider AuctionatorDataProviderMixin

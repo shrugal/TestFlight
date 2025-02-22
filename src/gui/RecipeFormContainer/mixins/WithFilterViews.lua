@@ -19,32 +19,32 @@ Self.Filter = {
     Restock = "RESTOCK",
 }
 
----@type table<RecipeFormContainer.Filter, fun(a: RecipeTreeNode, b: RecipeTreeNode): boolean>
+---@type table<RecipeFormContainer.Filter, fun(self: GUI.RecipeFormContainer.WithFilterViews, a: RecipeTreeNode, b: RecipeTreeNode): boolean>
 Self.SortComparator = {
-    [Self.Filter.Scan] = function(a, b)
+    [Self.Filter.Scan] = function (self, a, b)
         if a and b then
             local a, b = a:GetData(), b:GetData()
             -- Sort by name if no value
             if not a.value or not b.value then return a.recipeInfo.name < b.recipeInfo.name end
             -- Low price before high price
-            if Self:GetFilterSort(Self.filter) == Optimization.Method.Cost then return a.value < b.value end
+            if self:GetFilterSort(self.filter) == Optimization.Method.Cost then return a.value < b.value end
             -- High profit before low profit
             return a.value > b.value
         end
         return a ~= b and b == nil
     end,
-    [Self.Filter.Restock] = function (a, b)
+    [Self.Filter.Restock] = function (self, a, b)
         if a and b then
             local a, b = a:GetData(), b:GetData()
             -- Non zero amount before zero amount
             if (a.amount ~= 0) ~= (b.amount ~= 0) then return a.amount ~= 0 end
         end
-        return Self.SortComparator[Self.Filter.Scan](a, b)
+        return self.sortComparator[self.Filter.Scan](a, b)
     end,
-    [Self.Filter.Queue] = function (a, b)
+    [Self.Filter.Queue] = function (self, a, b)
         if a and b then
             local a, b = a:GetData(), b:GetData()
-            local amounts = Self.Cache.CurrentCraftAmount
+            local amounts = self.Cache.CurrentCraftAmount
             local aMaxAmount, bMaxAmount = amounts:Val(a), amounts:Val(b)
 
             -- Craftable before non craftable
@@ -52,7 +52,7 @@ Self.SortComparator = {
             if aCraftable ~= bCraftable then return aCraftable end
 
             -- Non missing aura before missing aura
-            local auras = Self.Cache.CurrentMissingAura
+            local auras = self.Cache.CurrentMissingAura
             local aAura, bAura = auras:Val(a), auras:Val(b)
             if (not aAura ~= not bAura) then return not aAura end
 
@@ -67,7 +67,7 @@ Self.SortComparator = {
             local bFullCraftable = bCraftable and b.amount <= bMaxAmount
             if aFullCraftable ~= bFullCraftable then return aFullCraftable end
         end
-        return Self.SortComparator[Self.Filter.Restock](a, b)
+        return self.sortComparator[self.Filter.Restock](a, b)
     end,
 }
 
@@ -359,7 +359,7 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
     end
 
     -- Set sort comparator
-    local sortComparator = self.SortComparator[filter]
+    local sortComparator = self.sortComparator[filter]
     if provider.sortComparator ~= sortComparator then
         provider:SetSortComparator(sortComparator, false, true)
     end
@@ -821,6 +821,9 @@ end
 function Self:OnAddonLoaded()
     self:CreateRecipeListProgressBar()
     self:InsertFilterButtons()
+
+    ---@type table<RecipeFormContainer.Filter, fun(a: RecipeTreeNode, b: RecipeTreeNode): boolean>
+    self.sortComparator = Util:TblMap(Self.SortComparator, Util.FnBind, false, Util, self)
 
     self.frame:HookScript("OnShow", Util:FnBind(self.OnShow, self))
     self.frame:HookScript("OnHide", Util:FnBind(self.OnHide, self))
