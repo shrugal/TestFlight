@@ -117,6 +117,7 @@ Auctionator = nil
 ---@field MultiSearchAdvanced fun(callerID: string, searchTerms: table)
 ---@field ConvertToSearchString fun(callerID: string, searchTerm: table): string
 ---@field GetShoppingListItems fun(callerID: string, shoppingListName: string): string[]
+---@field AlterShoppingListItem fun(callerID: string, shoppingListName: string, oldItemSearchString: string, newItemSearchString: string)
 ---@field DeleteShoppingListItem fun(callerID: string, shoppingListName: string, itemSearchString: string)
 
 ---@class AuctionatorConfig
@@ -156,7 +157,7 @@ AuctionatorAHFrameMixin = nil
 ---@field GetColumnHideStates fun(self:self): unknown
 ---@field GetRowTemplate fun(self:self): unknown
 ---@field GetEntryAt fun(self:self, index): unknown
----@field GetCount fun(self:self): unknown
+---@field GetCount fun(self:self): number
 ---@field SetOnEntryProcessedCallback fun(self:self, onEntryProcessedCallback): unknown
 ---@field SetOnUpdateCallback fun(self:self, onUpdateCallback): unknown
 ---@field SetOnSearchStartedCallback fun(self:self, onSearchStartedCallback): unknown
@@ -168,6 +169,14 @@ AuctionatorAHFrameMixin = nil
 ---@field AppendEntries fun(self:self, entries, isLastSetOfResults): unknown
 ---@field CheckForEntriesToProcess fun(self:self): unknown
 ---@field GetCSV fun(self:self, callback): unknown
+
+---@class AuctionatorShoppingEntry
+---@field itemKey ItemKey
+---@field name string
+---@field plainItemName string
+---@field purchaseQuantity? number
+---@field totalQuantitiy number
+---@field sortingIndex number
 
 ---@class AuctionatorShoppingFrame: AuctionatorResultsListingContainer
 ---@field SearchOptions AuctionatorShoppingFrameSearchOptions
@@ -200,11 +209,15 @@ AuctionatorShoppingFrame = nil
 
 ---@class AuctionatorBuyCommodityFrame: AuctionatorResultsListingContainer
 ---@field itemKey ItemKey
+---@field DetailsContainer AunctionatorBuyCommodityFrameDetailsContainer
 ---@field FinalConfirmationDialog AuctionatorBuyCommodityFinalConfirmationDialog
 ---@field WidePriceRangeWarningDialog AuctionatorBuyCommodityWidePriceRangeWarningDialog
 ---@field QuantityCheckConfirmationDialog AuctionatorBuyCommodityQuantityCheckConfirmationDialog
 ---@field BuyClicked fun(self: self)
 AuctionatorBuyCommodityFrame = nil
+
+---@class AunctionatorBuyCommodityFrameDetailsContainer
+---@field Quantity EditBox
 
 ---@class AuctionatorBuyCommodityFinalConfirmationDialog: Frame
 ---@field AcceptButton Button

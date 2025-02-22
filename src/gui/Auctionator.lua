@@ -19,7 +19,7 @@ function Self:BuyButtonOnClick()
     local confirmDialog, priceDialog, quantityDialog, buyDialog = unpack(self.buyDialogs)
 
     if confirmDialog:IsShown() or priceDialog:IsShown() or quantityDialog:IsShown() then
-        self.buyItemKey = commodityFrame.itemKey
+        self:SetBuyInfo(commodityFrame.itemKey, commodityFrame.DetailsContainer.Quantity:GetNumber())
 
         if confirmDialog:IsShown() then
             confirmDialog.AcceptButton:Click()
@@ -31,7 +31,7 @@ function Self:BuyButtonOnClick()
     elseif commodityFrame:IsShown() then
         commodityFrame:BuyClicked()
     elseif buyDialog:IsShown() then
-        self.buyItemKey = itemFrame.expectedItemKey
+        self:SetBuyInfo(itemFrame.expectedItemKey, 1)
 
         buyDialog.Buy:Click()
     else
@@ -77,83 +77,123 @@ end
 --              Util
 ---------------------------------------
 
-function Self:ForgetBuyItemKey()
-    local itemKey = self.buyItemKey
-    self.buyItemKey = nil
-    return itemKey
+---@param itemKey? ItemKey
+---@param quantity? number
+function Self:SetBuyInfo(itemKey, quantity)
+    self.buyItemKey, self.buyQuantity = itemKey, quantity
+end
+
+function Self:GetUnsetBuyInfo()
+    local itemKey, quantity = self.buyItemKey, self.buyQuantity
+    self:SetBuyInfo()
+    return itemKey, quantity
+end
+
+function Self:IsShoppingListSearch()
+    return self.buyList == ("%s (%s)"):format(Name, AUCTIONATOR_L_TEMPORARY_LOWER_CASE)
 end
 
 ---@param itemKey ItemKey
-function Self:RemoveBuyEntryByItemKey(itemKey)
-    -- Remove from current search
+---@param amount number
+function Self:SubBuyAmountByItemKey(itemKey, amount)
+    if self:IsShoppingListSearch() then
+        self:SubBuyAmountFromShoppingList(itemKey, amount)
+    end
+
+    return self:SubBuyAmountFromSearch(itemKey, amount)
+end
+
+---@param itemKey ItemKey
+---@param amount number
+function Self:SubBuyAmountFromShoppingList(itemKey, amount)
+    local terms = Auctionator.API.v1.GetShoppingListItems(Name, self.buyList)
+    local termPattern = Auctionator.API.v1.ConvertToSearchString(Name, {
+        searchString = C_Item.GetItemInfo(itemKey.itemID),
+        tier = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemKey.itemID),
+        isExact = true,
+        quantity = "(%d*)"
+    })
+
+    ---@type _, string?
+    local _, term = Util:TblFind(terms, function (term) return term:match(termPattern) end)
+    if not term then return end
+
+    local quantity = (tonumber(term:match(termPattern)) or 0) - amount
+    if quantity <= 0 then
+        Auctionator.API.v1.DeleteShoppingListItem(Name, self.buyList, term)
+    else
+        Auctionator.API.v1.AlterShoppingListItem(Name, self.buyList, term, termPattern:gsub("%(%%d%*%)", quantity))
+    end
+
+    return quantity <= 0
+end
+
+---@param itemKey ItemKey
+---@param amount number
+function Self:SubBuyAmountFromSearch(itemKey, amount)
     local dataProvider = AuctionatorShoppingFrame.DataProvider
-    local index = Util:TblFind(dataProvider.results, function (entry) return Util:TblEquals(entry.itemKey, itemKey) end)
-    if index then
+
+    ---@type number?, AuctionatorShoppingEntry
+    local index, entry = Util:TblFind(dataProvider.results, function (entry) return Util:TblEquals(entry.itemKey, itemKey) end)
+    if not index then return end
+
+    local quantity = (entry.purchaseQuantity or 0) - amount
+    if quantity <= 0 then
         tremove(dataProvider.results, index)
-        dataProvider:SetDirty()
-
-        if #dataProvider.entriesToProcess == 0 then
-            dataProvider:CheckForEntriesToProcess()
-        end
+    else
+        entry.purchaseQuantity = quantity
     end
 
-    -- Remove from TF shopping list
-    if self.buyingList == ("%s (%s)"):format(Name, AUCTIONATOR_L_TEMPORARY_LOWER_CASE) then
-        local termPrefix = Auctionator.API.v1.ConvertToSearchString(Name, {
-            searchString = C_Item.GetItemInfo(itemKey.itemID),
-            tier = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemKey.itemID),
-            isExact = true
-        })
+    dataProvider:SetDirty()
 
-        local terms = Auctionator.API.v1.GetShoppingListItems(Name, self.buyingList)
-        local _, term = Util:TblFind(terms, function (term) return Util:StrStartsWith(term, termPrefix) end)
-
-        if term then
-            Auctionator.API.v1.DeleteShoppingListItem(Name, self.buyingList, term)
-        end
+    if #dataProvider.entriesToProcess == 0 then
+        dataProvider:CheckForEntriesToProcess()
     end
+
+    return quantity <= 0
 end
 
 ---------------------------------------
 --              Events
 ---------------------------------------
 
----@param auctionID? number
-function Self:OnAuctionHousePurchaseCompleted(auctionID)
-    local itemKey = self:ForgetBuyItemKey()
+function Self:OnAuctionHousePurchaseCompleted()
+    local itemKey, quantity = self:GetUnsetBuyInfo()
     if not itemKey then return end
 
     ---@type _, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
     local _, commodityFrame, itemFrame = unpack(self.buyFrames)
+    local frame
 
     if commodityFrame:IsShown() then
         if not Util:TblEquals(commodityFrame.itemKey, itemKey) then return end
-        commodityFrame:Hide()
+        frame = commodityFrame
     elseif itemFrame:IsShown() then
-        do return end ---@todo
         if not Util:TblEquals(itemFrame.expectedItemKey, itemKey) then return end
-        itemFrame:Hide()
+        frame = itemFrame
     end
 
-    self:RemoveBuyEntryByItemKey(itemKey)
+    local done = self:SubBuyAmountByItemKey(itemKey, quantity or 1)
+
+    if done and frame then frame:Hide() end
 end
 
 function Self:OnAuctionHousePurchaseFailed()
-    self:ForgetBuyItemKey()
+    self:SetBuyInfo()
 end
 
 function Self:OnShoppingListExpand()
     if not Auctionator.Config.Get(Auctionator.Config.Options.AUTO_LIST_SEARCH) then return end
-    self.buyingList = AuctionatorShoppingFrame.ListsContainer:GetExpandedList():GetName()
+    self.buyList = AuctionatorShoppingFrame.ListsContainer:GetExpandedList():GetName()
 end
 
 ---@param list AuctionatorShoppingList
 function Self:OnShoppingListSearch(list)
-    self.buyingList = list:GetName()
+    self.buyList = list:GetName()
 end
 
 function Self:OnShoppingSearch()
-    self.buyingList = nil
+    self.buyList = nil
 end
 
 function Self:OnShow()
