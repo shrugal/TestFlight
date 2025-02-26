@@ -83,9 +83,7 @@ end
 
 ---@param frame? OrdersView
 function Self:UpdateCreateButton(frame)
-    if not frame then
-        self.frame.UpdateCreateButton(self.frame)
-    end
+    if not frame then return self.frame.UpdateCreateButton(self.frame) end
 
     Parent.UpdateCreateButton(self)
 

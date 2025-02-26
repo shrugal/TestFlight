@@ -1,3 +1,1 @@
-- Add filter setting for max cost per artisan material bag to NPC orders page
-- Add buying automation button to Auctionator shopping tab
-- Fix sort order when sorting scan filter view by reagent cost, for real this time
+- Fix stack overflow error when updating order crafting form 

@@ -1,3 +1,9 @@
+Version 4.22
+
+- Add filter setting for max cost per artisan material bag to NPC orders page
+- Add buying automation button to Auctionator shopping tab
+- Fix sort order when sorting scan filter view by reagent cost, for real this time
+
 Version 4.21
 
 - Fix not updating optimizated allocation when changing extra skill
@@ -31,7 +37,6 @@ Version 4.17
 - Fix sometimes ignoring cheaper higher tier reagents
 - Fix clearing caches when crafting traits change
 - Fix allocating optional reagents
-
 
 Version 4.16
 
