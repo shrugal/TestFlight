@@ -1,1 +1,2 @@
+- Updated ToC version for patch 11.1
 - Fix stack overflow error when updating order crafting form 
