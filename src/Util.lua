@@ -817,7 +817,7 @@ end
 
 ---@param n number
 function Self:NumIsNaN(n)
-    return type(n) == "number" and tostring(n) == tostring(0/0)
+    return type(n) == "number" and tostring(n) == "NaN"
 end
 
 ---@param n number

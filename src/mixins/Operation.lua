@@ -617,7 +617,7 @@ function Self:GetConcentrationFactors()
                     end
                 end
 
-                if opWeight and prevWeight and opWeight >= prevWeight then
+                if opWeight and prevWeight and opWeight > prevWeight then
                     concentrationFactors[i-1] = (prevCon - opCon) / (prevWeight - opWeight)
                 end
 
@@ -654,15 +654,17 @@ function Self:GetConcentrationCost(weight)
     local bound = d == 1 and min or max
 
     for i=1,n-1 do
-       local v = C.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
-       local f = conFactors[d == 1 and i or n-i]
-       local targetSkill = lowerSkill + v * (upperSkill - lowerSkill) - baseSkill
-       local targetWeight = max(0, bound(weight, targetSkill * weightPerSkill))
+        local f = conFactors[d == 1 and i or n-i]
+        if not f then return end
 
-       if targetWeight * d > currWeight * d and targetWeight * d <= weight * d then
-          currCon = currCon + (targetWeight - currWeight) * f
-          currWeight = targetWeight
-       end
+        local v = C.CONCENTRATION_BREAKPOINTS[d == 1 and i+1 or n-i]
+        local targetSkill = lowerSkill + v * (upperSkill - lowerSkill) - baseSkill
+        local targetWeight = max(0, bound(weight, targetSkill * weightPerSkill))
+
+        if targetWeight * d > currWeight * d and targetWeight * d <= weight * d then
+            currCon = currCon + (targetWeight - currWeight) * f
+            currWeight = targetWeight
+        end
     end
 
     return currCon

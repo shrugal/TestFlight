@@ -82,13 +82,9 @@ function Self:ApplyExtraSkill(operation)
                 end
 
                 if base:GetQuality() ~= op.craftingQuality then
-                    op.concentrationCost = 0/0
-                else
-                    op.concentrationCost = base:GetConcentrationCost(weight)
-                end
-
-                if Util:NumIsNaN(op.concentrationCost) then
                     op.concentrationCost = -1
+                else
+                    op.concentrationCost = base:GetConcentrationCost(weight) or -1
                 end
             end
         end

@@ -180,7 +180,7 @@ function Self:GetAllocationsForMethod(operation, method)
             operation = operation:WithAuras(Buffs:GetCurrentAndEnabledAuras(operation.recipe))
 
             -- Concentration
-            local optimizeConcentration = optimizeConcentration and operation:GetConcentrationCost() > 0
+            local optimizeConcentration = optimizeConcentration and (operation:GetConcentrationCost() or 0) > 0
             operation = operation:WithConcentration(optimizeConcentration)
 
             Promise:YieldTime()
@@ -516,6 +516,7 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
         if profit < 0 and maxValue >= 0 then break end
 
         local concentration = operation:GetConcentrationCost(weight)
+        if not concentration then break end
 
         local value = optimizeProfit and profit / concentration or (profit - lowerProfit) / (lowerCon - concentration)
 
