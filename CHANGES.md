@@ -1,2 +1,2 @@
-- Updated ToC version for patch 11.1
-- Fix stack overflow error when updating order crafting form 
+- Use Auctionator automation button to start reagent search
+- Fix another cause for C stack overflow errors

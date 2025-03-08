@@ -11,6 +11,8 @@ Addon.Util = {}
 Addon.Promise = {}
 ---@type Cache.Static
 Addon.Cache = {}
+---@type Allocations.Static
+Addon.Allocations = {}
 ---@type Operation.Static
 Addon.Operation = {}
 

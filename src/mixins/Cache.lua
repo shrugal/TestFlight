@@ -127,6 +127,8 @@ function Self:Has(key)
     return self.values[key] ~= nil
 end
 
+---@generic T
+---@return T?
 function Self:Get(key)
     self:CheckContext()
 
@@ -142,6 +144,8 @@ function Self:Get(key)
     return value
 end
 
+---@generic T
+---@return T?
 function Self:Val(...)
     self:CheckContext()
 

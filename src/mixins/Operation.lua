@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, C, Cache, Prices, Reagents, Recipes, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
+local Allocations, Buffs, C, Cache, Prices, Reagents, Recipes, Util = Addon.Allocations, Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Prices, Addon.Reagents, Addon.Recipes, Addon.Util
 
 ---@class Operation.Static
 local Static = Addon.Operation
@@ -122,7 +122,7 @@ function Self:WithReagents(reagentTypes, reagents, finishingSlotIndex)
             and (not Reagents:IsProvided(slot, order, self:GetRecraftMods()))
 
         if allocate then
-            allocation[slotIndex] = Addon:CreateAllocations()
+            allocation[slotIndex] = Allocations:Create()
 
             if reagents then
                 for _,reagent in pairs(reagents) do
@@ -289,7 +289,7 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
         local alloc = self.allocation[slotIndex]
 
         if not alloc and (provided or slot.required) then
-            alloc = Addon:CreateAllocations()
+            alloc = Allocations:Create()
             self.allocation[slotIndex] = alloc
         end
 

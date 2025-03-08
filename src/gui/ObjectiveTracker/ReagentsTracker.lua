@@ -276,21 +276,7 @@ function Self:InsertSearchButton()
     function self.SearchButton:SearchButtonClicked()
         if TSM_API and TSM_API.IsUIVisible("AUCTION") then return end
 
-        local searchTerms = {}
-
-        for itemID,amount in pairs(select(2, Reagents:GetTrackedBySource())) do
-            local name = C_Item.GetItemInfo(itemID)
-            local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
-
-            tinsert(searchTerms, {
-                searchString = name,
-                tier = quality,
-                isExact = true,
-                quantity = amount
-            })
-        end
-
-        Auctionator.API.v1.MultiSearchAdvanced(Name, searchTerms)
+        GUI.Auctionator:StartSearch()
     end
 end
 
@@ -334,10 +320,6 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate) self.module:UpdatePosition(dirtyUpdate) end)
 
     Parent.OnAddonLoaded(self)
-
-    Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, self.module.MarkDirty, self.module)
-    Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.module.MarkDirty, self.module)
-    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.module.MarkDirty, self.module)
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

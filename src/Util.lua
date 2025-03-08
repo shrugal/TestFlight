@@ -3,6 +3,7 @@ local Name = ...
 local Addon = select(2, ...)
 
 ---@class Util
+---@overload fun(val: any): UtilAny
 local Self = Addon.Util
 
 Self.NIL = {}
@@ -1245,6 +1246,7 @@ local Chain = setmetatable({}, {
     __call = function () return chainVal end
 })
 
+---@diagnostic disable-next-line: param-type-mismatch
 setmetatable(Self, {
     __call = function (_, val) chainVal = val return Chain end
 })

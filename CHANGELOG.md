@@ -1,3 +1,8 @@
+Version 4.23
+
+- Updated ToC version for patch 11.1
+- Fix stack overflow error when updating order crafting form 
+
 Version 4.22
 
 - Add filter setting for max cost per artisan material bag to NPC orders page

@@ -1,9 +1,10 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, C, Cache, Orders, Prices, Recipes, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
+local Allocations, Buffs, C, Cache, Orders, Prices, Recipes, Util = Addon.Allocations, Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Orders, Addon.Prices, Addon.Recipes, Addon.Util
 
----@class Reagents
-local Self = Addon.Reagents
+---@class Reagents: CallbackRegistryMixin
+---@field Event Reagents.Event
+local Self = Mixin(Addon.Reagents, CallbackRegistryMixin)
 
 ---@param item number | string
 function Self:GetName(item)
@@ -341,18 +342,12 @@ function Self:Allocate(allocations, reagent, quantity)
         reagent = Professions.CreateCraftingReagentByItemID(reagent.itemID)
     end ---@cast reagent CraftingReagent
 
-    local origOnChanged = allocations.OnChanged
-    allocations.OnChanged = Util.FnNoop
-    allocations:Allocate(reagent, quantity or 0)
-    allocations.OnChanged = origOnChanged
+    Allocations:WithoutOnChanged(allocations, "Allocate", reagent, quantity or 0)
 end
 
 ---@param allocations ProfessionTransationAllocations
 function Self:ClearAllocations(allocations)
-    local origOnChanged = allocations.OnChanged
-    allocations.OnChanged = Util.FnNoop
-    allocations:Clear()
-    allocations.OnChanged = origOnChanged
+    Allocations:WithoutOnChanged(allocations, "Clear")
 end
 
 ---@param qualityReagents CraftingReagentSlotSchematic[]
@@ -572,11 +567,31 @@ Self.Cache = {
 --              Events
 ---------------------------------------
 
+---@class Reagents.Event
+---@field TrackedUpdated "TrackedUpdated"
+
+Self:GenerateCallbackEvents({ "TrackedUpdated"  })
+Self:OnLoad()
+
+function Self:OnTrackedUpdated(...)
+    self:TriggerEvent(self.Event.TrackedUpdated, ...)
+end
+
 function Self:OnTraitChanged()
     self.Cache.SkillBounds:Clear()
 end
 
 function Self:OnLoaded()
+    Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, self.OnTrackedUpdated, self)
+    Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, self.OnTrackedUpdated, self)
+    Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, self.OnTrackedUpdated, self)
+    Recipes:RegisterCallback(Recipes.Event.TrackedQualityUpdated, self.OnTrackedUpdated, self)
+
+    Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedUpdated, self)
+    Orders:RegisterCallback(Orders.Event.TrackedAmountUpdated, self.OnTrackedUpdated, self)
+    Orders:RegisterCallback(Orders.Event.TrackedAllocationUpdated, self.OnTrackedUpdated, self)
+    Orders:RegisterCallback(Orders.Event.CreatingReagentsUpdated, self.OnTrackedUpdated, self)
+
     Buffs:RegisterCallback(Buffs.Event.TraitChanged, self.OnTraitChanged, self)
 end
 

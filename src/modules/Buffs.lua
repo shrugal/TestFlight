@@ -271,7 +271,6 @@ function Self:GetEnabledAuras(recipe)
 end
 
 ---@param recipe? CraftingRecipeSchematic
----@return string
 function Self:GetCurrentAuras(recipe)
     local cache = self.Cache.CurrentAuras
     local key = cache:Key(self:GetSkillLineID(recipe))
@@ -788,7 +787,7 @@ function Self:EnumerateAuras(source, slot)
                 auraID, info = next(C.AURAS, auraID)
                 if not auraID then
                     if s then s, slot = next(self.AuraSlot, s) break else return end
-                end
+                end ---@cast info -?
                 if slot ~= info.SLOT then break end
                 if skillLineID and info.SKILL and info.SKILL ~= skillLineID then break end
                 return auraID, 1, info

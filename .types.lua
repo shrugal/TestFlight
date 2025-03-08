@@ -26,6 +26,108 @@
 -- SK: Skill
 ---@alias BonusStat "MC" | "RF" | "CC" | "IG" | "SK"
 
+---@class UtilChain
+---@overload fun(): unknown
+
+---@class UtilNil: UtilChain
+---@overload fun(): nil
+
+---@class UtilTbl: UtilChain
+---@overload fun(): table
+---@field Get fun(self: UtilChain, path): UtilAny
+---@field Set fun(self: UtilChain, path, val): UtilNil
+---@field SetAll fun(self: UtilChain, val): UtilTbl
+---@field Enum fun(self: UtilChain, n, key): UtilFn
+---@field Keys fun(self: UtilChain): UtilTbl
+---@field Values fun(self: UtilChain): UtilTbl
+---@field Copy fun(self: UtilChain, recursive): UtilTbl
+---@field Slice fun(self: UtilChain, i, l): UtilTbl
+---@field Flip fun(self: UtilChain, val): UtilTbl
+---@field Push fun(self: UtilChain, ...): UtilTbl
+---@field Fill fun(self: UtilChain, ...): UtilTbl
+---@field Merge fun(self: UtilChain, ...): UtilTbl
+---@field Map fun(self: UtilChain, fn, key, obj, ...): UtilTbl
+---@field Pick fun(self: UtilChain, key): UtilTbl
+---@field GroupBy fun(self: UtilChain, by, key, obj, ...): UtilTbl
+---@field Match fun(self: UtilChain, ...): UtilBool
+---@field Where fun(self: UtilChain, ...): UtilTbl
+---@field Filter fun(self: UtilChain, fn, key, obj, ...): UtilTbl
+---@field FilterWhere fun(self: UtilChain, ...): UtilTbl
+---@field Contains fun(self: UtilChain, ...): UtilBool
+---@field Equals fun(self: UtilChain, tbl2): UtilTbl
+---@field Reduce fun(self: UtilChain, fn, value, obj): UtilAny
+---@field IReduce fun(self: UtilChain, fn, value, obj): UtilAny
+---@field Aggregate fun(self: UtilChain, fn, value, obj): UtilAny
+---@field Find fun(self: UtilChain, fn, key, obj, ...): UtilNum
+---@field FindWhere fun(self: UtilChain, ...): UtilNum
+---@field Some fun(self: UtilChain, fn, key, obj, ...): UtilBool
+---@field SomeWhere fun(self: UtilChain, ...): UtilBool
+---@field Every fun(self: UtilChain, fn, key, obj, ...): UtilBool
+---@field EveryWhere fun(self: UtilChain, ...): UtilBool
+---@field IndexOf fun(self: UtilChain, value): UtilNum
+---@field Includes fun(self: UtilChain, value): UtilBool
+---@field Sort fun(self: UtilChain, fn): UtilTbl
+---@field SortBy fun(self: UtilChain, by): UtilTbl
+---@field Scan fun(self: UtilChain, fn, start, stop): UtilAny
+---@field IsList fun(self: UtilChain): UtilBool
+---@field Count fun(self: UtilChain, fn, key, obj, ...): UtilNum
+---@field IsEmpty fun(self: UtilChain): UtilBool
+---@field CountWhere fun(self: UtilChain, ...): UtilNum
+---@field Join fun(self: UtilChain, sep): UtilStr
+---@field CreateMixin fun(self: UtilChain): UtilTbl
+---@field CombineMixins fun(self: UtilChain, ...): UtilTbl
+---@field Hook fun(self: UtilChain, key, fn, obj): UtilFn
+---@field HookScript fun(self: UtilChain, key, fn, obj): UtilFn
+---@field Unhook fun(self: UtilChain, key): UtilFn
+---@field UnhookScript fun(self: UtilChain, key): UtilFn
+---@field GetHooks fun(self: UtilChain): UtilTbl
+---@field IsHooked fun(self: UtilChain, key): UtilBool
+---@field GetHooked fun(self: UtilChain, key): UtilFn
+
+---@class UtilStr: UtilChain
+---@overload fun(): string
+---@field IsEmpty fun(self: UtilChain): UtilBool
+---@field UcFirst fun(self: UtilChain): UtilStr
+---@field StartCase fun(self: UtilChain): UtilStr
+---@field StartsWith fun(self: UtilChain, prefix): UtilStr
+---@field EndsWith fun(self: UtilChain, suffix): UtilBool
+---@field Abbr fun(self: UtilChain, maxLength): UtilStr
+---@field Trim fun(self: UtilChain, chars): UtilStr
+---@field Wrap fun(self: UtilChain, prefix, postfix): UtilStr
+---@field Lower fun(self: UtilChain): UtilStr
+
+---@class UtilNum: UtilChain
+---@overload fun(): number
+---@field Round fun(self: UtilChain, p): UtilNum
+---@field IsNaN fun(self: UtilChain): UtilBool
+---@field RoundCurrency fun(self: UtilChain): UtilNum
+---@field CurrencyString fun(self: UtilChain, color, fontHeight): UtilStr
+---@field Mask fun(self: UtilChain, ...): UtilNum
+---@field MaskSome fun(self: UtilChain, ...): UtilBool
+---@field MaskEvery fun(self: UtilChain, ...): UtilBool
+
+---@class UtilBool: UtilChain
+---@overload fun(): boolean
+---@field Xor fun(self: UtilChain, b): UtilBool
+
+---@class UtilFn: UtilChain
+---@overload fun(): function
+---@field Val fun(self: UtilChain, val): UtilFn
+---@field Call fun(self: UtilChain, v, k, s, ...): UtilAny
+---@field CompareBy fun(self: UtilChain): UtilBool
+---@field Bind fun(self: UtilChain, ...): UtilFn
+---@field Combine fun(self: UtilChain, ...): UtilFn
+---@field Compose fun(self: UtilChain, ...): UtilFn
+---@field Capture fun(self: UtilChain, onSuccess, onFailure, errorHandler): UtilFn
+---@field SlowDown fun(self: UtilChain, n, debounce, leading, trailing, update): UtilFn
+---@field Throttle fun(self: UtilChain, n, leading, trailing, update): UtilFn
+---@field Debounce fun(self: UtilChain, n, leading, trailing, update): UtilFn
+---@field DelayedUpdate fun(self: UtilChain, n, update): UtilFn
+---@field Once fun(self: UtilChain): UtilFn
+
+---@class UtilAny: UtilChain, UtilTbl, UtilStr, UtilNum, UtilBool, UtilFn
+---@overload fun(): unknown
+
 -----------------------------------------------------
 ---                   Globals                      --
 -----------------------------------------------------

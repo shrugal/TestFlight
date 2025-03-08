@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Orders, Recipes, Util = Addon.GUI, Addon.Orders, Addon.Recipes, Addon.Util
+local GUI, Reagents, Util = Addon.GUI, Addon.Reagents, Addon.Util
 
 ---@class GUI.ObjectiveTracker.ProfessionsTrackerModule
 ---@field module ObjectiveTrackerModuleMixin
@@ -69,14 +69,5 @@ end
 ---------------------------------------
 
 function Self:OnAddonLoaded()
-    local MarkDirty = Util:FnBind(self.module.MarkDirty, self.module)
-
-    Recipes:RegisterCallback(Recipes.Event.TrackedUpdated, MarkDirty)
-    Recipes:RegisterCallback(Recipes.Event.TrackedAmountUpdated, MarkDirty)
-    Recipes:RegisterCallback(Recipes.Event.TrackedQualityUpdated, MarkDirty)
-    Recipes:RegisterCallback(Recipes.Event.TrackedAllocationUpdated, MarkDirty)
-
-    Orders:RegisterCallback(Orders.Event.TrackedUpdated, MarkDirty)
-    Orders:RegisterCallback(Orders.Event.TrackedAmountUpdated, MarkDirty)
-    Orders:RegisterCallback(Orders.Event.TrackedAllocationUpdated, MarkDirty)
+    Reagents:RegisterCallback(Reagents.Event.TrackedUpdated, self.module.MarkDirty, self.module)
 end

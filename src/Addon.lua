@@ -234,7 +234,7 @@ function Self:PrintOption(cmd, short, opts, desc, curr, ...)
     local s = {}
     if short then tinsert(s, ("Short: |cffcccccc%s|r"):format(short)) end
     if curr then tinsert(s, ("Current: |cffcccccc%s|r"):format(curr)) end
-    s = Util(s):Join(", "):Wrap(" (", ")")()
+    local s = Util(s):Join(", "):Wrap(" (", ")")()
 
     Self:Print("  |cff00ccff%s|r |cffcccccc%s|r: %s%s", cmd, opts, desc:format(...), s)
 end

@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local GUI, Util = Addon.GUI, Addon.Util
+local GUI, Reagents, Util = Addon.GUI, Addon.Reagents, Addon.Util
 
 ---@class GUI.Auctionator
 local Self = GUI.Auctionator
@@ -37,7 +37,12 @@ function Self:BuyButtonOnClick()
     else
         local resultsListing = (itemFrame:IsShown() and itemFrame or shoppingFrame).ResultsListing
         local row = resultsListing.tableBuilder.rows[1]
-        if row then row:OnClick() end
+
+        if row then
+            row:OnClick()
+        elseif shoppingFrame:IsShown() then
+            self:StartSearch()
+        end
     end
 end
 
@@ -55,18 +60,25 @@ end
 local function IsShown (frame) return frame:IsShown() end
 
 function Self:UpdateBuyButton()
+    Addon:Debug("UpdateBuyButton")
+
     ---@type AuctionatorShoppingFrame, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
     local shoppingFrame, commodityFrame, itemFrame = unpack(self.buyFrames)
 
-    local enabled, text = true, nil
+    local enabled, text = true, "Buy Next"
 
     if Util:TblSome(self.buyDialogs, IsShown) then
         text = "Confirm"
     elseif commodityFrame:IsShown() then
         text = "Buy"
     else
-        enabled = (itemFrame:IsShown() and itemFrame or shoppingFrame).DataProvider:GetCount() > 0
-        text = "Buy Next"
+        local empty = (itemFrame:IsShown() and itemFrame or shoppingFrame).DataProvider:GetCount() == 0
+
+        if empty and shoppingFrame:IsShown() and not Util:TblIsEmpty(self:GetMissingReagents()) then
+            text = "Search"
+        else
+            enabled = not empty
+        end
     end
 
     self.buyButton:SetEnabled(enabled)
@@ -89,8 +101,33 @@ function Self:GetUnsetBuyInfo()
     return itemKey, quantity
 end
 
+function Self:GetShoppingListName()
+    return ("%s (%s)"):format(Name, AUCTIONATOR_L_TEMPORARY_LOWER_CASE)
+end
+
 function Self:IsShoppingListSearch()
-    return self.buyList == ("%s (%s)"):format(Name, AUCTIONATOR_L_TEMPORARY_LOWER_CASE)
+    return self.buyList == self:GetShoppingListName()
+end
+
+function Self:GetMissingReagents()
+    return select(2, Reagents:GetTrackedBySource())
+end
+
+function Self:StartSearch(searchTerms)
+    if not searchTerms then
+        local missing = self:GetMissingReagents()
+        if Util:TblIsEmpty(missing) then return end
+
+        searchTerms = {}
+
+        for itemID,amount in pairs(missing) do
+            local name = C_Item.GetItemInfo(itemID)
+            local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(itemID)
+            tinsert(searchTerms, { searchString = name, tier = quality, isExact = true, quantity = amount })
+        end
+    end
+
+    Auctionator.API.v1.MultiSearchAdvanced(Name, searchTerms)
 end
 
 ---@param itemKey ItemKey
@@ -215,15 +252,17 @@ function Self:OnShow()
 
     self:InsertBuyButton()
 
-    local UpdateBuyButton = Util:FnBind(self.UpdateBuyButton, self)
+    local UpdateBuyButton = Util(self.UpdateBuyButton):Bind(self):Debounce(0)()
     for i,frame in pairs(self.buyFrames) do
         hooksecurefunc(frame.DataProvider, "onUpdate", UpdateBuyButton)
-        if i > 1 then frame:HookScript("OnHide", UpdateBuyButton) end
+        frame:HookScript(i == 1 and "OnShow" or "OnHide", UpdateBuyButton)
     end
     for _,frame in pairs(self.buyDialogs) do
         frame:HookScript("OnShow", UpdateBuyButton)
         frame:HookScript("OnHide", UpdateBuyButton)
     end
+
+    Reagents:RegisterCallback(Reagents.Event.TrackedUpdated, UpdateBuyButton)
 
     hooksecurefunc(AuctionatorShoppingFrame.ListsContainer, "onListExpanded", Util:FnBind(self.OnShoppingListExpand, self))
     hooksecurefunc(AuctionatorShoppingFrame.ListsContainer, "onListSearch", Util:FnBind(self.OnShoppingListSearch, self))
