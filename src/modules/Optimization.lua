@@ -157,9 +157,9 @@ function Self:GetAllocationsForMethod(operation, method)
     if method == self.Method.Cost then return self:GetMinCostAllocations(operation) end
 
     local cache = self.Cache.ProfitAllocations
-    local key = cache:Key(operation, method)
+    local key, ctx = cache:Key(operation, method)
 
-    if cache:Has(key) then return cache:Get(key) end
+    if cache:Valid(key, ctx) then return cache:Get(key) end
 
     Promise:YieldFirst()
 
@@ -260,7 +260,7 @@ function Self:GetAllocationsForMethod(operation, method)
         end
     end
 
-    cache:Set(key, operations)
+    cache:Set(key, operations, ctx)
 
     return operations
 end
@@ -269,9 +269,9 @@ end
 ---@param operation Operation
 function Self:GetMinCostAllocations(operation)
     local cache = self.Cache.CostAllocations
-    local key = cache:Key(operation)
+    local key, ctx = cache:Key(operation)
 
-    if cache:Has(key) then return cache:Get(key) end
+    if cache:Valid(key, ctx) then return cache:Get(key) end
 
     Promise:YieldFirst()
 
@@ -313,7 +313,7 @@ function Self:GetMinCostAllocations(operation)
         Promise:YieldTime()
     end
 
-    cache:Set(key, operations)
+    cache:Set(key, operations, ctx)
 
     return operations
 end
@@ -323,9 +323,9 @@ end
 ---@return number[]
 function Self:GetWeightsAndPrices(operation)
     local cache = self.Cache.WeightsAndPrices
-    local key = cache:Key(operation)
+    local key, ctx = cache:Key(operation)
 
-    if cache:Has(key) then return unpack(cache:Get(key)) end
+    if cache:Valid(key, ctx) then return unpack(cache:Get(key)) end
 
     Promise:YieldFirst()
 
@@ -388,7 +388,7 @@ function Self:GetWeightsAndPrices(operation)
         Promise:YieldTime()
     until true end
 
-    cache:Set(key, { weights, prices[1] })
+    cache:Set(key, { weights, prices[1] }, ctx)
 
     return weights, prices[1]
 end
@@ -597,39 +597,31 @@ end
 ---------------------------------------
 
 Self.Cache = {
-    ---@type Cache<table, fun(self: Cache, operation: Operation): string>
+    ---@type Cache<table, fun(self: Cache, operation: Operation): string, number?>
     WeightsAndPrices = Cache:Create(
         ---@param operation Operation
         function (_, operation)
-            return Self:GetOperationCacheKey(operation, false)
-        end,
-        nil,
-        5,
-        true
+            return Self:GetOperationCacheKey(operation, false), operation:GetPriceScanTime()
+        end
     ),
-    ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string>
+    ---@type Cache<Operation[], fun(self: Cache, operation: Operation): string, number?>
     CostAllocations = Cache:Create(
         ---@param operation Operation
-        function(_, operation) return Self:GetOperationCacheKey(operation) end,
-        nil,
-        10,
-        true
+        function(_, operation)
+            return Self:GetOperationCacheKey(operation), operation:GetPriceScanTime()
+        end
     ),
-    ---@type Cache<Operation[], fun(self: Cache, operation: Operation, method: Optimization.Method): string>
+    ---@type Cache<Operation[], fun(self: Cache, operation: Operation, method: Optimization.Method): string, number?>
     ProfitAllocations = Cache:Create(
         ---@param operation Operation
         ---@param method Optimization.Method
         function(_, operation, method)
+            local concentrationCost = method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0
             local applyConcentration = Util:OneOf(method, Self.Method.CostPerConcentration, Self.Method.ProfitPerConcentration)
-            return ("%s;;%d;%s"):format(
-                method,
-                method == Self.Method.CostPerConcentration and Addon.DB.Account.concentrationCost or 0,
-                Self:GetOperationCacheKey(operation, applyConcentration, true)
-            )
-        end,
-        nil,
-        10,
-        true
+            local operationKey = Self:GetOperationCacheKey(operation, applyConcentration, true)
+
+            return ("%s;;%d;%s"):format(method, concentrationCost, operationKey), operation:GetPriceScanTime()
+        end
     ),
 }
 

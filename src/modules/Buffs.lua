@@ -109,16 +109,16 @@ end
 ---@return string?
 function Self:GetCurrentTool(profession)
     local cache = self.Cache.CurrentTools
-    local key = cache:Key(profession)
+    local key, ctx = cache:Key(profession)
 
-    if not cache:Has(key) then
+    if not cache:Valid(key, ctx) then
         local slot = self:GetToolSlotID(profession)
         if not slot then return end
 
         local location = ItemLocation:CreateFromEquipmentSlot(slot)
         if not location or not location:IsValid() then return end
 
-        cache:Set(key, C_Item.GetItemGUID(location))
+        cache:Set(key, C_Item.GetItemGUID(location), ctx)
     end
 
     return cache:Get(key)
@@ -127,13 +127,13 @@ end
 ---@param profession Enum.Profession
 function Self:GetAvailableTools(profession)
     local cache = self.Cache.AvailableTools
-    local key = cache:Key(profession)
+    local key, ctx = cache:Key(profession)
 
-    if not cache:Has(key) then repeat
+    if not cache:Valid(key, ctx) then repeat
         ---@type string[]
         local items = {}
 
-        cache:Set(key, items)
+        cache:Set(key, items, ctx)
 
         local slot = self:GetToolSlotID(profession)
         if not slot then break end
@@ -273,9 +273,9 @@ end
 ---@param recipe? CraftingRecipeSchematic
 function Self:GetCurrentAuras(recipe)
     local cache = self.Cache.CurrentAuras
-    local key = cache:Key(self:GetSkillLineID(recipe))
+    local key, ctx = cache:Key(self:GetSkillLineID(recipe))
 
-    if not cache:Has(key) then
+    if not cache:Valid(key, ctx) then
         local auras = self:BuildAuras(recipe, function (auraID)
             local aura = C_UnitAuras.GetPlayerAuraBySpellID(auraID)
             if not aura then return end
@@ -291,7 +291,7 @@ function Self:GetCurrentAuras(recipe)
             return aura.charges or 1
         end)
 
-        cache:Set(key, auras)
+        cache:Set(key, auras, ctx)
     end
 
     return cache:Get(key)
@@ -819,11 +819,11 @@ end
 ---------------------------------------
 
 Self.Cache = {
-    ---@type Cache<string, fun(self: self, profession: Enum.Profession): number>
+    ---@type Cache<string, fun(self: self, profession: Enum.Profession): number, number>
     CurrentTools = Cache:PerFrame(),
-    ---@type Cache<string[], fun(self: self, profession: Enum.Profession): number>
+    ---@type Cache<string[], fun(self: self, profession: Enum.Profession): number, number>
     AvailableTools = Cache:PerFrame(),
-    ---@type Cache<string, fun(self: self, skillLineID: number): number>
+    ---@type Cache<string, fun(self: self, skillLineID: number): number, number>
     CurrentAuras = Cache:PerFrame(),
 }
 

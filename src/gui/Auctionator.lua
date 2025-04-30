@@ -60,8 +60,6 @@ end
 local function IsShown (frame) return frame:IsShown() end
 
 function Self:UpdateBuyButton()
-    Addon:Debug("UpdateBuyButton")
-
     ---@type AuctionatorShoppingFrame, AuctionatorBuyCommodityFrame, AuctionatorBuyItemFrame
     local shoppingFrame, commodityFrame, itemFrame = unpack(self.buyFrames)
 
@@ -75,7 +73,7 @@ function Self:UpdateBuyButton()
         local empty = (itemFrame:IsShown() and itemFrame or shoppingFrame).DataProvider:GetCount() == 0
 
         if empty and shoppingFrame:IsShown() and not Util:TblIsEmpty(self:GetMissingReagents()) then
-            text = "Search"
+            text = Name
         else
             enabled = not empty
         end

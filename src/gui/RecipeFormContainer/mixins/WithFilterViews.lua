@@ -56,16 +56,16 @@ Self.SortComparator = {
             local aAura, bAura = auras:Val(a), auras:Val(b)
             if (not aAura ~= not bAura) then return not aAura end
 
+            -- Full craftable before non full craftable
+            local aFullCraftable = aCraftable and a.amount <= aMaxAmount
+            local bFullCraftable = bCraftable and b.amount <= bMaxAmount
+            if aFullCraftable ~= bFullCraftable then return aFullCraftable end
+
             -- Has tool before not has tool
             local currentTool = Buffs:GetCurrentTool(a.operation:GetProfessionInfo().profession)
             local aHasTool = (a.operation.toolGUID or currentTool) == currentTool
             local bHasTool = (b.operation.toolGUID or currentTool) == currentTool
             if aHasTool ~= bHasTool then return aHasTool end
-
-            -- Full craftable before non full craftable
-            local aFullCraftable = aCraftable and a.amount <= aMaxAmount
-            local bFullCraftable = bCraftable and b.amount <= bMaxAmount
-            if aFullCraftable ~= bFullCraftable then return aFullCraftable end
         end
         return self.sortComparator[self.Filter.Restock](a, b)
     end,
@@ -527,18 +527,17 @@ function Self:GetFilterRecipeOperations(filter, recipe, method)
             until true end
         end
 
-        if not Util:TblIncludes(operations, false) then return operations end
+        if Util:TblEvery(operations) then return operations end
     end
 
     local cache = self.Cache.Filter
-    local key, time = cache:Key(method, recipe), Prices:GetRecipeScanTime(recipe)
+    local key, ctx = cache:Key(method, recipe)
 
-    if not cache:Has(key) or cache:Get(key)[1] ~= time then
-        local includeNonTradable = filter == self.Filter.Queue
-        cache:Set(key, { time, Optimization:GetRecipeAllocations(recipe, method, includeNonTradable) })
+    if not cache:Valid(key, ctx) then
+        cache:Set(key, Optimization:GetRecipeAllocations(recipe, method, filter == self.Filter.Queue), ctx)
     end
 
-    local optimized = cache:Get(key)[2]
+    local optimized = cache:Get(key)
     if not operations then return optimized end
 
     local minQuality = optimized and Util:TblMinKey(optimized)
@@ -860,9 +859,9 @@ end
 ---------------------------------------
 
 Self.Cache = {
-    ---@type Cache<{ [1]: number, [2]: Operation }, fun(self: self, method: Optimization.Method, recipe: CraftingRecipeSchematic): number>
+    ---@type Cache<Operation, fun(self: self, method: Optimization.Method, recipe: CraftingRecipeSchematic): number, number?>
     Filter = Cache:Create(function (_, method, recipe)
-        return ("%s;;%s"):format(method, recipe.recipeID)
+        return ("%s;;%s"):format(method, recipe.recipeID), Prices:GetRecipeScanTime(recipe)
     end),
     ---@type Cache<number, (fun(self: self, data: RecipeTreeNodeData): string), (fun(self: self, data: RecipeTreeNodeData): number)>
     CurrentCraftAmount = Cache:PerFrame(

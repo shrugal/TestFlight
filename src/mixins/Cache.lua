@@ -21,16 +21,23 @@ Static.Mixin = {}
 ---@class Cache
 local Self = Static.Mixin
 
+local function GetKey(_, ...)
+    local s = ""
+    for i=1,select("#", ...) do
+        s = s .. (i > 1 and "|" or "") .. tostring(s)
+    end
+    return s
+end
+
 ---@generic T
 ---@generic K, V: function
 ---@param getKey? K
 ---@param getVal? V
 ---@param limit? number
 ---@param priority? boolean
----@param getContext? fun(): any
 ---@return Cache<T, K, V>
-function Static:Create(getKey, getVal, limit, priority, getContext)
-    return self:Unserialize({}, getKey, getVal, limit, priority, getContext)
+function Static:Create(getKey, getVal, limit, priority)
+    return self:Unserialize({}, getKey, getVal, limit, priority)
 end
 
 ---@generic T
@@ -39,7 +46,8 @@ end
 ---@param getVal? V
 ---@return Cache<T, K, V>
 function Static:PerFrame(getKey, getVal)
-    return self:Create(getKey, getVal, nil, nil, GetTime)
+    if not getKey then getKey = GetKey end
+    return self:Create(function (...) return getKey(...), GetTime() end, getVal, nil, nil)
 end
 
 ---@generic T
@@ -49,47 +57,34 @@ end
 ---@param getVal? V
 ---@param limit? number
 ---@param priority? boolean
----@param getContext? fun(): any
 ---@return Cache<T, K, V>
-function Static:Unserialize(cache, getKey, getVal, limit, priority, getContext)
+function Static:Unserialize(cache, getKey, getVal, limit, priority)
     Mixin(cache, Static.Mixin)
-    cache:Init(getKey, getVal, limit, priority, getContext)
+    cache:Init(getKey, getVal, limit, priority)
     return cache
-end
-
-local function GetKey(_, ...)
-    local s = ""
-    for i=1,select("#", ...) do
-        s = s .. (i > 1 and "|" or "") .. tostring(s)
-    end
-    return s
 end
 
 ---@param getKey function
 ---@param getVal? function
 ---@param limit? number
 ---@param priority? boolean
----@param getContext? fun(): any
-function Self:Init(getKey, getVal, limit, priority, getContext)
+function Self:Init(getKey, getVal, limit, priority)
     assert(not priority or limit, "Priority cache needs a limit")
 
     self.Key = getKey or GetKey
     self.getVal = getVal
-    self.getContext = getContext
 
     self.values = self.values or {}
+    self.contexts = self.contexts or {}
     self.size = self.size or 0
     self.limit = limit
     self.keys = limit and (self.keys or {}) or nil
     self.priority = priority or false
-    self.context = nil
 
     tinsert(Static.instances, self)
 end
 
-function Self:Set(key, value)
-    self:CheckContext()
-
+function Self:Set(key, value, ctx)
     if not self:Has(key) then
         self.size = self.size + 1
 
@@ -105,34 +100,36 @@ function Self:Set(key, value)
     end
 
     self.values[key] = value == nil and Util.NIL or value
+    self.contexts[key] = ctx
 end
 
 function Self:Unset(key)
-    self:CheckContext()
+    if not self:Has(key) then return end
 
-    if self:Has(key) then
-        self.size = self.size - 1
+    self.size = self.size - 1
 
-        if self.limit then
-            tremove(self.keys, Util:TblIndexOf(self.keys, key) --[[@as number]])
-        end
+    if self.limit then
+        tremove(self.keys, Util:TblIndexOf(self.keys, key) --[[@as number]])
     end
 
     self.values[key] = nil
+    self.contexts[key] = nil
 end
 
 function Self:Has(key)
-    self:CheckContext()
-
     return self.values[key] ~= nil
+end
+
+function Self:Valid(key, ctx)
+    return self:Has(key) and self.contexts[key] == ctx
 end
 
 ---@generic T
 ---@return T?
 function Self:Get(key)
-    self:CheckContext()
+    if not self:Has(key) then return end
 
-    if self.priority and self:Has(key) then
+    if self.priority then
         local i = Util:TblIndexOf(self.keys, key) --[[@as number]]
         if i ~= self.size then
             tinsert(self.keys, tremove(self.keys, i))
@@ -141,31 +138,25 @@ function Self:Get(key)
 
     local value = self.values[key]
     if value == Util.NIL then return nil end
+
     return value
 end
 
 ---@generic T
 ---@return T?
 function Self:Val(...)
-    self:CheckContext()
+    local key, ctx = self:Key(...)
 
-    local key = self:Key(...)
-    if not self:Has(key) then self:Set(key, self:getVal(...)) end
+    if not self:Valid(key, ctx) then self:Set(key, self:getVal(...), ctx) end
+
     return self:Get(key)
-end
-
-function Self:CheckContext()
-    if not self.getContext then return end
-    local context = self.getContext()
-    if context == self.context then return end
-    self.context = context
-    self:Clear()
 end
 
 function Self:Clear()
     self.size = 0
+
     wipe(self.values)
+    wipe(self.contexts)
 
     if self.limit then wipe(self.keys) end
-    if self.getContext then self.context = self.getContext() end
 end

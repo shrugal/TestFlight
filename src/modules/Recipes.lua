@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Operation, Optimization, Promise, Reagents, Util = Addon.Constants, Addon.Operation, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
+local C, Optimization, Promise, Reagents, Util = Addon.Constants, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event

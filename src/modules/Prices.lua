@@ -339,7 +339,9 @@ function Self.SOURCES.Auctionator:GetItemPrice(item)
     end
 end
 function Self.SOURCES.Auctionator:GetFullScanTime()
-    return Auctionator.SavedState.TimeOfLastGetAllScan
+    local s = Auctionator.SavedState
+    local n = max(s.TimeOfLastReplicateScan or -1, s.TimeOfLastGetAllScan or -1, s.TimeOfLastBrowseScan or -1)
+    if n > -1 then return n end
 end
 
 -- RECrystallize

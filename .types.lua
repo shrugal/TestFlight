@@ -205,7 +205,7 @@ AUCTIONATOR_L_TEMPORARY_LOWER_CASE = nil
 
 ---@class Auctionator
 ---@field API { v1: AuctionatorAPIV1 }
----@field SavedState { TimeOfLastGetAllScan: number? }
+---@field SavedState { TimeOfLastGetAllScan?: number, TimeOfLastBrowseScan?: number, TimeOfLastReplicateScan?: number }
 ---@field Config AuctionatorConfig
 Auctionator = nil
 

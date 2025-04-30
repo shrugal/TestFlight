@@ -309,7 +309,7 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
 end
 
 function Self:GetKey()
-    return Static:GetKey(self.recipe, self.allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID)
+    return Static:GetKey(self.recipe, self.allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID, self.auras)
 end
 
 function Self:GetRecipeInfo()
@@ -694,6 +694,10 @@ function Self:GetMulticraftFactor()
 end
 
 -- Prices
+
+function Self:GetPriceScanTime()
+    return Prices:GetRecipeScanTime(self.recipe, self:GetResult(), self:GetOrder(), self:GetRecraftMods())
+end
 
 function Self:GetReagentPrice()
     if not self.reagentPrice then
