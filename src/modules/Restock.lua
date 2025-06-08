@@ -62,17 +62,9 @@ function Self:GetTrackedMissing(recipe, quality)
 end
 
 ---@param recipeOrOrder RecipeOrOrder
----@param create? boolean
-function Self:GetTrackedAmounts(recipeOrOrder, create)
+function Self:GetTrackedAmounts(recipeOrOrder)
     local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
-    local amounts = Addon.DB.Char.restock[recipeID]
-
-    if not amounts and create then
-        amounts = {}
-        Addon.DB.Char.restock[recipeID] = amounts
-    end
-
-    return amounts
+    return Addon.DB.Char.restock[recipeID]
 end
 
 ---@param recipeOrOrder RecipeOrOrder
@@ -90,13 +82,17 @@ end
 ---@param quality number
 ---@param amount? number
 function Self:SetTracked(recipeOrOrder, quality, amount)
-    if amount and amount < 0 then amount = 0 end
-    if amount == 0 then amount = nil end
+    if amount and amount <= 0 then amount = nil end
 
     local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
-    local amounts = self:GetTrackedAmounts(recipeOrOrder, amount ~= nil)
+    local amounts = self:GetTrackedAmounts(recipeOrOrder)
 
-    if not amounts or amounts[quality] == amount then return end
+    if (amounts and amounts[quality]) == amount then return end
+
+    if not amounts then
+        amounts = {}
+        Addon.DB.Char.restock[recipeID] = amounts
+    end
 
     amounts[quality] = amount
 

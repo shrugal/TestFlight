@@ -8,6 +8,7 @@ local Parent = NS.RecipeFormContainer
 
 ---@class GUI.RecipeFormContainer.WithFilterViews: GUI.RecipeFormContainer.RecipeFormContainer, GUI.RecipeFormContainer.WithCrafting
 ---@field frame RecipeFormContainer
+---@field form GUI.RecipeForm.WithRestock
 ---@field recipeList RecipeList
 ---@field filterJob? Promise
 local Self = GUI.RecipeFormContainer.WithFilterViews
@@ -291,6 +292,8 @@ function Self:SetFilterSelected(filter, sort)
         if self.filterJob then self.filterJob:Cancel() end
         self.Cache.Filter:Clear()
     end
+
+    self.form:UpdateRestockElements()
 end
 
 ---@param filter? RecipeFormContainer.Filter
@@ -383,45 +386,41 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
                 local recipe = C_TradeSkillUI.GetRecipeSchematic(recipeID, recipeInfo.isRecraft)
                 local operations = self:GetFilterRecipeOperations(filter, recipe, sort)
 
-                if operations then
-                    for _,operation in pairs(operations) do repeat
-                        local quality = recipeInfo.supportsQualities and operation:GetResultQuality() or nil
+                for quality,operation in pairs(operations or Util.EMPTY) do repeat
+                    local value
+                    if Prices:IsSourceInstalled() then
+                        value = Optimization:GetOperationValue(operation, sort)
+                        if not value or abs(value) == math.huge then break end
+                    end
 
-                        local value
-                        if Prices:IsSourceInstalled() then
-                            value = Optimization:GetOperationValue(operation, sort)
-                            if not value or abs(value) == math.huge then break end
-                        end
+                    local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(filter, recipe, quality, value)
 
-                        local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(filter, recipe, quality, value)
+                    local node = provider:FindElementDataByPredicate(function (node) ---@cast node RecipeTreeNode
+                        local data = node:GetData()
+                        return data.recipeInfo.recipeID == recipeID and data.quality == quality
+                    end, false) --[[@as RecipeTreeNode?]]
 
-                        local node = provider:FindElementDataByPredicate(function (node) ---@cast node RecipeTreeNode
-                            local data = node:GetData()
-                            return data.recipeInfo.recipeID == recipeID and data.quality == quality
-                        end, false) --[[@as RecipeTreeNode?]]
+                    local data = node and node:GetData() or {} --[[@as RecipeTreeNodeData]]
+                    local frame = node and scrollBox:FindFrame(node) --[[@as ProfessionsRecipeListRecipeFrame?]]
 
-                        local data = node and node:GetData() or {} --[[@as RecipeTreeNodeData]]
-                        local frame = node and scrollBox:FindFrame(node) --[[@as ProfessionsRecipeListRecipeFrame?]]
+                    data.recipeInfo = recipeInfo
+                    data.operation = operation
+                    data.value = value
+                    data.method = sort
+                    data.quality =  quality
+                    data.amount = amount
+                    data.amountShown = amountShown
+                    data.amountTotal = amountTotal
 
-                        data.recipeInfo = recipeInfo
-                        data.operation = operation
-                        data.value = value
-                        data.method = sort
-                        data.quality =  quality
-                        data.amount = amount
-                        data.amountShown = amountShown
-                        data.amountTotal = amountTotal
+                    -- Insert node or update visible frame
+                    if not node then
+                        provider:Insert(data)
+                    elseif frame then
+                        self:InitRecipeListRecipe(frame, node, true)
+                    end
 
-                        -- Insert node or update visible frame
-                        if not node then
-                            provider:Insert(data)
-                        elseif frame then
-                            self:InitRecipeListRecipe(frame, node, true)
-                        end
-
-                        datas[data] = true
-                    until true end
-                end
+                    datas[data] = true
+                until true end
 
                 -- Remove unused qualities
                 for _,node in provider:EnumerateEntireRange() do repeat ---@cast node RecipeTreeNode
@@ -859,7 +858,7 @@ end
 ---------------------------------------
 
 Self.Cache = {
-    ---@type Cache<Operation, fun(self: self, method: Optimization.Method, recipe: CraftingRecipeSchematic): number, number?>
+    ---@type Cache<Operation[], fun(self: self, method: Optimization.Method, recipe: CraftingRecipeSchematic): number, number?>
     Filter = Cache:Create(function (_, method, recipe)
         return ("%s;;%s"):format(method, recipe.recipeID), Prices:GetRecipeScanTime(recipe)
     end),

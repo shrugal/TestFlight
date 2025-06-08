@@ -1,7 +1,2 @@
-- Updated ToC version for patch 11.1.5
-- Use Auctionator automation button to start reagent search
-- Cache recipe optimization results until crafting traits or item prices change
-- Improve craft queue sorting
-- Fix crafting info not updating when crafting buffs change
-- Fix Auctionator last scan time detection
-- Fix another cause for C stack overflow errors
+- Fix restocking craft qualities below the cheapest quality
+- Show selected restock quality if its different from the current operation quality

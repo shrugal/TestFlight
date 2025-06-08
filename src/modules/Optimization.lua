@@ -444,22 +444,24 @@ function Self:GetReagentsForWeight(operation, weight)
     local weightSlots = operation:GetWeightReagentSlots()
     local weightPerSkill = operation:GetWeightPerSkill()
 
+    local rest = weight
+
     for i=#weightSlots, 1, -1 do
-        local slot, j = weightSlots[i], weights[i][weight]
+        local slot, j = weightSlots[i], weights[i][max(0, rest)]
 
         if not Reagents:IsBonusSkill(slot) then
             Reagents:AddCraftingInfos(reagents, slot, self:GetReagentQuantitiesForWeight(slot, j))
-            weight = math.max(0, weight - j * Reagents:GetWeight(slot))
+            rest = rest - j * Reagents:GetWeight(slot)
         elseif j > 0 then
             Reagents:AddCraftingInfo(reagents, slot, j, 1)
-            weight = math.max(0, weight - Reagents:GetWeight(slot.reagents[j], weightPerSkill))
+            rest = rest - Reagents:GetWeight(slot.reagents[j], weightPerSkill)
         elseif operation:HasAllocation(slot.slotIndex) then
             local itemID = operation.allocation[slot.slotIndex].allocs[1].reagent.itemID
             Reagents:AddCraftingInfo(reagents, slot, Util:TblFindWhere(slot.reagents, "itemID", itemID), 1)
         end
     end
 
-    return reagents
+    return reagents, weight - rest
 end
 
 ---@param operation Operation

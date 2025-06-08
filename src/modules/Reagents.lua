@@ -273,31 +273,31 @@ function Self:CreateCraftingInfosFromAllocation(recipe, allocation, predicate)
 end
 
 ---@param recipe CraftingRecipeSchematic
----@param targetWeight number
+---@param weight number
 ---@param isLowerBound? boolean
-function Self:GetCraftingInfoForWeight(recipe, targetWeight, isLowerBound)
+function Self:GetCraftingInfoForWeight(recipe, weight, isLowerBound)
     ---@type CraftingReagentInfo[]
     local reagents = {}
 
-    local restWeight = targetWeight
+    local rest = weight
     local slots = Util(self:GetQualitySlots(recipe)):SortBy(Util:FnBind(self.GetWeight, self))()
 
     for i,reagent in ipairs_reverse(slots) do
         local w = self:GetWeight(reagent)
         local q1 = reagent.quantityRequired
-        local q3 = min(q1, floor(restWeight / w / 2))
-        q1, restWeight = q1 - q3, restWeight - q3 * w * 2
-        local q2 = min(q1, floor(restWeight / w))
-        q1, restWeight = q1 - q2, restWeight - q2 * w
+        local q3 = min(q1, floor(rest / w / 2))
+        q1, rest = q1 - q3, rest - q3 * w * 2
+        local q2 = min(q1, floor(rest / w))
+        q1, rest = q1 - q2, rest - q2 * w
 
-        if isLowerBound and i == 1 and restWeight > 0 and q1 > 0 then
-            q1, q2, restWeight = q1 - 1, q2 + 1, restWeight - w
+        if isLowerBound and i == 1 and rest > 0 and q1 > 0 then
+            q1, q2, rest = q1 - 1, q2 + 1, rest - w
         end
 
         self:AddCraftingInfos(reagents, reagent, q1, q2, q3)
     end
 
-    return reagents, targetWeight - restWeight
+    return reagents, weight - rest
 end
 
 ---@param reagents CraftingReagentInfo[]

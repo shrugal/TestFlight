@@ -815,7 +815,7 @@ function Self:NumRound(n, p)
     return math.floor(0.5 + n * f) / f
 end
 
----@param n number
+---@param n? number
 function Self:NumIsNaN(n)
     return type(n) == "number" and tostring(n) == tostring(0/0)
 end

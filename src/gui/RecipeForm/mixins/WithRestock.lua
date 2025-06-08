@@ -7,6 +7,7 @@ local Parent = NS.WithAmount
 
 ---@class GUI.RecipeForm.WithRestock: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithAmount
 ---@field form RecipeCraftingForm
+---@field container GUI.RecipeFormContainer.WithFilterViews
 ---@field restockCheckbox CheckButton
 ---@field restockAmountSpinner NumericInputSpinner
 ---@field craftingRecipe? CraftingRecipeSchematic
@@ -37,7 +38,7 @@ function Self:RestockCheckboxOnChange(frame)
     local operation = self:GetOperation()
     if not operation then return end
 
-    local recipe, quality = operation.recipe, operation:GetResultQuality()
+    local recipe, quality = operation.recipe, self:GetRestockQuality()
 
     Restock:SetTracked(recipe, quality, frame:GetChecked() and 1 or 0)
 end
@@ -57,7 +58,7 @@ function Self:RestockAmountSpinnerOnChange(frame, value)
     local operation = self:GetOperation()
     if not operation then return end
 
-    local recipe, quality = operation.recipe, operation:GetResultQuality()
+    local recipe, quality = operation.recipe, self:GetRestockQuality()
     if not Restock:IsTracked(recipe, quality) then return end
 
     Restock:SetTracked(recipe, quality, value)
@@ -78,7 +79,7 @@ function Self:RestockMinProfitSpinnerOnChange(frame, value)
     local operation = self:GetOperation()
     if not operation then return end
 
-    local recipe, quality = operation.recipe, operation:GetResultQuality()
+    local recipe, quality = operation.recipe, self:GetRestockQuality()
     if not Restock:IsTracked(recipe, quality) then return end
 
     Restock:SetTrackedMinProfit(recipe, quality, value * 10000)
@@ -140,18 +141,25 @@ end
 
 function Self:UpdateRestockElements()
     local shown, checked, amount, minProfit = false, false, 1, 0
+    local text = LIGHTGRAY_FONT_COLOR:WrapTextInColorCode("Restock")
 
     local operation = self:GetOperation()
     if operation then
-        local recipe, quality = operation.recipe, operation:GetResultQuality()
+        local recipe, quality, isOpQuality = operation.recipe, self:GetRestockQuality()
+
         shown = self:ShouldShowElement() and not operation.applyConcentration and operation:HasProfit()
         checked = shown and Restock:IsTracked(recipe, quality) or false
         amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
         minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
+
+        if not isOpQuality then
+            text = ("%s %s"):format(text, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+        end
     end
 
     self.restockCheckbox:SetShown(shown)
     self.restockCheckbox:SetChecked(checked)
+    self.restockCheckbox.text:SetText(text)
     self.restockAmountSpinner:SetShown(checked)
     self.restockAmountSpinner:SetValue(amount)
 
@@ -232,6 +240,30 @@ function Self:UpdateAmountSpinner()
     Parent.UpdateAmountSpinner(self)
 
     self:UpdateTrackQualityCheckbox()
+end
+
+---------------------------------------
+--              Util
+---------------------------------------
+
+---@return number quality
+---@return boolean isOpQuality
+function Self:GetRestockQuality()
+    local operation = self:GetOperation()
+    if not operation then return 1, true end
+
+    local quality, isOpQuality = operation:GetResultQuality(), true
+
+    if self.container.filter == GUI.RecipeFormContainer.WithFilterViews.Filter.Restock then
+        local node = self.container.recipeList.selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode?]]
+        local data = node and node:GetData()
+
+        if data and data.quality and data.quality ~= quality then
+            quality, isOpQuality = data.quality --[[@as number]], false
+        end
+    end
+
+    return quality, isOpQuality
 end
 
 ---------------------------------------
