@@ -109,12 +109,24 @@ function Self:InitRecipeListRecipe(frame, node, reuse)
 
     -- Hook OnClick
     if not reuse then
+        local wasSelected
+        frame:SetScript("OnMouseDown", function ()
+            wasSelected = self.recipeList.selectionBehavior:IsSelected(frame)
+        end)
+
         frame:HookScript("OnClick", function (_, buttonName)
             if buttonName ~= "LeftButton" or not self.filter then return end
 
             if not IsModifiedClick("RECIPEWATCHTOGGLE") then
                 self.selectedRecipeID = data.recipeInfo.recipeID
                 self.selectedQuality = data.quality
+
+                if not wasSelected or not data.operation then return end
+
+                local recipe = self.form:GetRecipe()
+                if not recipe or recipe.recipeID ~= self.selectedRecipeID then return end
+
+                self.form:SetOperation(data.operation)
             elseif self.filter == self.Filter.Restock then
                 local operation, quality, amount = data.operation, data.quality, data.amount
                 if not operation or not amount then return end
@@ -325,12 +337,12 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
     local provider = self.dataProvider
     local hasCustomProvider = scrollBox:GetDataProvider() == provider
 
-    local refresh = refresh
+    refresh = refresh
         or professionChanged
         or not hasCustomProvider
         or not self.filterRecipeIDs or not Util:TblEquals(self.filterRecipeIDs, recipeIDs)
-    local flush = flush or professionChanged
-    local updateSelected = updateSelected or professionChanged or hasCustomProvider
+    flush = flush or professionChanged
+    updateSelected = updateSelected or professionChanged or hasCustomProvider
 
     -- Update selected
     if updateSelected then
@@ -454,7 +466,7 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
 
             if not recipeID then return end
 
-            self:RestoreSelectedRecipe()
+            self:RestoreSelectedRecipe(flush)
         end):Finally(function ()
             noResultsText:SetShown(provider:IsEmpty())
 
@@ -468,7 +480,8 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
     end
 end
 
-function Self:RestoreSelectedRecipe()
+---@param setOperation? boolean
+function Self:RestoreSelectedRecipe(setOperation)
     if not self.filter then return end
 
     local recipeID, quality = self.selectedRecipeID, self.selectedQuality
@@ -483,7 +496,9 @@ function Self:RestoreSelectedRecipe()
     local node = self.recipeList.selectionBehavior:GetFirstSelectedElementData() --[[@as RecipeTreeNode?]]
     if node and predicate(node) then return end
 
+    self.selectedRestoring = not setOperation
     self.recipeList.selectionBehavior:SelectFirstElementData(predicate)
+    self.selectedRestoring = nil
 end
 
 ---@param filter RecipeFormContainer.Filter

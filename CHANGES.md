@@ -1,2 +1,4 @@
+- Show selected restock quality if it's different from the current operation quality
+- Apply operation from filter view if a recipe clicked while already being selected
+- Fix overriding current allocation when filter list is refreshed
 - Fix restocking craft qualities below the cheapest quality
-- Show selected restock quality if its different from the current operation quality

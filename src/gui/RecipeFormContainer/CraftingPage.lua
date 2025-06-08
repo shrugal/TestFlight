@@ -94,7 +94,7 @@ end
 ---@param node RecipeTreeNode
 ---@param selected boolean
 function Self:OnSelectionChanged(node, selected)
-    if not selected or not self.frame:IsVisible() then return end
+    if not selected or self.selectedRestoring or not self.frame:IsVisible() then return end
 
     local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
 
