@@ -1,1 +1,2 @@
 - Add option for character and profession specific order filter settings
+- Fix showing T1 quality for crafts that don't support them in recipe filter list

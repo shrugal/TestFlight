@@ -406,10 +406,11 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
                     end
 
                     local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(filter, recipe, quality, value)
+                    local qualityShown = recipeInfo.supportsQualities and quality or nil
 
                     local node = provider:FindElementDataByPredicate(function (node) ---@cast node RecipeTreeNode
                         local data = node:GetData()
-                        return data.recipeInfo.recipeID == recipeID and data.quality == quality
+                        return data.recipeInfo.recipeID == recipeID and data.quality == qualityShown
                     end, false) --[[@as RecipeTreeNode?]]
 
                     local data = node and node:GetData() or {} --[[@as RecipeTreeNodeData]]
@@ -419,7 +420,7 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
                     data.operation = operation
                     data.value = value
                     data.method = sort
-                    data.quality =  quality
+                    data.quality =  qualityShown
                     data.amount = amount
                     data.amountShown = amountShown
                     data.amountTotal = amountTotal
