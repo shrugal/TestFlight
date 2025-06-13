@@ -54,6 +54,7 @@ end
 
 -- Track all orders checkbox
 
+---@param frame CheckButton
 function Self:TrackAllOrdersBoxOnEnter(frame)
     GameTooltip:SetOwner(frame, "ANCHOR_TOP")
     GameTooltip_AddColoredLine(GameTooltip, "Track all matching orders", HIGHLIGHT_FONT_COLOR)
@@ -61,6 +62,7 @@ function Self:TrackAllOrdersBoxOnEnter(frame)
     GameTooltip:Show()
 end
 
+---@param frame CheckButton
 function Self:TrackAllOrdersBoxOnClick(frame)
     self:SetAllOrdersTracked(frame:GetChecked())
 end
@@ -129,6 +131,14 @@ function Self:TrackAllPayoutFiltersOnEnter(frame)
 end
 
 ---@param frame NumericInputSpinner
+function Self:TrackAllFilterPerCharOnEnter(frame)
+    GameTooltip:SetOwner(frame, "ANCHOR_TOP")
+    GameTooltip_AddColoredLine(GameTooltip, "Separate filter settings", HIGHLIGHT_FONT_COLOR)
+    GameTooltip_AddNormalLine(GameTooltip, "Use separate filter settings for this character and profession.")
+    GameTooltip:Show()
+end
+
+---@param frame NumericInputSpinner
 ---@param value number
 function Self:TrackAllKnowledgeFiltersOnChange(frame, value)
     Addon:SetKnowledgeCost(value * 10000)
@@ -144,6 +154,11 @@ end
 ---@param value number
 function Self:TrackAllPayoutFiltersOnChange(frame, value)
     Addon:SetPayoutCost(value * 10000)
+end
+
+---@param frame CheckButton
+function Self:TrackAllFilterPerCharOnClick(frame)
+    Addon:SetCostsPerCharacter(frame:GetChecked())
 end
 
 function Self:InsertTrackAllFilters()
@@ -162,7 +177,7 @@ function Self:InsertTrackAllFilters()
         "Inv_10_gearcraft_artisansmettle_color3",
         self.TrackAllCurrencyFiltersOnEnter,
         self.TrackAllCurrencyFiltersOnChange,
-        "LEFT", self.trackAllKnowledgeFilterText, "RIGHT", 45, 0
+        "LEFT", self.trackAllKnowledgeFilterText, "RIGHT", 40, 0
     )
 
     -- Artisan payout
@@ -171,8 +186,22 @@ function Self:InsertTrackAllFilters()
         "Inv_misc_bag_14",
         self.TrackAllPayoutFiltersOnEnter,
         self.TrackAllPayoutFiltersOnChange,
-        "LEFT", self.trackAllCurrencyFilterText, "RIGHT", 45, 0
+        "LEFT", self.trackAllCurrencyFilterText, "RIGHT", 40, 0
     )
+
+    -- Save per character
+
+    local input = GUI:InsertCheckbox(
+        self.frame.BrowseFrame,
+        Util:FnBind(self.TrackAllFilterPerCharOnEnter, self),
+        Util:FnBind(self.TrackAllFilterPerCharOnClick, self),
+        "LEFT", self.trackAllPayoutFilterText, "RIGHT", 20, 0
+    )
+
+    input:SetSize(26, 26)
+    input.text:SetPoint("LEFT", input, "RIGHT", 0, 1)
+
+    self.trackAllFilterPerCharBox = input
 
     self:UpdateTrackAllFilters()
 
@@ -208,6 +237,9 @@ end
 
 function Self:UpdateTrackAllFilters()
     local shown = self.frame.orderType == Enum.CraftingOrderType.Npc
+    local db = Addon:GetCosts()
+    local separate = db ~= Addon.DB.Account
+    local separateColor = separate and HIGHLIGHT_FONT_COLOR or LIGHTGRAY_FONT_COLOR
 
     self.trackAllKnowledgeFilter:SetShown(shown)
     self.trackAllKnowledgeFilterText:SetShown(shown)
@@ -215,10 +247,14 @@ function Self:UpdateTrackAllFilters()
     self.trackAllCurrencyFilterText:SetShown(shown)
     self.trackAllPayoutFilter:SetShown(shown)
     self.trackAllPayoutFilterText:SetShown(shown)
+    self.trackAllFilterPerCharBox:SetShown(shown)
 
-    self.trackAllKnowledgeFilter:SetValue(floor(Addon.DB.Account.knowledgeCost / 10000))
-    self.trackAllCurrencyFilter:SetValue(floor(Addon.DB.Account.currencyCost / 10000))
-    self.trackAllPayoutFilter:SetValue(floor(Addon.DB.Account.payoutCost / 10000))
+    self.trackAllKnowledgeFilter:SetValue(floor(db.knowledgeCost / 10000))
+    self.trackAllCurrencyFilter:SetValue(floor(db.currencyCost / 10000))
+    self.trackAllPayoutFilter:SetValue(floor(db.payoutCost / 10000))
+
+    self.trackAllFilterPerCharBox:SetChecked(separate)
+    self.trackAllFilterPerCharBox.text:SetText(separateColor:WrapTextInColorCode("Separate"))
 end
 
 ---------------------------------------
@@ -397,11 +433,12 @@ function Self:ShouldTrackOrder(order)
     local profit = self:GetOrderProfit(order):Result() --[[@as number?]]
     if not profit then return false end
 
+    local db = Addon:GetCosts()
     local knowledge, currency, payout = Orders:GetNumNpcRewards(order)
 
-    knowledge = Addon.DB.Account.knowledgeCost * knowledge
-    currency = Addon.DB.Account.currencyCost * currency
-    payout = Addon.DB.Account.payoutCost * payout
+    knowledge = db.knowledgeCost * knowledge
+    currency = db.currencyCost * currency
+    payout = db.payoutCost * payout
 
     local maxCost = knowledge + currency + payout
 
@@ -506,6 +543,7 @@ function Self:OnAddonLoaded(addonName)
     Addon:RegisterCallback(Addon.Event.KnowledgeCostUpdated, self.OnTrackAllFilterCostUpdated, self)
     Addon:RegisterCallback(Addon.Event.CurrencyCostUpdated, self.OnTrackAllFilterCostUpdated, self)
     Addon:RegisterCallback(Addon.Event.PayoutCostUpdated, self.OnTrackAllFilterCostUpdated, self)
+    Addon:RegisterCallback(Addon.Event.CostPerCharacterUpdated, self.OnTrackAllFilterCostUpdated, self)
 
     Buffs:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
 end

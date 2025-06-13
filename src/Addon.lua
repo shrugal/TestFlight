@@ -8,7 +8,12 @@ local C, GUI, Prices, Util = Addon.Constants, Addon.GUI, Addon.Prices, Addon.Uti
 ---@field Event Addon.Event
 local Self = Mixin(Addon, CallbackRegistryMixin)
 
----@class AddonDB
+---@class CostDB
+---@field knowledgeCost number
+---@field currencyCost number
+---@field payoutCost number
+
+---@class AddonDB: CostDB
 TestFlightDB = {
     v = 6,
     ---@type boolean Enable reagent weight in tooltip
@@ -35,7 +40,7 @@ TestFlightDB = {
 
 ---@class AddonCharDB
 TestFlightCharDB = {
-    v = 3,
+    v = 4,
     ---@type table<boolean, number[]>
     qualities = { [false] = {}, [true] = {} },
     ---@type table<boolean, table<number, number | number[]>>
@@ -43,7 +48,9 @@ TestFlightCharDB = {
     ---@type table<number, number[]>
     restock = {},
     ---@type number[][]
-    restockMinProfits = {}
+    restockMinProfits = {},
+    ---@type table<Enum.Profession, CostDB>
+    costs = {}
 }
 
 ---@type boolean
@@ -62,13 +69,22 @@ function Self:SetExtraSkill(value)
     self:TriggerEvent(self.Event.ExtraSkillUpdated)
 end
 
+---@param profession? Enum.Profession
+---@return CostDB
+function Self:GetCosts(profession)
+    if not profession then profession = C_TradeSkillUI.GetBaseProfessionInfo().profession end
+    return profession and self.DB.Char.costs[profession] or self.DB.Account
+end
+
 ---@param value number
 function Self:SetConcentrationCost(value)
     value = max(0, value)
 
-    if self.DB.Account.concentrationCost == value then return end
+    local db = self.DB.Account
 
-    self.DB.Account.concentrationCost = value
+    if db.concentrationCost == value then return end
+
+    db.concentrationCost = value
 
     self:TriggerEvent(self.Event.ConcentrationCostUpdated)
 end
@@ -77,9 +93,11 @@ end
 function Self:SetKnowledgeCost(value)
     value = max(0, value)
 
-    if self.DB.Account.knowledgeCost == value then return end
+    local db = self:GetCosts()
 
-    self.DB.Account.knowledgeCost = value
+    if db.knowledgeCost == value then return end
+
+    db.knowledgeCost = value
 
     self:TriggerEvent(self.Event.KnowledgeCostUpdated)
 end
@@ -88,9 +106,11 @@ end
 function Self:SetCurrencyCost(value)
     value = max(0, value)
 
-    if self.DB.Account.currencyCost == value then return end
+    local db = self:GetCosts()
 
-    self.DB.Account.currencyCost = value
+    if db.currencyCost == value then return end
+
+    db.currencyCost = value
 
     self:TriggerEvent(self.Event.CurrencyCostUpdated)
 end
@@ -99,11 +119,36 @@ end
 function Self:SetPayoutCost(value)
     value = max(0, value)
 
-    if self.DB.Account.payoutCost == value then return end
+    local db = self:GetCosts()
 
-    self.DB.Account.payoutCost = value
+    if db.payoutCost == value then return end
 
-    self:TriggerEvent(self.Event.CurrencyCostUpdated)
+    db.payoutCost = value
+
+    self:TriggerEvent(self.Event.PayoutCostUpdated)
+end
+
+---@param value boolean
+---@param profession? Enum.Profession
+function Self:SetCostsPerCharacter(value, profession)
+    if not profession then profession = C_TradeSkillUI.GetBaseProfessionInfo().profession end
+    if not profession then return end
+
+    if (not self.DB.Char.costs[profession]) == (not value) then return end
+
+    if value then
+        local db = self.DB.Account
+
+        self.DB.Char.costs[profession] = {
+            knowledgeCost = db.knowledgeCost,
+            currencyCost = db.currencyCost,
+            payoutCost = db.payoutCost
+        }
+    else
+        self.DB.Char.costs[profession] = nil
+    end
+
+    self:TriggerEvent(self.Event.CostPerCharacterUpdated)
 end
 
 ---------------------------------------
@@ -157,6 +202,10 @@ function Self:Load()
         self.DB.Char.restockMinProfits = {}
         self.DB.Char.amounts = nil
         self.DB.Char.v = 3
+    end
+    if self.DB.Char.v < 4 then
+        self.DB.Char.costs = {}
+        self.DB.Char.v = 4
     end
 
     self:TriggerEvent(self.Event.Loaded)
@@ -405,8 +454,9 @@ end
 ---@field KnowledgeCostUpdated "KnowledgeCostUpdated"
 ---@field CurrencyCostUpdated "CurrencyCostUpdated"
 ---@field PayoutCostUpdated "PayoutCostUpdated"
+---@field CostPerCharacterUpdated "CostPerCharacterUpdated"
 
-Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated", "PayoutCostUpdated" })
+Self:GenerateCallbackEvents({ "AddonLoaded", "Loaded", "Enabled", "Disabled", "Toggled", "ExtraSkillUpdated", "ConcentrationCostUpdated", "KnowledgeCostUpdated", "CurrencyCostUpdated", "PayoutCostUpdated", "CostPerCharacterUpdated" })
 Self:OnLoad()
 
 ---@param addonName string
