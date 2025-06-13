@@ -4,9 +4,12 @@ stages:
   - build
   - deploy
 
+before_script:
+  - WOWI_ID=$(case $CI_COMMIT_TAG in *next*|*ptr*) echo $WOWI_ID_NEXT;; ""|*debug*|*alpha*|*beta*) echo $WOWI_ID_TEST;; *) echo $WOWI_ID;; esac)
+
 .releases: &releases
   only:
-    - /^\d[\d\.]*(-(alpha|beta)\d+)?$/
+    - /^\d[\d\.]*(-(debug|alpha|beta)\d+)?$/
 
 build:
   stage: build
@@ -27,16 +30,25 @@ curseforge:
     name: CurseForge
     url: https://www.curseforge.com/wow/addons/TestFlight
   script:
-    - release.sh -ocelzWHG
+    - release.sh -ocelzWAHG
 
 wowinterface:
   <<: *releases
   stage: deploy
   environment:
     name: WoWInterface
-    url: https://www.wowinterface.com/downloads/info24814-TestFlight.html
+    url: https://www.wowinterface.com/downloads/info26514-TestFlight.html
   script:
-    - release.sh -ocelzLHG
+    - release.sh -ocelzLAHG
+
+wago:
+  <<: *releases
+  stage: deploy
+  environment:
+    name: Wago
+    url: https://addons.wago.io/addons/testflight
+  script:
+    - release.sh -ocelzLWHG
 
 github:
   <<: *releases
@@ -45,7 +57,7 @@ github:
     name: GitHub
     url: https://github.com/shrugal/TestFlight/releases
   script:
-    - release.sh -ocelzLWG
+    - release.sh -ocelzLWAG
 
 gitlab:
   <<: *releases
@@ -54,4 +66,4 @@ gitlab:
     name: GitLab
     url: https://gitlab.com/shrugal/TestFlight/releases
   script:
-    - release.sh -ocelzLWH
+    - release.sh -ocelzLAWH
