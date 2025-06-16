@@ -406,8 +406,14 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
                     end
 
                     local amount, amountShown, amountTotal = self:GetFilterRecipeAmount(filter, recipe, quality, value)
-                    local qualityShown = recipeInfo.supportsQualities and quality or nil
 
+                    -- Show restock or result quality
+                    local qualityShown = recipeInfo.supportsQualities and quality or nil
+                    if qualityShown and filter ~= Self.Filter.Restock then
+                        qualityShown = operation:GetResultQuality()
+                    end
+
+                    -- Find existing node
                     local node = provider:FindElementDataByPredicate(function (node) ---@cast node RecipeTreeNode
                         local data = node:GetData()
                         return data.recipeInfo.recipeID == recipeID and data.quality == qualityShown

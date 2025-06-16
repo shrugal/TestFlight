@@ -511,6 +511,10 @@ function Self:OnOrderTypeChanged()
     self:UpdateTrackAllFilters()
 end
 
+function Self:OnRefresh()
+    self:UpdateTrackAllFilters()
+end
+
 function Self:OnBuffChanged()
     self.profitCache:Clear()
 end
@@ -537,6 +541,7 @@ function Self:OnAddonLoaded(addonName)
     hooksecurefunc(ProfessionsCrafterTableCellCommissionMixin, "Populate", Util:FnBind(self.CommissionCellPopulate, self))
     hooksecurefunc(self.frame, "OrderRequestCallback", Util:FnBind(self.OnOrderListUpdated, self))
     hooksecurefunc(self.frame, "SetCraftingOrderType", Util:FnBind(self.OnOrderTypeChanged, self))
+    hooksecurefunc(self.frame, "Refresh", Util:FnBind(self.OnRefresh, self))
 
     Orders:RegisterCallback(Orders.Event.TrackedUpdated, self.OnTrackedOrderUpdated, self)
 
