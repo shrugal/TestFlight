@@ -64,6 +64,6 @@ gitlab:
   stage: deploy
   environment:
     name: GitLab
-    url: https://gitlab.com/shrugal/TestFlight/releases
+    url: https://gitlab.com/shrugal/TestFlight/-/releases
   script:
     - release.sh -ocelzLAWH
