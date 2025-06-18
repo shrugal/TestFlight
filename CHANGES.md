@@ -1,3 +1,1 @@
-- Add option for character and profession specific order filter settings
-- Fix showing T1 quality for crafts that don't support them in recipe filter list
-- Fix showing the wrong quality in recipe filter list when sorted by profit per concentration
+- Updated ToC version for patch 11.1.7

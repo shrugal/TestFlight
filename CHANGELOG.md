@@ -1,3 +1,9 @@
+Version 4.26
+
+- Add option for character and profession specific order filter settings
+- Fix showing T1 quality for crafts that don't support them in recipe filter list
+- Fix showing the wrong quality in recipe filter list when sorted by profit per concentration
+
 Version 4.25
 
 - Show selected restock quality if it's different from the current operation quality
