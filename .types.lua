@@ -196,6 +196,7 @@ DevTool = nil
 ---@field GetMailQuantity fun(itemString: string, character?: string, factionrealm?: string): number
 ---@field GetWarbankQuantity fun(itemStr: string): number
 ---@field GetGuildQuantity fun(itemStr: string, guild?: string): number
+---@field GetPlayerTotals fun(itemStr: string): number, number, number, number
 ---@field ToItemString fun(item: string): string
 ---@field IsUIVisible fun(ui: "AUCTION" | "CRAFTING" | "MAILING" | "VENDORING"): boolean
 TSM_API = nil
@@ -392,8 +393,12 @@ Syndicator = nil
 
 ---@class DataStore
 ---@field ThisCharID number
----@field GetAuctionHouseItemCount fun(characterID: number, searchedID: number): number
----@field GetMailItemCount fun(characterID: number, searchedID: number): number
+---@field ThisCharKey string
+---@field GetAuctionHouseItemCount fun(self: DataStore, charKey: string, searchedID: number): number
+---@field GetMailItemCount fun(self: DataStore, charKey: string, searchedID: number): number
+---@field GetInventoryItemCount fun(self: DataStore, charKey: string, searchedID: number): number
+---@field GetPlayerBankItemCount fun(self: DataStore, charKey: string, searchedID: number): number
+---@field GetCharacters fun(): string[]
 DataStore = nil
 
 ---@class WorldQuestTracker

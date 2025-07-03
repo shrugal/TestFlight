@@ -1,3 +1,7 @@
+Version 4.27
+
+- Updated ToC version for patch 11.1.7
+
 Version 4.26
 
 - Add option for character and profession specific order filter settings

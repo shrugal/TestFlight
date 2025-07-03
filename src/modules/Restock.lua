@@ -39,7 +39,7 @@ function Self:GetTrackedOwned(recipe, quality)
     if quality then
         local item = Recipes:GetResult(recipe, nil, nil, quality)
         if not item then return end
-        return self:GetItemCount(item)
+        return self:GetItemCount(item, true)
     end
 
     local owned = 0
@@ -142,26 +142,47 @@ function Self:Enumerate(key)
 end
 
 ---@param item string | number
-function Self:GetItemCount(item)
+---@param allChars? boolean
+function Self:GetItemCount(item, allChars)
     if type(item) == "string" then item = C_Item.GetItemInfoInstant(item) end
 
     local count = C_Item.GetItemCount(item, true, false, true, true)
 
     if C_AddOns.IsAddOnLoaded("TradeSkillMaster") then
-        if type(item) == "string" then item = C_Item.GetItemInfoInstant(item) end
-
         local itemStr = "i:" .. item
-        count = count + TSM_API.GetAuctionQuantity(itemStr)
-        count = count + TSM_API.GetMailQuantity(itemStr)
+        count = count + TSM_API.GetAuctionQuantity(itemStr) + TSM_API.GetMailQuantity(itemStr)
+
+        if allChars then
+            local _, accountOwned, _, accountAuctions = TSM_API.GetPlayerTotals(itemStr)
+            count = count + accountOwned + accountAuctions
+        end
     elseif C_AddOns.IsAddOnLoaded("Syndicator") and Syndicator.API.IsReady() then
+        local player, realm = UnitName("player"), GetNormalizedRealmName()
         local info = Syndicator.API.GetInventoryInfoByItemID(item, true, true)
-        local char = Util:TblWhere(info.characters, "character", UnitName("player"), "realmNormalized", GetNormalizedRealmName())
-        if char then count = count + char.auctions + char.mail end
+
+        for _,char in pairs(info.characters) do
+            if char.character == player and char.realmNormalized == realm then
+                count = count + char.auctions + char.mail
+                if not allChars then break end
+            elseif allChars then
+                count = count + char.auctions + char.mail + char.bags + char.bank
+            end
+        end
     elseif C_AddOns.IsAddOnLoaded("DataStore_Auctions") and C_AddOns.IsAddOnLoaded("DataStore_Mails") then
-        local charID = DataStore.ThisCharID
-        count = count + DataStore.GetAuctionHouseItemCount(charID, item)
-        count = count + DataStore.GetMailItemCount(charID, item)
+        local charKey = DataStore.ThisCharKey
+        count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)
+
+        if not allChars then
+            for _,charKey in pairs(DataStore.GetCharacters()) do
+                if charKey ~= DataStore.ThisCharKey then
+                    count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)
+                    count = count + DataStore:GetInventoryItemCount(charKey, item) + DataStore:GetPlayerBankItemCount(charKey, item)
+                end
+            end
+        end
     end
+
+    Addon:Debug(count, "GetItemCount " .. item)
 
     return count
 end

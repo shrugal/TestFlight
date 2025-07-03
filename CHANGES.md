@@ -1,1 +1,1 @@
-- Updated ToC version for patch 11.1.7
+- Make restock take all items on chars from connected realms into account
