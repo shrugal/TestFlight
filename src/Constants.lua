@@ -4,6 +4,9 @@ local Addon = select(2, ...)
 ---@class Constants
 local Self = Addon.Constants
 
+local day = date("%m-%d")
+local isSummer = day >= "06-21" and day < "12-21"
+
 Self.TSM_PRICE_STRING = "min(VendorBuy, first(DBRecent, DBMinbuyout, DBMarket))"
 
 Self.AUCTION_HOUSE_CUT = 0.05
@@ -77,7 +80,7 @@ Self.AURAS = {
         EXPANSION = 10,
         RECIPE = 430617,
         ITEM = true,
-        STATS = { { RC = 84 }, { RC = 106 }, { RC = 135 } }
+        STATS = isSummer and { {}, {}, {} } or { { RC = 84 }, { RC = 106 }, { RC = 135 } }
     },
     -- Phial of Concentrated Ingenuity
     [432306] = {

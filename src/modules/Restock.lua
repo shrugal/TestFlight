@@ -182,8 +182,6 @@ function Self:GetItemCount(item, allChars)
         end
     end
 
-    Addon:Debug(count, "GetItemCount " .. item)
-
     return count
 end
 
