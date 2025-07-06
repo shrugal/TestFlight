@@ -80,7 +80,7 @@ Self.AURAS = {
         EXPANSION = 10,
         RECIPE = 430617,
         ITEM = true,
-        STATS = isSummer and { {}, {}, {} } or { { RC = 84 }, { RC = 106 }, { RC = 135 } }
+        STATS = isSummer and { { FI = 84 }, { FI = 106 }, { FI = 135 } } or { { RC = 84 }, { RC = 106 }, { RC = 135 } }
     },
     -- Phial of Concentrated Ingenuity
     [432306] = {

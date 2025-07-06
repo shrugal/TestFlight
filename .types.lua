@@ -19,12 +19,13 @@
 
 ---@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStat, number>[], STATS?: table<BonusStat, number>[] }
 
--- MC: Multicraft stat or yield
--- RF: Resourcefulness stat or yield
--- CC: Concentration cost reduction
--- IG: Ingenuity stat or refund amount
+-- MC: Multicraft
+-- RF: Resourcefulness
+-- CC: Concentration
+-- IG: Ingenuity
+-- FI: Finesse
 -- SK: Skill
----@alias BonusStat "MC" | "RF" | "CC" | "IG" | "SK"
+---@alias BonusStat "MC" | "RF" | "CC" | "IG" | "FI" | "SK"
 
 ---@class UtilChain
 ---@overload fun(): unknown
