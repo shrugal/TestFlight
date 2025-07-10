@@ -6,6 +6,8 @@ local Recipes, Util = Addon.Recipes, Addon.Util
 ---@field Event Restock.Event
 local Self = Mixin(Addon.Restock, CallbackRegistryMixin)
 
+Self.MAX_PROFIT = 9999 * 10000 -- 9999g
+
 ---------------------------------------
 --              Tracking
 ---------------------------------------
@@ -109,19 +111,18 @@ end
 function Self:SetTrackedMinProfit(recipeOrOrder, quality, profit)
     if not self:IsTracked(recipeOrOrder, quality) then return end
 
-    if profit then profit = max(-9999 * 10000, min(profit, 9999 * 10000)) end
+    if profit then profit = max(-Self.MAX_PROFIT, min(profit, Self.MAX_PROFIT)) end
     if profit == 0 then profit = nil end
 
     local recipeID = Recipes:GetRecipeInfo(recipeOrOrder)
-
     local profits = Addon.DB.Char.restockMinProfits[recipeID]
+
+    if (profits and profits[quality]) == profit then return end
+
     if not profits then
-        if profit == nil then return end
         profits = {}
         Addon.DB.Char.restockMinProfits[recipeID] = profits
     end
-
-    if profit == profits[quality] then return end
 
     profits[quality] = profit
 
@@ -172,7 +173,7 @@ function Self:GetItemCount(item, allChars)
         local charKey = DataStore.ThisCharKey
         count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)
 
-        if not allChars then
+        if allChars then
             for _,charKey in pairs(DataStore.GetCharacters()) do
                 if charKey ~= DataStore.ThisCharKey then
                     count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)

@@ -1,1 +1,2 @@
-- Fix Phial of Bountiful Season aura level detection
+- Make restock take all items on chars from connected realms into account
+- Fix Phial of Bountiful Season for summer period
