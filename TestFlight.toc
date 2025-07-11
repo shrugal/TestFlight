@@ -2,6 +2,8 @@
 ## Title: TestFlight
 ## Notes: Experiment with crafting recipes without reagent and spec limits.
 ## Notes-deDE: Experimentiere mit Berufsrezepten ohne Reagenz- oder Spezialisierungslimits.
+## Category: Professions
+## Category-deDE: Berufe
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
 ## SavedVariablesPerCharacter: TestFlightCharDB

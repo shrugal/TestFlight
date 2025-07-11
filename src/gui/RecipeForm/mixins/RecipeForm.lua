@@ -65,9 +65,14 @@ function Self:GetTool() end
 ---@return string? auras
 function Self:GetAuras() end
 
----@param minimized? boolean
----@param nonLocal? boolean
-function Self:ShouldShowElement(minimized, nonLocal)
+---@param allowNonLocal? boolean
+function Self:IsProfessionCrafting(allowNonLocal)
+    return not C_TradeSkillUI.IsRuneforging() and (allowNonLocal or Professions.InLocalCraftingMode())
+end
+
+---@param allowMinimized? boolean
+---@param allowNonLocal? boolean
+function Self:ShouldShowElement(allowMinimized, allowNonLocal)
     local recipe = self:GetRecipe()
     if not recipe then return false end
 
@@ -75,9 +80,8 @@ function Self:ShouldShowElement(minimized, nonLocal)
     if not recipeInfo then return false end
 
     return not recipeInfo.isGatheringRecipe and not recipeInfo.isDummyRecipe
-        and not C_TradeSkillUI.IsRuneforging()
-        and (minimized or not ProfessionsUtil.IsCraftingMinimized())
-        and (nonLocal or Professions.InLocalCraftingMode())
+        and self:IsProfessionCrafting(allowNonLocal)
+        and (allowMinimized or not ProfessionsUtil.IsCraftingMinimized())
         or false
 end
 

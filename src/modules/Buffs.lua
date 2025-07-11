@@ -99,15 +99,19 @@ end
 --              Tools
 ---------------------------------------
 
----@param profession Enum.Profession
+---@param profession? Enum.Profession
 function Self:GetToolSlotID(profession)
+    if not profession then return end
+
     local slots = C_TradeSkillUI.GetProfessionSlots(profession)
     return slots and slots[1]
 end
 
----@param profession Enum.Profession
+---@param profession? Enum.Profession
 ---@return string?
 function Self:GetCurrentTool(profession)
+    if not profession then return end
+
     local cache = self.Cache.CurrentTools
     local key, ctx = cache:Key(profession)
 
@@ -124,8 +128,10 @@ function Self:GetCurrentTool(profession)
     return cache:Get(key)
 end
 
----@param profession Enum.Profession
+---@param profession? Enum.Profession
 function Self:GetAvailableTools(profession)
+    if not profession then return Util.EMPTY end
+
     local cache = self.Cache.AvailableTools
     local key, ctx = cache:Key(profession)
 

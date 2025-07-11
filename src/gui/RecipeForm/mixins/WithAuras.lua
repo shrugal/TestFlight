@@ -68,11 +68,12 @@ end
 
 function Self:UpdateAuraSlots()
     local recipe = self:GetRecipe()
+    local show = recipe and self:ShouldShowElement()
 
     local shownSlots = {}
     for _,slotType in ipairs(self.AURA_SLOTS) do
         local slot = self.auraSlots[slotType]
-        local show = recipe and Util:TblSome(Buffs:EnumerateAuras(recipe, slotType))
+        local show = show and Util:TblSome(Buffs:EnumerateAuras(recipe, slotType))
 
         slot:Init(self, slotType)
         slot:SetShown(show)
