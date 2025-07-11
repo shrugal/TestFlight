@@ -609,8 +609,18 @@ ProfessionsFrame = nil
 ---@field Prof1Gear1Slot ItemButton
 ---@field GearSlotDivider Frame
 ---@field CreateButton Button
+---@field ConcentrationDisplay ConcentrationDisplay
 ---@field ConfigureInventorySlots fun(self: self, info: ProfessionInfo)
 ---@field HideInventorySlots fun(self: self)
+
+---@class ConcentrationDisplay: Frame
+---@field Icon Texture
+---@field Amount FontString
+---@field SetCurrencyType fun(currencyType: number)
+---@field ShowProfessionConcentration fun(professionInfo: ProfessionInfo)
+---@field GetCurrencyInfo fun(): CurrencyInfo?
+---@field UpdateQuantity fun()
+---@field OnQuantityChanged fun(currencyInfo: CurrencyInfo)
 
 ---@class CraftingPage: RecipeFormContainer
 ---@field vellumItemID? number

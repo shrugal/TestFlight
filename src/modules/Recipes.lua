@@ -160,6 +160,29 @@ function Self:GetTrackedResultAmounts()
     return items
 end
 
+---@param professionInfo? ProfessionInfo
+---@return number
+function Self:GetTrackedConcentrationCost(professionInfo)
+    local cost = 0
+
+    for recipe in self:Enumerate() do
+        local qualities = self:GetTrackedAmounts(recipe) ---@cast qualities -?
+
+        for quality,amount in pairs(qualities) do repeat
+            if amount <= 0 then break end
+
+            local op = self:GetTrackedAllocation(recipe, quality)
+            if not op or not op.applyConcentration then break end
+
+            if professionInfo and professionInfo.professionID ~= op.professionInfo.professionID then break end
+
+            cost = cost + amount * op:GetConcentrationCost()
+        until true end
+    end
+
+    return cost
+end
+
 -- Set
 
 ---@param recipeOrOrder RecipeOrOrder

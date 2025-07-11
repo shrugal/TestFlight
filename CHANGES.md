@@ -1,2 +1,1 @@
-- Make restock take all items on chars from connected realms into account
-- Fix Phial of Bountiful Season for summer period
+- Show concentration cost of current crafting queue next to concentration display

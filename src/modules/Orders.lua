@@ -148,6 +148,28 @@ function Self:GetTrackedResultAmounts()
     return items
 end
 
+---@param professionInfo? ProfessionInfo
+---@return number
+function Self:GetTrackedConcentrationCost(professionInfo)
+    local cost = 0
+
+    for order in self:Enumerate() do repeat
+        if self:IsCreating(order) then break end
+
+        local amount = self:GetTrackedAmount(order)
+        if amount <= 0 then break end
+
+        local op = self:GetTrackedAllocation(order)
+        if not op or not op.applyConcentration then break end
+
+        if professionInfo and professionInfo.professionID ~= op.professionInfo.professionID then break end
+
+        cost = cost + amount * op:GetConcentrationCost()
+    until true end
+
+    return cost
+end
+
 -- Set
 
 ---@param order CraftingOrderInfo

@@ -1,3 +1,8 @@
+Version 4.28
+
+- Make restock take all items on chars from connected realms into account
+- Fix Phial of Bountiful Season for summer period
+
 Version 4.27
 
 - Updated ToC version for patch 11.1.7
