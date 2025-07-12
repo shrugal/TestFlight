@@ -4,6 +4,7 @@
 ## Notes-deDE: Experimentiere mit Berufsrezepten ohne Reagenz- oder Spezialisierungslimits.
 ## Category: Professions
 ## Category-deDE: Berufe
+## IconTexture: Interface\Icons\Ability_racial_betterlivingthroughchemistry
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
 ## SavedVariablesPerCharacter: TestFlightCharDB

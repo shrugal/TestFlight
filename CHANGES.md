@@ -1,3 +1,3 @@
 - Show concentration cost of current crafting queue next to concentration display
-- Add addon category to toc file
+- Add addon category and icon to toc file
 - Fix lua error and hide buff selection when runeforging, NPC crafting or non-local crafting
