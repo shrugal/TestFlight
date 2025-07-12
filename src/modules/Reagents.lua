@@ -446,9 +446,9 @@ end
 ---@param recraftMods? CraftingItemSlotModification[]
 ---@return CraftingReagentInfo[] | CraftingItemSlotModification[]
 function Self:GetProvided(reagent, order, recraftMods)
-    if not order or Orders:IsCreating(order) then return {} end ---@todo
-    if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer and order.orderID == nil then return {} end
-    if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return {} end
+    if not order or Orders:IsCreating(order) then return Util.EMPTY end ---@todo
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer and order.orderID == nil then return Util.EMPTY end
+    if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return Util.EMPTY end
 
     local list = Util:TblFilterWhere(order.reagents, "slotIndex", reagent.slotIndex)
     for k,v in pairs(list) do --[=[@cast list CraftingReagentInfo[]]=] list[k] = v.reagent end

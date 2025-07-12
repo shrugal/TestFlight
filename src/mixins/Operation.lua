@@ -280,7 +280,7 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
 
     local order = self:GetOrder()
 
-    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat        
+    for slotIndex,slot in pairs(recipe.reagentSlotSchematics) do repeat
         -- Remove non-modifying reagents
         if not Reagents:IsModified(slot) then self.allocation[slotIndex] = nil break end
 

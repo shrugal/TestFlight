@@ -95,7 +95,7 @@ function Self:UpdateConcentrationDisplay()
 
 	frame.Amount:SetFormattedText(PROFESSIONS_CRAFTING_CURRENCY_LABEL_FORMAT, currencyInfo.quantity, currencyInfo.maxQuantity)
 
-    local professionInfo = Professions.GetProfessionInfo()
+    local professionInfo = self:GetProfessionInfo()
     local concentrationCost = Recipes:GetTrackedConcentrationCost(professionInfo) + Orders:GetTrackedConcentrationCost(professionInfo)
     if concentrationCost == 0 then return end
 
