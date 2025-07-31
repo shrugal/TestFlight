@@ -71,7 +71,7 @@ function Self:OnTradeSkillCraftBegin(recipeID)
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID then return end
 
-    Self.craftingRecipe = recipe
+    Self.craftingRecipe, Self.craftingQuality = recipe,  self:GetQuality()
 end
 
 function Self:OnUpdateTradeskillCastStopped()
@@ -87,7 +87,7 @@ function Self:OnSpellcastInterrupted(unit, castGUID, spellID)
     local recipe = Self.craftingRecipe
     if not recipe or recipe.recipeID ~= spellID then return end
 
-    Self.craftingRecipe = nil
+    Self.craftingRecipe, Self.craftingQuality = nil, nil
 end
 
 ---@param unit UnitToken
@@ -96,22 +96,22 @@ end
 function Self:OnSpellcastSucceeded(unit, castGUID, spellID)
     if unit ~= "player" then return end
 
-    local recipe = Self.craftingRecipe
+    local recipe, quality = Self.craftingRecipe, Self.craftingQuality
     if not recipe or recipe.recipeID ~= spellID then return end
 
-    Self.craftingRecipe = nil
+    Self.craftingRecipe, Self.craftingQuality = nil, nil
 
     local Service = self:GetTracking()
 
-    local amount = Service:GetTrackedAmount(recipe)
+    local amount = Service:GetTrackedAmount(recipe, quality)
     if not amount then return end
 
     amount = amount - 1
 
     if Service == Recipes and amount <= 0 then
-        Service:SetTracked(recipe, false)
+        Service:SetTracked(recipe, false, quality)
     else
-        Service:SetTrackedAmount(recipe, amount)
+        Service:SetTrackedAmount(recipe, amount, quality)
     end
 end
 
