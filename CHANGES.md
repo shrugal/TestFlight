@@ -1,1 +1,3 @@
+- Updated ToC version for patch 11.2
+- Added new recipe trait data
 - Fix finishing a craft untracking all qualities when tracking by quality
