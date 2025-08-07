@@ -1,3 +1,9 @@
+Version 4.30
+
+- Updated ToC version for patch 11.2
+- Added new recipe trait data
+- Fix finishing a craft untracking all qualities when tracking by quality
+
 Version 4.29
 
 - Show concentration cost of current crafting queue next to concentration display

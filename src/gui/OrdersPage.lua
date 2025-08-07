@@ -308,7 +308,7 @@ function Self:CommissionCellPopulate(cell, rowData)
     local moneyFrame = cell.TipMoneyDisplayFrame
     local order = rowData.option
 
-    if order.customerGuid == UnitGUID("player") then return end
+    if not order.orderID or order.customerGuid == UnitGUID("player") then return end
 
     -- Profit
 
