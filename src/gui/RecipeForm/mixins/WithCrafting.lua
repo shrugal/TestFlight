@@ -9,6 +9,7 @@ local Parent = Util:TblCombineMixins(NS.WithExperimentation, NS.WithSkill, NS.Wi
 ---@class GUI.RecipeForm.WithCrafting: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithExperimentation, GUI.RecipeForm.WithSkill, GUI.RecipeForm.WithOptimization, GUI.RecipeForm.WithDetails, GUI.RecipeForm.WithAuras
 ---@field form RecipeCraftingForm
 ---@field container GUI.RecipeFormContainer.WithCrafting
+---@field selectedRecipeData RecipeTreeNodeData?
 local Self = Mixin(NS.WithCrafting, Parent)
 
 Self.optimizationMethod = Optimization.Method.Profit
@@ -70,8 +71,8 @@ function Self:Init(_, recipeInfo)
 
     if not self:CanAllocateReagents() then return end
 
-    -- Set or update tracked allocation
-    if recipeChanged or orderChanged then
+    -- Set selected and update tracked allocation, or set tracked allocation
+    if not self:SetSelectedOperation() and (recipeChanged or orderChanged) then
         local Service, model = self:GetTracking()
         local operation = model and Service:GetTrackedAllocation(model)
 
@@ -199,6 +200,27 @@ function Self:SetOperation(operation, owned)
     self.container:SetTool(operation.toolGUID, true)
 
     return Parent.SetOperation(self, operation, owned)
+end
+
+---@param data? RecipeTreeNodeData
+function Self:SetSelectedOperation(data)
+    if not data then data = self.selectedRecipeData end
+
+    if not data or not Util:TblEquals(data.recipeInfo, self.form:GetRecipeInfo()) then
+        self.selectedRecipeData = data
+        return false
+    end
+
+    self.selectedRecipeData = nil
+
+    if data.operation then
+        self:SetOperation(data.operation, false)
+    elseif data.method and data.quality then
+        self:SetOptimizationMethod(data.method)
+        self:SetQuality(data.quality)
+    end
+
+    return true
 end
 
 ---------------------------------------

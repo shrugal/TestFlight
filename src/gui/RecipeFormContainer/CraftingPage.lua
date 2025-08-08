@@ -96,19 +96,7 @@ end
 function Self:OnSelectionChanged(node, selected)
     if not selected or self.selectedRestoring or not self.frame:IsVisible() then return end
 
-    local form, data = GUI.RecipeForm.CraftingForm, node:GetData()
-
-    if data.operation then
-        form:SetOperation(data.operation, false)
-
-        local amount = min(data.amount or 1, data.operation:GetMaxCraftAmount())
-        if amount <= 1 then return end
-
-        self.frame.CreateMultipleInputBox:SetValue(amount)
-    elseif data.method and data.quality then
-        form:SetOptimizationMethod(data.method)
-        form:SetQuality(data.quality)
-    end
+    self.form:SetSelectedOperation(node:GetData())
 end
 
 function Self:OnRefresh()

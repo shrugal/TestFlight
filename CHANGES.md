@@ -1,1 +1,1 @@
-- Fix error on orders page when showing bucket results
+- Fix possible race condition when selecting a recipe in recipe list

@@ -1,3 +1,7 @@
+Version 4.31
+
+- Fix error on orders page when showing bucket results
+
 Version 4.30
 
 - Updated ToC version for patch 11.2

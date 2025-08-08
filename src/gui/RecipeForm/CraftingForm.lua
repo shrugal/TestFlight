@@ -106,6 +106,21 @@ function Self:SetRecraftRecipe(recipeId, link, transition)
     self.form.recraftSlot:Init(nil, Util.FnTrue, Util.FnNoop, link)
 end
 
+function Self:SetSelectedOperation(data)
+    if not data then data = self.selectedRecipeData end
+
+    local res = Parent.SetSelectedOperation(self, data)
+
+    if res and data and data.operation then
+        local amount = min(data.amount or 1, data.operation:GetMaxCraftAmount())
+        if amount <= 1 then return end
+
+        self.container.frame.CreateMultipleInputBox:SetValue(amount)
+    end
+
+    return res
+end
+
 ---------------------------------------
 --              Events
 ---------------------------------------
