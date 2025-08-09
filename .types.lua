@@ -411,6 +411,10 @@ WorldQuestTrackerAddon = nil
 ---@type Frame
 WorldQuestTrackerScreenPanel = nil
 
+---@class ProfessionShoppingList.Settings
+---@field enhancedOrders boolean
+ProfessionShoppingList_Settings = nil
+
 -----------------------------------------------------
 ---                 WoW frames                    --
 -----------------------------------------------------

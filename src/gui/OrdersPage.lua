@@ -308,6 +308,7 @@ function Self:CommissionCellPopulate(cell, rowData)
     local moneyFrame = cell.TipMoneyDisplayFrame
     local order = rowData.option
 
+    -- Don't run on bucket results or our own orders
     if not order.orderID or order.customerGuid == UnitGUID("player") then return end
 
     -- Profit
@@ -339,7 +340,7 @@ function Self:CommissionCellPopulate(cell, rowData)
 
     -- Rewards
 
-    -- "No Mats; No Make" does the same thing
+    -- "No Mats; No Make" shows rewards as well
     if C_AddOns.IsAddOnLoaded("PublicOrdersReagentsColumn") then return end
 
     local rewards = ""
@@ -530,15 +531,13 @@ function Self:OnAddonLoaded(addonName)
     self:InsertTrackAllOrdersBox()
     self:InsertTrackAllFilters()
 
+    -- Add more space to the name column to fit the tracking checkbox
     ProfessionsTableConstants.Name.Width = ProfessionsTableConstants.Name.Width + 20
     ProfessionsTableConstants.Tip.Width = ProfessionsTableConstants.Tip.Width - 20
-    ProfessionsTableConstants.Tip.LeftCellPadding = ProfessionsTableConstants.NoPadding
-    ProfessionsTableConstants.Tip.RightCellPadding = ProfessionsTableConstants.StandardPadding
 
     Util:TblHook(ProfessionsCrafterOrderListElementMixin, "OnClick", self.OnOrderListElementClick, self)
 
     hooksecurefunc(ProfessionsCrafterTableCellItemNameMixin, "Populate", Util:FnBind(self.ItemNameCellPopulate, self))
-    hooksecurefunc(ProfessionsCrafterTableCellCommissionMixin, "Populate", Util:FnBind(self.CommissionCellPopulate, self))
     hooksecurefunc(self.frame, "OrderRequestCallback", Util:FnBind(self.OnOrderListUpdated, self))
     hooksecurefunc(self.frame, "SetCraftingOrderType", Util:FnBind(self.OnOrderTypeChanged, self))
     hooksecurefunc(self.frame, "Refresh", Util:FnBind(self.OnRefresh, self))
@@ -551,6 +550,14 @@ function Self:OnAddonLoaded(addonName)
     Addon:RegisterCallback(Addon.Event.CostPerCharacterUpdated, self.OnTrackAllFilterCostUpdated, self)
 
     Buffs:RegisterCallback(Buffs.Event.BuffChanged, self.OnBuffChanged, self)
+
+    -- "ProfessionShoppingList" also modifies the rewards column with this setting enabled
+    if C_AddOns.IsAddOnLoaded("ProfessionShoppingList") and ProfessionShoppingList_Settings.enhancedOrders then return end
+
+    ProfessionsTableConstants.Tip.LeftCellPadding = ProfessionsTableConstants.NoPadding
+    ProfessionsTableConstants.Tip.RightCellPadding = ProfessionsTableConstants.StandardPadding
+
+    hooksecurefunc(ProfessionsCrafterTableCellCommissionMixin, "Populate", Util:FnBind(self.CommissionCellPopulate, self))
 end
 
 Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
