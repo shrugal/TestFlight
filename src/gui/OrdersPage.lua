@@ -304,12 +304,13 @@ end
 
 ---@param cell ProfessionsCrafterTableCellCommissionFrame
 ---@param rowData ProfessionsCrafterOrderListRowData
-function Self:CommissionCellPopulate(cell, rowData)
+---@param dataIndex number
+function Self:CommissionCellPopulate(cell, rowData, dataIndex)
     local moneyFrame = cell.TipMoneyDisplayFrame
     local order = rowData.option
 
-    -- Don't run on bucket results or our own orders
-    if not order.orderID or order.customerGuid == UnitGUID("player") then return end
+    -- Don't run on customer order commission listings, bucket results, or our own orders
+    if dataIndex == 1 or not order.orderID or order.customerGuid == UnitGUID("player") then return end
 
     -- Profit
 

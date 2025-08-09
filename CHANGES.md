@@ -1,2 +1,3 @@
 - Disable order list reward modifications if ProfessionShoppingList's "Enhanced Orders" feature is active
 - Fix possible race condition when selecting a recipe in recipe list
+- Fix replacing commissions in customer order commission listing
