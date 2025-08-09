@@ -1,0 +1,23 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
+    <Script file="SettingsEditBox.lua" />
+
+	<EditBox name="TestFlightSettingsEditBoxTemplate" inherits="LargeInputBoxTemplate" mixin="TestFlightSettingsEditBoxMixin" autoFocus="false" virtual="true">
+		<Size x="285" y="33" />
+		<Anchors>
+			<Anchor point="LEFT" relativePoint="CENTER" x="-80" y="-3" />
+		</Anchors>
+		<Scripts>
+			<OnLoad method="OnLoad" />
+			<OnEnter method="OnEnter" />
+			<OnLeave method="OnLeave" />
+			<OnEnterPressed function="EditBox_ClearFocus"/>
+		</Scripts>
+	</EditBox>
+
+	<Frame name="TestFlightSettingsEditboxControlTemplate" inherits="SettingsListElementTemplate" mixin="TestFlightSettingsEditBoxControlMixin" virtual="true">
+		<Size x="280" y="26" />
+		<Scripts>
+			<OnLoad method="OnLoad" />
+		</Scripts>
+	</Frame>
+</Ui>

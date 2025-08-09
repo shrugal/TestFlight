@@ -1,3 +1,5 @@
+- Add graphical settings menu, replacing most slash commands
+- Add `/tf config` slash command to open the settings menu
 - Disable order list reward modifications if ProfessionShoppingList's "Enhanced Orders" feature is active
 - Fix possible race condition when selecting a recipe in recipe list
 - Fix replacing commissions in customer order commission listing

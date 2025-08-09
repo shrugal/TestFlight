@@ -1674,6 +1674,7 @@ LinearizedTreeDataProviderMixin = nil
 ---@return LinearizedTreeDataProviderMixin
 function CreateTreeDataProvider() end
 
+---@enum ScrollBoxConstant
 ScrollBoxConstants = {
     UpdateQueued = false,
     UpdateImmediately = true,
@@ -1689,6 +1690,15 @@ ScrollBoxConstants = {
     StopIteration = true,
     ContinueIteration = false,
 }
+
+---@class ScrollBoxFactoryInitializer
+---@field Init fun(self: self, frameTemplate, data): unknown
+---@field GetTemplate fun(self: self): unknown
+---@field GetExtent fun(self: self): unknown
+---@field Factory fun(self: self, factory, initializer): unknown
+---@field InitFrame fun(self: self, frame): unknown
+---@field Resetter fun(self: self, frame): unknown
+---@field IsTemplate fun(self: self, frameTemplate): unknown
 
 ---@class ProfessionsRecipeListRecipeMixin
 ---@field learned boolean
@@ -1869,3 +1879,304 @@ SelectionBehaviorMixin = nil
 ---@field OnUpdate fun(self: self)
 ---@field OnClick fun(self: self, button: "LeftButton" | "RightButton")
 ---@field Init fun(self: self, rowData: ProfessionsCrafterOrderListRowData)
+
+---@class Settings
+---@field AssignLayoutToCategory fun(category: SettingsCategory, layout: SettingsLayout): unknown
+---@field AssignTutorialToCategory fun(category: SettingsCategory, tooltip: string, callback: function): unknown
+---@field CallWhenRegistered fun(variable: string, callback: function, owner): unknown
+---@field CreateCallbackHandleContainer fun(): unknown
+---@field CreateCategory fun(name: string): unknown
+---@field CreateCheckbox fun(category: SettingsCategory, setting: Setting, tooltip?: string): SettingsListElementInitializer
+---@field CreateCheckboxInitializer fun(setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateCheckboxWithOptions fun(category: SettingsCategory, setting: Setting, options, tooltip?: string): unknown
+---@field CreateControlInitializer fun(frameTemplate, setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateControlTextContainer fun(): SettingsControlTextContainer
+---@field CreateCVarAccessorClosures fun(cvar, variableType): unknown
+---@field CreateDropdown fun(category: SettingsCategory, setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateDropdownButton fun(optionDescription, optionData, isSelected, setSelected): unknown
+---@field CreateDropdownInitializer fun(setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateDropdownOptionInserter fun(options): unknown
+---@field CreateElementInitializer fun(frameTemplate, data): SettingsListElementInitializer
+---@field CreateModifiedClickOptions fun(tooltips, mustChooseKey): unknown
+---@field CreateOptionsInitTooltip fun(setting: Setting, name: string, tooltip?: string, options): unknown
+---@field CreatePanelInitializer fun(frameTemplate, data): unknown
+---@field CreateSettingInitializer fun(frameTemplate, data): SettingsListElementInitializer
+---@field CreateSettingInitializerData fun(setting: Setting, options, tooltip?: string): unknown
+---@field CreateSlider fun(category: SettingsCategory, setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateSliderInitializer fun(setting: Setting, options, tooltip?: string): SettingsListElementInitializer
+---@field CreateSliderOptions fun(minValue, maxValue, rate): unknown
+---@field GetCategory fun(name: string): SettingsCategory?
+---@field GetOrCreateSettingsGroup fun(groupID, order): unknown
+---@field GetSetting fun(variable: string): Setting?
+---@field GetValue fun(variable: string): unknown
+---@field InitDropdown fun(dropdown, setting: Setting, elementInserter, initTooltip): unknown
+---@field InitTooltip fun(name: string, tooltip?: string): unknown
+---@field IsCommitInProgress fun(): unknown
+---@field LoadAddOnCVarWatcher fun(cvar, addOn): unknown
+---@field NotifyUpdate fun(variable: string): unknown
+---@field OpenToCategory fun(categoryID, scrollToElementName): unknown
+---@field RegisterAddOnCategory fun(category: SettingsCategory): unknown
+---@field RegisterAddOnSetting fun(categoryTbl: SettingsCategory, variable: string, variableKey, variableTbl, variableType: Settings.VarType, name: string, defaultValue): Setting
+---@field RegisterCanvasLayoutCategory fun(frame, name: string): SettingsCategory, SettingsCanvasLayout
+---@field RegisterCanvasLayoutSubcategory fun(parentCategory: SettingsCategory, frame, name: string): unknown
+---@field RegisterCategory fun(category: SettingsCategory, group): unknown
+---@field RegisterCVarSetting fun(categoryTbl: SettingsCategory, variable: string, variableType: Settings.VarType, name: string): unknown
+---@field RegisterInitializer fun(category: SettingsCategory, initializer): unknown
+---@field RegisterModifiedClickSetting fun(categoryTbl: SettingsCategory, variable: string, name: string, defaultValue): unknown
+---@field RegisterProxySetting fun(categoryTbl: SettingsCategory, variable: string, variableType: Settings.VarType, name: string, defaultValue, getValue, setValue): ProxySetting
+---@field RegisterVerticalLayoutCategory fun(name: string): SettingsCategory, SettingsVerticalLayout
+---@field RegisterVerticalLayoutSubcategory fun(parentCategory: SettingsCategory, name: string): unknown
+---@field SafeLoadBindings fun(bindingSet): unknown
+---@field SelectAccountBindings fun(): unknown
+---@field SelectCharacterBindings fun(): unknown
+---@field SetKeybindingsCategory fun(category: SettingsCategory): unknown
+---@field SetOnValueChangedCallback fun(variable: string, callback: function, owner): unknown
+---@field SetupCVarCheckbox fun(category: SettingsCategory, variable: string, label, tooltip?: string): unknown
+---@field SetupCVarDropdown fun(category: SettingsCategory, variable: string, variableType: Settings.VarType, options, label, tooltip?: string): unknown
+---@field SetupCVarSlider fun(category: SettingsCategory, variable: string, options, label, tooltip?: string): unknown
+---@field SetupModifiedClickDropdown fun(category: SettingsCategory, variable: string, defaultKey, label, tooltips, tooltip?: string, mustChooseKey): unknown
+---@field SetValue fun(variable: string, value, force): unknown
+---@field TryChangeBindingSet fun(checkbox): unknown
+---@field WrapTooltipWithBinding fun(tooltipString, action): unknown
+Settings = nil
+
+---@enum Settings.VarType
+Settings.VarType = { Boolean = "boolean", Number = "number", String = "string" }
+---@enum Settings.Default
+Settings.Default = { True = true, False = false }
+---@enum Settings.CategorySet
+Settings.CategorySet = { Game = 1, AddOns = 2  }
+---@enum Settings.CommitFlag
+Settings.CommitFlag = { None = 0, ClientRestart = 1, GxRestart = 2, UpdateWindow = 4, SaveBindings = 8, Revertable = 16, Apply = 32, IgnoreApply = 64 }
+
+---@class SettingsCategory
+---@field Init fun(self: self, name)
+---@field GetID fun(self: self): unknown
+---@field GetName fun(self: self): string
+---@field SetName fun(self: self, name)
+---@field GetOrder fun(self: self): unknown
+---@field SetOrder fun(self: self, order): unknown
+---@field GetQualifiedName fun(self: self): unknown
+---@field GetParentCategory fun(self: self): unknown
+---@field SetParentCategory fun(self: self, category: SettingsCategory): unknown
+---@field HasParentCategory fun(self: self): unknown
+---@field SetCategorySet fun(self: self, categorySet: Settings.CategorySet): unknown
+---@field GetCategorySet fun(self: self): unknown
+---@field GetSubcategories fun(self: self): unknown
+---@field HasSubcategories fun(self: self): unknown
+---@field CreateSubcategory fun(self: self, name, description): unknown
+---@field SetCategoryTutorialInfo fun(self: self, tooltip?, callback): unknown
+---@field GetCategoryTutorialInfo fun(self: self): unknown
+---@field SetExpanded fun(self: self, expanded): unknown
+---@field IsExpanded fun(self: self): unknown
+---@field ShouldSortAlphabetically fun(self: self): unknown
+---@field SetShouldSortAlphabetically fun(self: self, should): unknown
+
+---@class SettingsLayout
+---@field LayoutType { Vertical: 1, Canvas: 2 }
+---@field Init fun(self: self, layoutType)
+---@field GetLayoutType fun(self: self): unknown
+---@field IsVerticalLayout fun(self: self): unknown
+
+---@class SettingsVerticalLayout: SettingsLayout
+---@field Init fun(self: self, name: string)
+---@field GetInitializers fun(self: self, name: string): unknown
+---@field IsEmpty fun(self: self, name: string): unknown
+---@field AddInitializer fun(self: self, initializer)
+---@field AddMirroredInitializer fun(self: self, initializer)
+---@field EnumerateInitializers fun(self: self, name: string): unknown
+
+---@class SettingsCanvasLayout: SettingsVerticalLayout
+---@field Init fun(self: self, frame): unknown
+---@field GetFrame fun(self: self): unknown
+---@field AddAnchorPoint fun(self: self, p, x, y): unknown
+---@field GetAnchorPoints fun(self: self): unknown
+
+---@class Setting
+---@field Init fun(self: self, name: string, variable: string, variableType: Settings.VarType)
+---@field GetName fun(self: self): unknown
+---@field GetVariable fun(self: self): unknown
+---@field GetVariableType fun(self: self): unknown
+---@field GetValue fun(self: self): unknown
+---@field SetValue fun(self: self, value, immediate): unknown
+---@field ApplyValue fun(self: self, value): unknown
+---@field SetValueToDefault fun(self: self): unknown
+---@field Commit fun(self: self): unknown
+---@field SetPendingValue fun(self: self, value): unknown
+---@field ClearPendingValue fun(self: self): unknown
+---@field Revert fun(self: self): unknown
+---@field NotifyUpdate fun(self: self): unknown
+---@field LockPendingValue fun(self: self): unknown
+---@field GetCommitOrder fun(self: self): unknown
+---@field SetCommitOrder fun(self: self, order): unknown
+---@field SetCommitFlags fun(self: self, ...): unknown
+---@field AddCommitFlag fun(self: self, flag: Settings.CommitFlag): unknown
+---@field RemoveCommitFlag fun(self: self, flag: Settings.CommitFlag): unknown
+---@field HasCommitFlag fun(self: self, flag: Settings.CommitFlag): unknown
+---@field SetIgnoreApplyOverride fun(self: self, state): unknown
+---@field UpdateIgnoreApplyFlag fun(self: self): unknown
+---@field IsModified fun(self: self): unknown
+---@field GetDefaultValue fun(self: self): unknown
+---@field SetLocked fun(self: self, locked): unknown
+---@field IsLocked fun(self: self): unknown
+---@field TriggerValueChanged fun(self: self, value): unknown
+---@field SetValueChangedCallback fun(self: self, callback: fun(setting: Setting, value: any)): unknown
+
+---@class ProxySetting: Setting
+---@field Init fun(self: self, name: string, variable: string, variableType: Settings.VarType, defaultValue, getValue: function, setValue: function)
+
+---@class SettingsElementHierarchy
+---@field SetParentInitializer fun(self: self, parentInitializer, modifyPredicate): unknown
+---@field GetParentInitializer fun(self: self): unknown
+---@field AddModifyPredicate fun(self: self, func): unknown
+---@field GetModifyPredicates fun(self: self): unknown
+---@field GetEvaluateStateFrameEvents fun(self: self): unknown
+---@field AddEvaluateStateFrameEvent fun(self: self, event): unknown
+
+---@class SettingsSearchableElement
+---@field AddSearchTags fun(self: self, ...): unknown
+---@field MatchesSearchTags fun(self: self, words): unknown
+---@field SetSearchIgnoredInLayout fun(self: self, layout): unknown
+---@field IsSearchIgnoredInLayout fun(self: self, layout): unknown
+---@field AddShownPredicate fun(self: self, func): unknown
+---@field GetShownPredicates fun(self: self): unknown
+---@field ShouldShow fun(self: self): unknown
+
+---@class SettingsListElementInitializer: ScrollBoxFactoryInitializer, SettingsElementHierarchy, SettingsSearchableElement
+---@field Init fun(self: self, frameTemplate, data): unknown
+---@field Indent fun(self: self): unknown
+---@field IsParentInitializerInLayout fun(self: self): unknown
+---@field GetIndent fun(self: self): unknown
+---@field GetData fun(self: self): unknown
+---@field GetName fun(self: self): unknown
+---@field GetTooltip fun(self: self): unknown
+---@field GetOptions fun(self: self): unknown
+---@field SetSetting fun(self: self, setting): unknown
+---@field GetSetting fun(self: self): unknown
+---@field IsNewTagShown fun(self: self): unknown
+---@field MarkSettingAsSeen fun(self: self): unknown
+---@field SetSettingIntercept fun(self: self, interceptFunction): unknown
+---@field GetSettingIntercept fun(self: self): unknown
+---@field SetParentInitializer fun(self: self, parentInitializer, modifyPredicate): unknown
+
+---@class SettingsControlTextContainer
+---@field Init fun(self: self)
+---@field GetData fun(self: self): table
+---@field Add fun(self: self, value: any, label: string, tooltip?: string)
+
+---@class SettingsControl: SettingsListElement
+---@field OnLoad fun(self: self)
+---@field Init fun(self: self, initializer: SettingsListElementInitializer)
+---@field Release fun(self: self)
+---@field GetSetting fun(self: self): Setting
+---@field SetValue fun(self: self, value)
+---@field OnSettingValueChanged fun(self: self, setting, value)
+---@field IsEnabled fun(self: self): boolean
+---@field ShouldInterceptSetting fun(self: self, value): boolean
+SettingsControlMixin = nil
+
+---@class DefaultTooltip
+---@field InitDefaultTooltipScriptHandlers fun(self: self): unknown
+---@field OnLoad fun(self: self): unknown
+---@field SetDefaultTooltipAnchors fun(self: self): unknown
+---@field SetTooltipFunc fun(self: self, tooltipFunc): unknown
+---@field OnEnter fun(self: self): unknown
+---@field OnLeave fun(self: self): unknown
+---@field SetCustomTooltipAnchoring fun(self: self, parent, anchoring, xOffset, yOffset): unknown
+DefaultTooltipMixin = nil
+
+---@class CallbackHandleContainer
+---@field Init fun(self: self): unknown
+---@field RegisterCallback fun(self: self, cbr, event, callback, owner): unknown
+---@field AddHandle fun(self: self, handle): unknown
+---@field Unregister fun(self: self): unknown
+---@field IsEmpty fun(self: self): unknown
+
+---@class SettingsCallbackHandleContainer: CallbackHandleContainer
+---@field Init fun(self: self): unknown
+---@field SetOnValueChangedCallback fun(self: self, variable, callback, owner, ...): unknown
+
+---@class SettingsListElement
+---@field cbrHandles SettingsCallbackHandleContainer
+---@field OnLoad fun(self: self): unknown
+---@field DisplayEnabled fun(self: self, enabled): unknown
+---@field GetIndent fun(self: self): unknown
+---@field SetTooltipFunc fun(self: self, tooltipFunc): unknown
+---@field Init fun(self: self, initializer): unknown
+---@field Release fun(self: self): unknown
+---@field OnSettingValueChanged fun(self: self, setting, value): unknown
+---@field OnParentSettingValueChanged fun(self: self, setting, value): unknown
+---@field EvaluateState fun(self: self): unknown
+
+---@class SettingsPanelMixin
+---@field OnLoad fun(self: self): unknown
+---@field OnTabSelected fun(self: self, tab, tabIndex): unknown
+---@field OnCVarChanged fun(self: self, cvar, cvarValue): unknown
+---@field OnEvent fun(self: self, event, ...): unknown
+---@field OnShow fun(self: self): unknown
+---@field CheckTutorials fun(self: self): unknown
+---@field Flush fun(self: self): unknown
+---@field OnHide fun(self: self): unknown
+---@field Commit fun(self: self, unrevertable): unknown
+---@field Close fun(self: self, skipTransitionBackToOpeningPanel): unknown
+---@field ExitWithoutCommit fun(self: self): unknown
+---@field ExitWithCommit fun(self: self, skipTransitionBackToOpeningPanel): unknown
+---@field TransitionBackOpeningPanel fun(self: self): unknown
+---@field Open fun(self: self): unknown
+---@field OpenToCategory fun(self: self, categoryID, scrollToElementName): unknown
+---@field SetKeybindingsCategory fun(self: self, category): unknown
+---@field CommitBindings fun(self: self): unknown
+---@field IsCommitInProgress fun(self: self): unknown
+---@field CommitSettings fun(self: self, unrevertable): unknown
+---@field FinalizeCommit fun(self: self, saveBindings, gxRestart, windowUpdate): unknown
+---@field DiscardRevertableSettings fun(self: self): unknown
+---@field RevertSettings fun(self: self): unknown
+---@field CancelPendingRevertTimer fun(self: self): unknown
+---@field SetAllSettingsToDefaults fun(self: self): unknown
+---@field SetCurrentCategorySettingsToDefaults fun(self: self): unknown
+---@field HasUnappliedSettings fun(self: self): unknown
+---@field CheckApplyButton fun(self: self): unknown
+---@field ForEachCanvas fun(self: self, func): unknown
+---@field SetApplyButtonEnabled fun(self: self, enabled): unknown
+---@field WipeModifiedTable fun(self: self): unknown
+---@field CommitCanvases fun(self: self): unknown
+---@field CallDefaultOnCanvases fun(self: self): unknown
+---@field CallRefreshOnCanvases fun(self: self): unknown
+---@field FindInitializersMatchingSearchText fun(self: self, searchText): unknown
+---@field OnSearchTextChanged fun(self: self): unknown
+---@field ClearSearchBox fun(self: self): unknown
+---@field RegisterSetting fun(self: self, category, setting): unknown
+---@field RegisterInitializer fun(self: self, category, initializer): unknown
+---@field AssignLayoutToCategory fun(self: self, category, layout): unknown
+---@field GetLayout fun(self: self, category: SettingsCategory): SettingsVerticalLayout
+---@field GetSetting fun(self: self, variable): unknown
+---@field OnSettingValueChanged fun(self: self, setting, value): unknown
+---@field RepairDisplay fun(self: self): unknown
+---@field GetAllCategories fun(self: self): unknown
+---@field RegisterCategory fun(self: self, category, group, addon): unknown
+---@field GetCategory fun(self: self, categoryName): unknown
+---@field GetOrCreateGroup fun(self: self, group, order): unknown
+---@field SelectFirstCategory fun(self: self, force): unknown
+---@field SelectCategory fun(self: self, category, force): unknown
+---@field SetCurrentCategory fun(self: self, category): unknown
+---@field GetCategoryList fun(self: self): unknown
+---@field GetSettingsList fun(self: self): unknown
+---@field GetSettingsCanvas fun(self: self): unknown
+---@field DisplayCategory fun(self: self, category): unknown
+---@field SetCurrentLayout fun(self: self, layout): unknown
+---@field GetCurrentLayout fun(self: self): unknown
+---@field ClearCurrentCategoryCanvas fun(self: self): unknown
+---@field DisplayLayout fun(self: self, layout): unknown
+---@field GetCurrentCategory fun(self: self): unknown
+---@field RenewKeybinds fun(self: self): unknown
+---@field SetOutputText fun(self: self, text): unknown
+---@field ClearOutputText fun(self: self): unknown
+---@field OnKeybindStoppedListening fun(self: self, action, slotIndex): unknown
+---@field OnKeybindStartedListening fun(self: self, action, slotIndex): unknown
+---@field OnKeybindUnbindFailed fun(self: self, action, unbindAction, unbindSlotIndex): unknown
+---@field OnKeybindRebindFailed fun(self: self, action): unknown
+---@field OnKeybindRebindSuccess fun(self: self, action): unknown
+---@field ClearActiveCategoryTutorial fun(self: self): unknown
+
+---@class SettingsPanel: Frame, SettingsPanelMixin
+SettingsPanel = nil

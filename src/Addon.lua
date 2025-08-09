@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local C, GUI, Prices, Util = Addon.Constants, Addon.GUI, Addon.Prices, Addon.Util
+local GUI, Options, Util = Addon.GUI, Addon.Options, Addon.Util
 
 ---@class Addon: CallbackRegistryMixin
 ---@field Event Addon.Event
@@ -273,7 +273,7 @@ end
 
 ---@param cmd string
 ---@param short? string
----@param opts string
+---@param opts? string
 ---@param desc string
 ---@param curr? string | boolean
 ---@param ... any
@@ -285,7 +285,9 @@ function Self:PrintOption(cmd, short, opts, desc, curr, ...)
     if curr then tinsert(s, ("Current: |cffcccccc%s|r"):format(curr)) end
     local s = Util(s):Join(", "):Wrap(" (", ")")()
 
-    Self:Print("  |cff00ccff%s|r |cffcccccc%s|r: %s%s", cmd, opts, desc:format(...), s)
+    if opts and opts ~= "" then opts = (" |cffcccccc%s|r"):format(opts) end
+
+    Self:Print("  |cff00ccff%s|r%s: %s%s", cmd, opts or "", desc:format(...), s)
 end
 
 ---@param name string
@@ -327,40 +329,10 @@ function SlashCmdList.TESTFLIGHT(input)
     local cmd = args[1]
 
     -- Shorthands
-    if cmd == "ae" then cmd = "autoenable" end
-    if cmd == "tt" then cmd = "tooltip" end
-    if cmd == "re" then cmd = "reagents" end
     if cmd == "rc" then cmd = "recraft" end
-    if cmd == "ps" then cmd = "pricesource" end
 
-    if Util:OneOf(cmd, "tooltip", "reagents", "autoenable") then
-        if cmd == "autoenable" then cmd = "autoEnable" end
-
-        local name = Util(cmd):StartCase():Lower():UcFirst()()
-
-        if not args[2] then
-            args[2] = Self.DB.Account[cmd] and "off" or "on"
-        end
-
-        if args[2] ~= "on" and args[2] ~= "off" then
-            Self:Print("%s: Please pass 'on', 'off' or nothing as second parameter.", name)
-            return
-        end
-
-        local enabled = args[2] == "on"
-        Self.DB.Account[cmd] = enabled
-
-        Self:Print("%s: %s", name, enabled and "enabled" or "disabled")
-
-        local reagentsTracker = GUI.ObjectiveTracker.ReagentsTracker.module
-
-        if cmd == "reagents" and reagentsTracker then
-            if enabled then
-                reagentsTracker:UpdatePosition()
-            else
-                reagentsTracker:RemoveFromParent()
-            end
-        end
+    if cmd == "config" then
+        Settings.OpenToCategory(Options.category:GetID())
     elseif cmd == "recraft" then
         -- Get item ID
         local id = GetItemId(args[2])
@@ -386,56 +358,13 @@ function SlashCmdList.TESTFLIGHT(input)
         end
 
         Self:Error("Recraft: No recipe for link found.")
-    elseif cmd == "pricesource" then
-        if args[2] ~= "auto" and not Prices.SOURCES[args[2]] then
-            if args[2] then Self:Error("Price source: Unknown source '%s'", args[2]) end
-
-            Self:Print("Price sources:")
-            for name in pairs(Prices.SOURCES) do
-                Self:Print(" - %s%s", name, C_AddOns.IsAddOnLoaded(name) and " (installed)" or "")
-            end
-
-            return
-        end
-
-        Self.DB.Account.priceSource = args[2] ~= "auto" and args[2] or nil
-        Self.Prices.SOURCE = nil
-
-        Self:Print("Price source: Set to %s", args[2])
-    elseif cmd == "tsmprice" and Prices.SOURCES.TradeSkillMaster:IsAvailable() then
-        local priceStr
-
-        if args[2] ~= "default" then
-            priceStr = string.trim(input:sub(cmd:len() + 1))
-
-            local _, err = TSM_API.GetCustomPriceValue(priceStr, "i:2589")
-            if err then
-                Self:Error("TSM price: %s", err or "Invalid string")
-                return
-            end
-        end
-
-        Self.DB.Account.tsmPriceString = priceStr
-
-        Self:Print("TSM price: Set to \"%s\"", priceStr or C.TSM_PRICE_STRING)
     else
         Self:Print("Command:")
         Self:Print("  |cffcccccc/tf|r or |cffcccccc/testflight|r")
 
         Self:Print("Options:")
+        Self:PrintOption("config", nil, nil, "Open addon settings.")
         Self:PrintOption("recraft", "rc", "<link>", "Set recraft UI to an item given by link.")
-        Self:PrintOption("autoenable", "ae", "on||off", "Enable experimentation mode if needed when opening tracked recipes.", Self.DB.Account.autoEnable)
-        Self:PrintOption("tooltip", "tt", "on||off", "Toggle reagent tooltip info.", Self.DB.Account.tooltip)
-        Self:PrintOption("reagents", "re", "on||off", "Toggle reagents tracker.", Self.DB.Account.reagents)
-        Self:PrintOption("pricesource", "ps", "<name>||auto", "Set price source.", Self.DB.Account.priceSource or "auto")
-        
-        if Prices.SOURCES.TradeSkillMaster:IsAvailable() then
-           Self:PrintOption("tsmprice", nil, "<string>||default", "Set TSM custom price string.", Self.DB.Account.tsmPriceString or "default")
-        end
-
-        Self:Print("Legend:")
-        Self:PrintLegend("x||y", "Either x or y.")
-        Self:PrintLegend("<x>", "Item link or value.")
     end
 end
 

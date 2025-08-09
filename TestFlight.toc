@@ -16,8 +16,13 @@ src/Init.lua
 src/Constants.lua
 src/Util.lua
 src/Addon.lua
+src/Options.lua
 
-# Mixins
+# Core - Frames
+
+src/frames/SettingsEditBox.xml
+
+# Core - Mixins
 
 src/mixins/Promise.lua
 src/mixins/Allocations.lua
