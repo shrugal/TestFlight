@@ -381,7 +381,7 @@ function Self:GetWeightsAndPrices(operation)
                     end
                 end
 
-                Promise:YieldTime()
+                Promise:YieldTimeN(j+1)
             end
         end
 
@@ -528,7 +528,7 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
             if optimizeProfit then maxValue = value end
         end
 
-        Promise:YieldTime()
+        Promise:YieldTimeN(weight)
     until true end
 
     return maxValueWeight

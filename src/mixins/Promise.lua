@@ -102,6 +102,13 @@ function Static:YieldTime(...)
     return true
 end
 
+-- Yield if currently in a promise, some time has passed since resuming it, and i % n == 0
+---@param i number
+---@param n? number
+function Static:YieldTimeN(i, n, ...)
+    if i % (n or 10) == 0 then return Static:YieldTime(...) end
+end
+
 -- Yield if currently in a promise and some time has passed since resuming it,
 -- only publish progress updates if not
 ---@vararg any
