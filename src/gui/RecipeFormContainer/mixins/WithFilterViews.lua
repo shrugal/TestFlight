@@ -6,9 +6,11 @@ local NS = GUI.RecipeFormContainer
 ---@type GUI.RecipeFormContainer.RecipeFormContainer
 local Parent = NS.RecipeFormContainer
 
+---@class WithFilterViewsForm: GUI.RecipeForm.RecipeForm, GUI.RecipeForm.WithCrafting, GUI.RecipeForm.WithRestock
+
 ---@class GUI.RecipeFormContainer.WithFilterViews: GUI.RecipeFormContainer.RecipeFormContainer, GUI.RecipeFormContainer.WithCrafting
 ---@field frame RecipeFormContainer
----@field form GUI.RecipeForm.WithRestock
+---@field form WithFilterViewsForm
 ---@field recipeList RecipeList
 ---@field filterJob? Promise
 local Self = GUI.RecipeFormContainer.WithFilterViews
@@ -123,10 +125,7 @@ function Self:InitRecipeListRecipe(frame, node, reuse)
 
                 if not wasSelected or not data.operation then return end
 
-                local recipe = self.form:GetRecipe()
-                if not recipe or recipe.recipeID ~= self.selectedRecipeID then return end
-
-                self.form:SetOperation(data.operation)
+                self.form:SetSelectedOperation(data)
             elseif self.filter == self.Filter.Restock then
                 local operation, quality, amount = data.operation, data.quality, data.amount
                 if not operation or not amount then return end

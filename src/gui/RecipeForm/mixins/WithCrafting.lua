@@ -69,19 +69,15 @@ function Self:Init(_, recipeInfo)
         self:SetAuras()
     end
 
+    -- Check if we can allocate reagents at all
     if not self:CanAllocateReagents() then return end
-
-    -- Set selected and update tracked allocation, or set tracked allocation
-    if not self:SetSelectedOperation() and (recipeChanged or orderChanged) then
-        local Service, model = self:GetTracking()
-        local operation = model and Service:GetTrackedAllocation(model)
-
-        if operation then
-            self:SetOperation(operation)
-            return
-        end
-    end
-
+    -- Set selected and update tracked allocation
+    if self:SetSelectedOperation() then self:UpdateTracking() return end
+    -- Check if we can allocate reagents for tracked recipes
+    if not self:CanAllocateReagents(true) then return end
+    -- Set tracked allocation
+    if (recipeChanged or orderChanged) and self:SetTrackedOperation() then return end
+    -- Update tracked allocation
     self:UpdateTracking()
 end
 
@@ -147,11 +143,12 @@ function Self:GetQuality()
     if op then return op.craftingQuality end
 end
 
-function Self:CanAllocateReagents()
-    if not Professions.InLocalCraftingMode() or C_TradeSkillUI.IsRuneforging() then return false end
+---@param trackedOnly? boolean
+function Self:CanAllocateReagents(trackedOnly)
+    if not self:IsProfessionCrafting() then return false end
 
     local recipe = self:GetRecipe()
-    if not recipe or not Recipes:IsTracked(recipe) then return false end
+    if not recipe or trackedOnly and not Recipes:IsTracked(recipe) then return false end
 
     local order = self:GetOrder()
     if order then
@@ -160,8 +157,8 @@ function Self:CanAllocateReagents()
         -- Order is already crafted
         if order.isFulfillable then return false end
         -- The order is not tracked
-        if not Orders:IsTracked(order) then return false end
-    else
+        if trackedOnly and not Orders:IsTracked(order) then return false end
+    elseif trackedOnly then
         -- The recipe has a tracked order
         if Orders:GetTracked(recipe) then return false end
     end
@@ -202,25 +199,31 @@ function Self:SetOperation(operation, owned)
     return Parent.SetOperation(self, operation, owned)
 end
 
+function Self:SetTrackedOperation()
+    local Service, model = self:GetTracking()
+    local operation = model and Service:GetTrackedAllocation(model)
+
+    if operation then self:SetOperation(operation) return true end
+end
+
 ---@param data? RecipeTreeNodeData
 function Self:SetSelectedOperation(data)
     if not data then data = self.selectedRecipeData end
-
-    if not data or not Util:TblEquals(data.recipeInfo, self.form:GetRecipeInfo()) then
-        self.selectedRecipeData = data
-        return false
-    end
+    if not data or not (data.operation or data.method and data.quality) then return end
 
     self.selectedRecipeData = nil
 
-    if data.operation then
+    if not Recipes:IsEqual(data.recipeInfo, self.form:GetRecipeInfo()) then
+        self.selectedRecipeData = data
+        return
+    elseif data.operation then
         self:SetOperation(data.operation, false)
     elseif data.method and data.quality then
         self:SetOptimizationMethod(data.method)
         self:SetQuality(data.quality)
     end
 
-    return true
+    return data
 end
 
 ---------------------------------------

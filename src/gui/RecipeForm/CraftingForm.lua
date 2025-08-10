@@ -107,18 +107,16 @@ function Self:SetRecraftRecipe(recipeId, link, transition)
 end
 
 function Self:SetSelectedOperation(data)
-    if not data then data = self.selectedRecipeData end
+    data = Parent.SetSelectedOperation(self, data)
 
-    local res = Parent.SetSelectedOperation(self, data)
-
-    if res and data and data.operation then
+    if data and data.operation then
         local amount = min(data.amount or 1, data.operation:GetMaxCraftAmount())
         if amount <= 1 then return end
 
         self.container.frame.CreateMultipleInputBox:SetValue(amount)
     end
 
-    return res
+    return data
 end
 
 ---------------------------------------
