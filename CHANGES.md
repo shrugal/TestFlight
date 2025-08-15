@@ -1,1 +1,2 @@
 - Restock now takes the number of items produced per craft into account
+- Don't completely untrack if a recipe has tracked orders or other qualities

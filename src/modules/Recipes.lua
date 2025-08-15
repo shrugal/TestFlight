@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Optimization, Promise, Reagents, Util = Addon.Constants, Addon.Optimization, Addon.Promise, Addon.Reagents, Addon.Util
+local C, Optimization, Orders, Promise, Reagents, Util = Addon.Constants, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event
@@ -194,6 +194,12 @@ function Self:SetTracked(recipeOrOrder, value, isRecraftOrQuality)
     if self:IsTracked(recipeOrOrder, isRecraftOrQuality) == value then return end
 
     local recipeID, isRecraft = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    local quality = type(isRecraftOrQuality) == "number" and isRecraftOrQuality or nil
+
+    -- Don't completely untrack if a recipe has tracked orders or other qualities
+    if not value and (Orders:GetTracked(recipeID, isRecraft) or quality and self:GetTrackedAmount(recipeID, quality) ~= self:GetTrackedAmountTotal(recipeID)) then
+        return self:SetTrackedAmount(recipeID, 0, isRecraftOrQuality)
+    end
 
     C_TradeSkillUI.SetRecipeTracked(recipeID, value, isRecraft)
 end

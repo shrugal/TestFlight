@@ -71,7 +71,7 @@ function Self:OnTradeSkillCraftBegin(recipeID)
     local recipe = self:GetRecipe()
     if not recipe or recipe.recipeID ~= recipeID then return end
 
-    Self.craftingRecipe, Self.craftingQuality = recipe,  self:GetQuality()
+    Self.craftingRecipe, Self.craftingQuality = recipe,  self:GetOperation():GetResultQuality()
 end
 
 function Self:OnUpdateTradeskillCastStopped()
@@ -108,8 +108,8 @@ function Self:OnSpellcastSucceeded(unit, castGUID, spellID)
 
     amount = amount - 1
 
-    if Service == Recipes and amount <= 0 then
-        Service:SetTracked(recipe, false, quality)
+    if Service == Recipes and amount == 0 then
+        Recipes:SetTracked(recipe, false, quality)
     else
         Service:SetTrackedAmount(recipe, amount, quality)
     end
