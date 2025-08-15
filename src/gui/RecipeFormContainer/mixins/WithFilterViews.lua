@@ -133,6 +133,8 @@ function Self:InitRecipeListRecipe(frame, node, reuse)
 
                 if amount <= 0 or not Recipes:IsTracked(recipe) then return end
 
+                amount = ceil(amount / operation.recipe.quantityMin)
+
                 Recipes:SetTrackedPerQuality(recipe, quality ~= nil)
                 Recipes:SetTrackedAmount(recipe, amount, quality)
                 Recipes:SetTrackedAllocation(recipe, operation, quality)
@@ -662,6 +664,8 @@ function Self:CraftRestockButtonOnClick()
             if not operation or not amount then break end
 
             if amount <= 0 then break end
+
+            amount = ceil(amount / operation.recipe.quantityMin)
 
             Recipes:SetTracked(operation.recipe)
             Recipes:SetTrackedPerQuality(operation.recipe, quality ~= nil)

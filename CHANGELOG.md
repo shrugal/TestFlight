@@ -1,3 +1,12 @@
+Version 3.32
+
+- Add graphical settings menu, replacing most slash commands
+- Add `/tf config` slash command to open the settings menu
+- Disable order list reward modifications if ProfessionShoppingList's "Enhanced Orders" feature is active
+- Improve optimization performance for recipes with high item count per reagent slot
+- Fix possible race condition when selecting a recipe in recipe list
+- Fix replacing commissions in customer order commission listing
+
 Version 4.31
 
 - Fix error on orders page when showing bucket results

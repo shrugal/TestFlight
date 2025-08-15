@@ -1,5 +1,6 @@
 ## Fixes
 
+- Untracking recipes of a certain quality untracks other qualities and orders from the same recipe
 - Profit calculation for gathering recipes that increase reagent quality
 
 ## Features
