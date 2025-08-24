@@ -68,10 +68,10 @@ end
 function Self:OnTradeSkillCraftBegin(recipeID)
     if not self.form:IsVisible() then return end
 
-    local recipe = self:GetRecipe()
+    local recipe, op = self:GetRecipe(), self:GetOperation()
     if not recipe or recipe.recipeID ~= recipeID then return end
 
-    Self.craftingRecipe, Self.craftingQuality = recipe,  self:GetOperation():GetResultQuality()
+    Self.craftingRecipe, Self.craftingQuality = recipe,  op and op:GetResultQuality()
 end
 
 function Self:OnUpdateTradeskillCastStopped()
