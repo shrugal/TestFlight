@@ -1,2 +1,1 @@
-- Restock now takes the number of items produced per craft into account
-- Don't completely untrack if a recipe has tracked orders or other qualities
+- Updated ToC version for patch 11.2.5

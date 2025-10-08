@@ -1,4 +1,9 @@
-Version 3.32
+Version 4.33
+
+- Restock now takes the number of items produced per craft into account
+- Don't completely untrack if a recipe has tracked orders or other qualities
+
+Version 4.32
 
 - Add graphical settings menu, replacing most slash commands
 - Add `/tf config` slash command to open the settings menu
