@@ -129,11 +129,12 @@ function Self:GetCurrentTool(profession)
 end
 
 ---@param profession? Enum.Profession
-function Self:GetAvailableTools(profession)
-    if not profession then return Util.EMPTY end
+---@param expansionID? number
+function Self:GetAvailableTools(profession, expansionID)
+    if not profession or not expansionID then return Util.EMPTY end
 
     local cache = self.Cache.AvailableTools
-    local key, ctx = cache:Key(profession)
+    local key, ctx = cache:Key(profession, expansionID)
 
     if not cache:Valid(key, ctx) then repeat
         ---@type string[]
@@ -147,11 +148,11 @@ function Self:GetAvailableTools(profession)
         GetInventoryItemsForSlot(slot, items)
 
         for loc,link in pairs(items) do repeat
-            local expansionID = select(15, C_Item.GetItemInfo(link))
-            if (expansionID or 0) < LE_EXPANSION_DRAGONFLIGHT then items[loc] = nil break end
+            local itemExpansionID = select(15, C_Item.GetItemInfo(link))
+            if itemExpansionID ~= expansionID then items[loc] = nil break end
 
             local player, _, bags, _, slot, bag = EquipmentManager_UnpackLocation(loc)
-            if not player or not bags then items[loc] = nil break end
+            if not player or not bags or not bag or not slot then items[loc] = nil break end
 
             items[loc] = C_Item.GetItemGUID(ItemLocation:CreateFromBagAndSlot(bag, slot))
         until true end
@@ -827,7 +828,7 @@ end
 Self.Cache = {
     ---@type Cache<string, fun(self: self, profession: Enum.Profession): number, number>
     CurrentTools = Cache:PerFrame(),
-    ---@type Cache<string[], fun(self: self, profession: Enum.Profession): number, number>
+    ---@type Cache<string[], fun(self: self, profession: Enum.Profession, expansionID: number): number, number>
     AvailableTools = Cache:PerFrame(),
     ---@type Cache<string, fun(self: self, skillLineID: number): number, number>
     CurrentAuras = Cache:PerFrame(),

@@ -331,7 +331,7 @@ function Self:GetSkillLineInfo()
 end
 
 function Self:GetAvailableTools()
-    return Buffs:GetAvailableTools(self:GetProfessionInfo().profession)
+    return Buffs:GetAvailableTools(self:GetProfessionInfo().profession, self:GetExpansionID())
 end
 
 function Self:GetOrder()
@@ -383,9 +383,7 @@ end
 
 function Self:GetExpansionID()
     local result = self:GetResult()
-    if not result then return end
-
-    return select(15, C_Item.GetItemInfo(result)) --[[@as number?]]
+    if result then return select(15, C_Item.GetItemInfo(result)) --[[@as number?]] end
 end
 
 -- Reagents

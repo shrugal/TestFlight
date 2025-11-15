@@ -1,3 +1,7 @@
+Version 4.34
+
+- Updated ToC version for patch 11.2.5
+
 Version 4.33
 
 - Restock now takes the number of items produced per craft into account

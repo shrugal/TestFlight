@@ -1,1 +1,1 @@
-- Updated ToC version for patch 11.2.5
+- Fix tool expansion detection
