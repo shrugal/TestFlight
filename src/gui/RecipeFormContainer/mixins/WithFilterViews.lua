@@ -142,7 +142,7 @@ function Self:InitRecipeListRecipe(frame, node, reuse)
         end)
     end
 
-    local value, amount, quality = data.value, data.amount, data.quality
+    local value, amount, recipeInfo, quality = data.value, data.amount, data.recipeInfo, data.quality
     local r, g, b = frame:GetLabelColor():GetRGB()
 
     -- Set amount
@@ -194,7 +194,7 @@ function Self:InitRecipeListRecipe(frame, node, reuse)
     -- Set quality
     if quality then
         frame.Count:Show()
-        frame.Count:SetText(" " .. C_Texture.GetCraftingReagentQualityChatIcon(quality))
+        frame.Count:SetText(" " .. Recipes:GetQualityIcon(recipeInfo, quality))
     elseif value or amount then
         frame.Count:Hide()
     end

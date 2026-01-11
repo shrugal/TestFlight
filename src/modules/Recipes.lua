@@ -438,6 +438,18 @@ function Self:GetOperationInfo(recipe, reagents, orderOrRecraftGUID, applyConcen
     return res
 end
 
+---@param recipeOrOrder RecipeOrOrder
+---@param isRecraftOrQuality? boolean|number
+---@param width? number
+---@param height? number
+---@param offsetX? number
+---@param offsetY? number
+function Self:GetQualityIcon(recipeOrOrder, isRecraftOrQuality, width, height, offsetX, offsetY)
+    local recipeID, _, quality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    local qualityInfo = C_TradeSkillUI.GetRecipeItemQualityInfo(recipeID, quality)
+    if qualityInfo then return CreateAtlasMarkup(qualityInfo.iconChat, width or 20, height or 20, offsetX, offsetY) end
+end
+
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo? CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
@@ -467,10 +479,20 @@ end
 function Self:GetResultName(item)
     local name = C_Item.GetItemInfo(item)
 
-    local quality = C_TradeSkillUI.GetItemCraftedQualityByItemInfo(item)
-    if not quality then return name end
+    local qualityIcon = self:GetResultQualityIcon(item)
+    if qualityIcon then name = ("%s %s"):format(name, qualityIcon) end
 
-    return ("%s %s"):format(name, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+    return name
+end
+
+---@param item number | string
+---@param width? number
+---@param height? number
+---@param offsetX? number
+---@param offsetY? number
+function Self:GetResultQualityIcon(item, width, height, offsetX, offsetY)
+    local qualityInfo = C_TradeSkillUI.GetItemCraftedQualityInfo(item)
+    if qualityInfo then return CreateAtlasMarkup(qualityInfo.iconChat, width or 20, height or 20, offsetX, offsetY) end
 end
 
 ---@todo Recraft allocations

@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, GUI, Optimization, Prices, Util = Addon.Constants, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Util
+local C, GUI, Optimization, Prices, Recipes, Util = Addon.Constants, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Recipes, Addon.Util
 
 ---@class GUI.RecipeForm.WithDetails: GUI.RecipeForm.RecipeForm
 ---@field form RecipeCraftingForm
@@ -71,7 +71,7 @@ function Self:CostStatLineOnEnter(line)
                 for i=1,5 do
                     local op = operations[i]
                     if op then
-                        local label = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                        local label = Recipes:GetQualityIcon(op.recipe, i)
                         local priceStr = Util:NumCurrencyString(op:GetReagentPrice())
 
                         GameTooltip_AddHighlightLine(GameTooltip, label .. " " .. priceStr)
@@ -128,7 +128,7 @@ function Self:ProfitStatLineOnEnter(line)
             for i=1,5 do
                 local op = operations[i]
                 if op then
-                    local label = CreateAtlasMarkup(Professions.GetIconForQuality(i), 20, 20)
+                    local label = Recipes:GetQualityIcon(op.recipe, i)
                     local profitStr = Util:NumCurrencyString((op:GetProfit()))
 
                     GameTooltip_AddHighlightLine(GameTooltip, label .. " " .. profitStr)

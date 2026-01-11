@@ -132,6 +132,8 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
 
     local price = 0
 
+    Addon:Debug({ order = order }, "GetRecipeAllocationPrice")
+
     for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
         if requiredOnly and not reagent.required then break end
 
@@ -150,7 +152,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
                 local quantity = alloc.quantity
 
                 for _,reagent in pairs(provided) do
-                    if reagent.itemID == alloc.reagent.itemID then
+                    if ProfessionsUtil.CraftingReagentMatches(reagent.reagent, alloc.reagent) then
                         quantity = max(0, quantity - (reagent.quantity or 1))
                     end
                 end
@@ -160,7 +162,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
         elseif missing > 0 and order and not Orders:IsCreating(order) then
             for _,reagent in pairs(order.reagents) do
                 if reagent.slotIndex == slotIndex then
-                    missing = max(0, missing - reagent.reagent.quantity)
+                    missing = max(0, missing - reagent.reagentInfo.quantity)
                 end
             end
         end
@@ -258,22 +260,17 @@ end
 --             Reagents
 ---------------------------------------
 
----@param reagent? number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+---@param reagent? Reagent
 function Self:GetReagentPrice(reagent)
-    if not self:IsSourceAvailable() then return 0 end
+    if not self:IsSourceAvailable() or not reagent then return 0 end
 
-    if type(reagent) == "table" then
-        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-        if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
-        do reagent = reagent.itemID end
-    end ---@cast reagent -CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+    local itemID = Reagents:GetItemID(reagent)
+    if not itemID then return 0 end
 
-    if not reagent then return 0 end
-
-    return self:GetItemPrice(reagent)
+    return self:GetItemPrice(itemID)
 end
 
----@param reagent? number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation
+---@param reagent? Reagent
 function Self:HasReagentPrice(reagent)
     return self:GetReagentPrice(reagent) > 0
 end

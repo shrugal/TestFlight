@@ -159,11 +159,11 @@ function Self:AllocateReagent(slot, allocations, owned, silent)
     self.form.transaction:SetManuallyAllocated(true)
 
     if Reagents:IsOptional(slot:GetReagentSlotSchematic()) then
-        local alloc = allocations:SelectFirst()
+        local alloc = allocations:GetFirstAllocation()
         if alloc and alloc.quantity > 0 then
-            slot:SetItem(Item:CreateFromItemID(alloc.reagent.itemID))
+            slot:SetReagent(alloc.reagent)
         else
-            slot:ClearItem()
+            slot:ClearReagent()
         end
     else
         slot:Update()
@@ -213,8 +213,8 @@ end
 function Self:ResetReagentSlot(slot)
     if slot:IsUnallocatable() then return end
 
-    if slot:GetOriginalItem() then
-        self:RestoreOriginalSlotItem(slot)
+    if slot:IsOriginalReagentSet() then
+        self:RestoreOriginalSlotReagent(slot)
     elseif slot:GetReagentSlotSchematic().reagentType == Enum.CraftingReagentType.Basic then
         self:AllocateBasicReagent(slot, true)
     elseif self.form.transaction:HasAnyAllocations(slot:GetSlotIndex()) then
@@ -225,7 +225,7 @@ end
 ---@param slot ReagentSlot
 function Self:ClearReagentSlot(slot)
     self.form.transaction:ClearAllocations(slot:GetSlotIndex())
-    slot:ClearItem()
+    slot:ClearReagent()
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end
 
@@ -253,18 +253,18 @@ function Self:AllocateBasicReagent(slot, owned)
 end
 
 ---@param slot ReagentSlot
-function Self:RestoreOriginalSlotItem(slot)
-    if slot:IsOriginalItemSet() then return end
+function Self:RestoreOriginalSlotReagent(slot)
+    if slot:IsOriginalReagentSet() then return end
 
     local schematic = slot:GetReagentSlotSchematic()
     local modification = self.form.transaction:GetModification(schematic.dataSlotIndex)
 
     if modification and modification.itemID > 0 then
-        local reagent = Professions.CreateCraftingReagentByItemID(modification.itemID)
+        local reagent = Professions.CreateItemReagent(modification.itemID)
         self.form.transaction:OverwriteAllocation(schematic.slotIndex, reagent, schematic.quantityRequired)
     end
 
-    slot:RestoreOriginalItem()
+    slot:RestoreOriginalReagent()
 
     self.form:TriggerEvent(ProfessionsRecipeSchematicFormMixin.Event.AllocationsModified)
 end

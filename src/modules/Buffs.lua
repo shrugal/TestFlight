@@ -151,8 +151,10 @@ function Self:GetAvailableTools(profession, expansionID)
             local itemExpansionID = select(15, C_Item.GetItemInfo(link))
             if itemExpansionID ~= expansionID then items[loc] = nil break end
 
-            local player, _, bags, _, slot, bag = EquipmentManager_UnpackLocation(loc)
-            if not player or not bags or not bag or not slot then items[loc] = nil break end
+            local locData = EquipmentManager_GetLocationData(loc)
+            local isPlayer, isBags, bag, slot = locData.isPlayer, locData.isBags, locData.bag, locData.slot
+
+            if not isPlayer or not isBags or not bag or not slot then items[loc] = nil break end
 
             items[loc] = C_Item.GetItemGUID(ItemLocation:CreateFromBagAndSlot(bag, slot))
         until true end
@@ -461,7 +463,7 @@ function Self:GetAuraName(auraID, level)
     local name = C_TradeSkillUI.GetRecipeSchematic(info.RECIPE, false).name
     if not level then return name end
 
-    return ("%s %s"):format(name, info.ITEM and C_Texture.GetCraftingReagentQualityChatIcon(level) or level)
+    return ("%s %s"):format(name, info.ITEM and Recipes:GetQualityIcon(info.RECIPE, level) or level)
 end
 
 ---@param auraID number
@@ -582,6 +584,7 @@ function Self:GetAuraContinuable(auraID, level)
         continuable = Spell:CreateFromSpellID(info.RECIPE)
 
         continuable.enabled = learned
+        continuable.GetItemID = Util:FnVal(1) -- Fake itemID, to get past some code that expects items
     end
 
     continuable.auraID = auraID
@@ -591,8 +594,9 @@ function Self:GetAuraContinuable(auraID, level)
 end
 
 ---@param slot Buffs.AuraSlot
----@param filterAvailable? boolean
-function Self:GetAuraContinuables(slot, filterAvailable)
+---@param hideUnavailable? boolean
+---@return AuraContinuable[]
+function Self:GetAuraContinuables(slot, hideUnavailable)
     local items = {}
 
     for auraID, level, info in self:EnumerateAuraLevels(slot) do repeat
@@ -600,7 +604,7 @@ function Self:GetAuraContinuables(slot, filterAvailable)
             local itemInfo = self:GetAuraItem(auraID, level) ---@cast itemInfo -?
             if not itemInfo then break end
 
-            if filterAvailable and C_Item.GetItemCount(itemInfo) == 0 then break end
+            if hideUnavailable and C_Item.GetItemCount(itemInfo) == 0 then break end
 
             tinsert(items, self:GetAuraContinuable(auraID, level))
         else

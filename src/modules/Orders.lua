@@ -89,7 +89,7 @@ function Self:GetTrackedReagentAmounts()
         -- Provided by customer
         if not self:IsCreating(order) then
             for _,reagent in pairs(order.reagents) do
-                local itemID, quantity = reagent.reagent.itemID, reagent.reagent.quantity
+                local itemID, quantity = reagent.reagentInfo.reagent.itemID, reagent.reagentInfo.quantity ---@cast itemID -?
                 provided[itemID] = (provided[itemID] or 0) + quantity
             end
         end
@@ -254,7 +254,7 @@ end
 ---@param slot ReagentSlot
 function Self:IsCreatingSlotProvided(slot)
     if slot:GetReagentType() == Enum.CraftingReagentType.Modifying then
-        return slot:GetTransaction():GetRecipeSchematic().isRecraft and slot:IsOriginalItemSet()
+        return slot:GetTransaction():GetRecipeSchematic().isRecraft and slot:IsOriginalReagentSet()
     else
         return slot.Checkbox:IsShown() and not slot.Checkbox:GetChecked()
     end

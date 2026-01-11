@@ -1,19 +1,19 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Meorawr/wow-ui-schema/main/UI.xsd">
     <Script file="AuraReagentSlot.lua" />
 
-	<ItemButton name="TestFlightAuraFlyoutButtonTemplate" inherits="ProfessionsItemFlyoutButtonTemplate" mixin="TestFlightAuraFlyoutButtonMixin" virtual="true">
+	<ItemButton name="TestFlightAuraFlyoutButtonTemplate" inherits="ProfessionsFlyoutItemButtonTemplate" mixin="TestFlightAuraFlyoutButtonMixin" virtual="true">
 		<Size x="37" y="37"/>
         <Scripts>
 			<OnLeave function="GameTooltip_Hide" />
         </Scripts>
 	</ItemButton>
 	
-	<Frame name="TestFlightAuraFlyoutTemplate" inherits="ProfessionsItemFlyoutTemplate" mixin="TestFlightAuraFlyoutMixin" virtual="true" />
+	<Frame name="TestFlightAuraFlyoutTemplate" inherits="ProfessionsFlyoutTemplate" mixin="TestFlightAuraFlyoutMixin" virtual="true" />
 
 	<Frame name="TestFlightAuraSlotTemplate" mixin="TestFlightAuraSlotMixin" virtual="true">
 		<Size x="50" y="50"/>
 		<Frames>
-			<ItemButton parentKey="Button" inherits="ProfessionsReagentButtonTemplate" mixin="TestFlightAuraSlotButtonMixin">
+			<ItemButton parentKey="Button" inherits="ProfessionsButtonTemplate" mixin="TestFlightAuraSlotButtonMixin">
 				<Anchors>
 					<Anchor point="LEFT"/>
 				</Anchors>

@@ -30,11 +30,12 @@ end
 function Self:OnAddonLoaded(addonName)
     if not Util:IsAddonLoadingOrLoaded("Blizzard_Professions", addonName) then return end
 
-    itemFlyout = OpenProfessionsItemFlyout()
+    itemFlyout = OpenProfessionsItemFlyout(UIParent)
     CloseProfessionsItemFlyout()
 
     Addon:RegisterCallback(Addon.Event.Enabled, Self.OnEnabled, Self)
     Addon:RegisterCallback(Addon.Event.Disabled, Self.OnDisabled, Self)
 end
 
-Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)
+-- TODO: Figure out how to do this now
+-- Addon:RegisterCallback(Addon.Event.AddonLoaded, Self.OnAddonLoaded, Self)

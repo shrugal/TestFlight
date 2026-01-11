@@ -1,3 +1,7 @@
+Version 4.35
+
+- Fix tool expansion detection
+
 Version 4.34
 
 - Updated ToC version for patch 11.2.5

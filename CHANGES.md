@@ -1,1 +1,2 @@
-- Fix tool expansion detection
+- Updated ToC version for patch 12.0
+- Fix changed API calls and profession system behavior

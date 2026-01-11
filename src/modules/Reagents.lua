@@ -10,22 +10,31 @@ local Self = Mixin(Addon.Reagents, CallbackRegistryMixin)
 function Self:GetName(item)
     local name = C_Item.GetItemInfo(item)
 
-    local quality = C_TradeSkillUI.GetItemReagentQualityByItemInfo(item)
-    if not quality then return name end
+    local icon = self:GetQualityIcon(item)
+    if icon then name = ("%s %s"):format(name, icon) end
 
-    return ("%s %s"):format(name, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+    return name
 end
 
----@param reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation | number
+---@param reagent Reagent
+function Self:GetItemID(reagent)
+    if type(reagent) == "number" then return reagent end
+    if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
+    if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -CraftingReagentInfo | ProfessionTransactionAllocation
+    return reagent.itemID
+end
+
+---@param item number | string
+function Self:GetQualityIcon(item)
+    local qualityInfo = C_TradeSkillUI.GetItemReagentQualityInfo(item)
+    if qualityInfo then return CreateAtlasMarkup(qualityInfo.iconChat, 17, 15, 1, 0) end
+end
+
+---@param reagent Reagent
 ---@param characterInventoryOnly? boolean
 function Self:GetQuantity(reagent, characterInventoryOnly)
-    if type(reagent) == "table" then
-        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-        if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -ProfessionTransactionAllocation
-        if reagent.itemID then reagent = reagent.itemID end ---@cast reagent number
-    end
-
-    return Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")(reagent, characterInventoryOnly)
+    local itemID = self:GetItemID(reagent)
+    return Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")(itemID, characterInventoryOnly)
 end
 
 ---@param reagent CraftingReagentSlotSchematic
@@ -79,15 +88,12 @@ end
 ---@param reagent number | CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic
 ---@param weightPerSkill? number
 function Self:GetWeight(reagent, weightPerSkill)
-    if type(reagent) == "table" then
-        if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-        do reagent = reagent.itemID end
-    end ---@cast reagent number
+    local itemID = self:GetItemID(reagent)
 
-    if self:HasStatBonus(reagent, "SK") then
-        return floor(self:GetStatBonus(reagent, "SK") * weightPerSkill)
+    if self:HasStatBonus(itemID, "SK") then
+        return floor(self:GetStatBonus(itemID, "SK") * weightPerSkill)
     else
-        return C.REAGENTS[reagent] or 0
+        return C.REAGENTS[itemID] or 0
     end
 end
 
@@ -95,7 +101,7 @@ end
 function Self:GetOrderWeight(order)
     local orderWeight = 0
     for _,reagent in pairs(order.reagents) do
-        orderWeight = orderWeight + reagent.reagent.quantity * self:GetWeight(reagent.reagent)
+        orderWeight = orderWeight + reagent.reagentInfo.quantity * self:GetWeight(reagent.reagentInfo)
     end
     return orderWeight
 end
@@ -145,14 +151,14 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
         for _,reagent in pairs(order.reagents) do
             local schematic = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", reagent.slotIndex)
             if schematic and self:IsModified(schematic) then
-                tinsert(reagents, reagent.reagent)
+                tinsert(reagents, reagent.reagentInfo)
             end
         end
     end
 
     -- Get required skill with base and best materials
     local opBase = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
-    for i=1,#qualitySlots do reagents[i].itemID = qualitySlots[i].reagents[3].itemID end
+    for i=1,#qualitySlots do reagents[i].reagent = qualitySlots[i].reagents[3] end
     local opBest = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
 
     if not opBase or not opBest then return end
@@ -233,7 +239,7 @@ end
 ---@return CraftingReagentInfo
 function Self:CreateCraftingInfoFromSchematic(reagent, itemIndex, quantity)
     return Professions.CreateCraftingReagentInfo(
-        reagent.reagents[itemIndex or 1].itemID,
+        reagent.reagents[itemIndex or 1],
         reagent.dataSlotIndex,
         quantity or reagent.quantityRequired
     )
@@ -264,7 +270,7 @@ function Self:CreateCraftingInfosFromAllocation(recipe, allocation, predicate)
         local reagent = Util:TblWhere(recipe.reagentSlotSchematics, "slotIndex", slotIndex)
         if reagent and self:IsModified(reagent) and (not predicate or predicate(reagent)) then
             for _,alloc in pairs(allocs.allocs) do
-                tinsert(infos, Professions.CreateCraftingReagentInfo(alloc.reagent.itemID, reagent.dataSlotIndex, alloc.quantity))
+                tinsert(infos, Professions.CreateCraftingReagentInfo(alloc.reagent, reagent.dataSlotIndex, alloc.quantity))
             end
         end
     end
@@ -336,10 +342,10 @@ end
 ---@param quantity? number
 function Self:Allocate(allocations, reagent, quantity)
     if type(reagent) == "number" then
-        reagent = Professions.CreateCraftingReagentByItemID(reagent)
+        reagent = Professions.CreateItemReagent(reagent)
     elseif reagent.dataSlotIndex then
         quantity = quantity or reagent.quantity
-        reagent = Professions.CreateCraftingReagentByItemID(reagent.itemID)
+        reagent = reagent.reagent
     end ---@cast reagent CraftingReagent
 
     Allocations:WithoutOnChanged(allocations, "Allocate", reagent, quantity or 0)
@@ -451,7 +457,7 @@ function Self:GetProvided(reagent, order, recraftMods)
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return Util.EMPTY end
 
     local list = Util:TblFilterWhere(order.reagents, "slotIndex", reagent.slotIndex)
-    for k,v in pairs(list) do --[=[@cast list CraftingReagentInfo[]]=] list[k] = v.reagent end
+    for k,v in pairs(list) do --[=[@cast list CraftingReagentInfo[]]=] list[k] = v.reagentInfo end
 
     if #list == 0 and order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
         local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
@@ -500,9 +506,8 @@ end
 ---@param reagent CraftingReagentInfo | CraftingReagent | number
 ---@param stat BonusStat
 function Self:GetStatBonus(reagent, stat)
-    if type(reagent) == "table" then reagent = reagent.itemID end
-
-    local stats = C.FINISHING_REAGENTS[reagent]
+    local itemID = self:GetItemID(reagent)
+    local stats = C.FINISHING_REAGENTS[itemID]
     local val = stats and stats[stat] or 0
 
     return stat == "SK" and val or val / 100

@@ -50,7 +50,7 @@ function Self:AddRecipe(_, recipeID, isRecraft)
     if qualities and not Util:TblIsEmpty(qualities) then
         blockName = Util:StrAbbr(blockName, 35 * #qualities)
         for _,quality in ipairs(qualities) do
-            blockName = ("%s %s"):format(blockName, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+            blockName = ("%s %s"):format(blockName, Recipes:GetQualityIcon(recipeID, quality))
         end
     end
 

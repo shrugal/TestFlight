@@ -11,6 +11,16 @@
 ---                    Types                       --
 -----------------------------------------------------
 
+-- TODO: 12.0 changes --
+
+---@class CraftingReagentInfo
+---@field itemID nil
+---@field reagent CraftingReagent
+
+---@class CraftingOrderReagentInfo 
+---@field reagent nil
+---@field reagentInfo CraftingReagentInfo
+
 ---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
@@ -18,6 +28,10 @@
 ---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 
 ---@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStat, number>[], STATS?: table<BonusStat, number>[] }
+
+---@alias AuraContinuable ItemMixin | SpellMixin
+
+---@alias Reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation | number
 
 -- MC: Multicraft
 -- RF: Resourcefulness
@@ -570,13 +584,12 @@ ItemButtonMixin = nil
 ---@class ProfessionTransationAllocations
 ---@field allocs ProfessionTransactionAllocation[]
 ---@field Clear fun(self: self)
----@field SelectFirst fun(self: self): ProfessionTransactionAllocation
+---@field GetFirstAllocation fun(self: self): ProfessionTransactionAllocation
 ---@field FindAllocationByPredicate fun(self: self, predicate: fun(v: ProfessionTransactionAllocation): boolean): ProfessionTransactionAllocation
 ---@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): ProfessionTransactionAllocation
 ---@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification): number
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
----@field HasAllAllocations fun(self: self, quantityRequired: number): boolean
 ---@field Allocate fun(self: self, reagent: CraftingReagent, quality: number)
 ---@field Overwrite fun(self: self, allocations: ProfessionTransationAllocations[])
 ---@field OnChanged fun(self: self)
@@ -789,7 +802,7 @@ ProfessionsReagentSlotButtonMixin = nil
 ---@field Button ProfessionsReagentSlotButtonMixin
 ---@field Name FontString
 ---@field item? ItemMixin
----@field originalItem? ItemMixin
+---@field originalReagent? CraftingReagent
 ---@field reagentSlotSchematic CraftingReagentSlotSchematic
 ---@field Checkbox CheckButton
 ---@field Reset fun(self: self)
@@ -807,13 +820,13 @@ ProfessionsReagentSlotButtonMixin = nil
 ---@field SetNameText fun(self: self, text)
 ---@field SetUnallocatable fun(self: self, val: boolean)
 ---@field IsUnallocatable fun(self: self): boolean
----@field ClearItem fun(self: self)
----@field RestoreOriginalItem fun(self: self)
----@field IsOriginalItemSet fun(self: self): boolean
----@field SetOriginalItem fun(self: self, item)
----@field GetOriginalItem fun(self: self): ItemMixin?
+---@field ClearReagent fun(self: self)
+---@field RestoreOriginalReagent fun(self: self)
+---@field IsOriginalReagentSet fun(self: self): boolean
+---@field SetOriginalReagent fun(self: self, reagent: CraftingReagent?)
+---@field GetOriginalReagent fun(self: self): CraftingReagent?
 ---@field ApplySlotInfo fun(self: self)
----@field SetItem fun(self: self, item?: ItemMixin)
+---@field SetReagent fun(self: self, reagent?: CraftingReagent)
 ---@field SetCurrency fun(self: self, currencyID)
 ---@field GetSlotIndex fun(self: self): number
 ---@field GetReagentType fun(self: self): Enum.CraftingReagentType
@@ -839,7 +852,7 @@ ProfessionsReagentSlotMixin = nil
 ---@field Init fun(self: self, elementData, onElementEnabledImplementation, onElementValidImplementation)
 ProfessionsItemFlyoutButtonMixin = nil
 
----@class ProfessionsItemFlyoutMixin: CallbackRegistryMixin
+---@class ProfessionsFlyoutMixin: CallbackRegistryMixin
 ---@field Event { UndoClicked: "UndoClicked", ItemSelected: "ItemSelected", ShiftClicked: "ShiftClicked" }
 ---@field Text FontString
 ---@field UndoItem ItemButton
@@ -858,7 +871,7 @@ ProfessionsItemFlyoutButtonMixin = nil
 ---@field OnEvent fun(self: self, event, ...)
 ---@field InitializeContents fun(self: self)
 ---@field Init fun(self: self, owner, transaction, canModifyFilter)
-ProfessionsItemFlyoutMixin = nil
+ProfessionsFlyoutMixin = nil
 
 ---@class OutputSlot: Frame
 
@@ -920,16 +933,16 @@ function CreateAllocation() end
 ---@return FramePool
 function CreateFramePool(frameType, parent, template, resetFunc, forbidden, frameInitializer, capacity) end
 
+---@class EquipmentManagerLocationData
+---@field isPlayer boolean
+---@field isBank boolean
+---@field isBags boolean
+---@field slot? number
+---@field bag? number
+
 ---@param location number
----@return boolean player Equipped
----@return boolean bank In bank
----@return boolean bags In bags
----@return boolean voidStorage In void storage
----@return number slot Equipment, bank or bag slot
----@return number bag Bag
----@return number tab Void storage tab
----@return number voidSlot Void storage slot
-function EquipmentManager_UnpackLocation(location) end
+---@return EquipmentManagerLocationData
+function EquipmentManager_GetLocationData(location) end
 
 ---@param location number
 ---@param invSlot number
@@ -970,10 +983,9 @@ C_TradeSkillUI = {}
 ---@field dashStyle number
 
 ---@class Professions
----@field CreateCraftingReagentByItemID fun(itemID: number): CraftingReagent
+---@field CreateItemReagent fun(itemID: number): CraftingReagent
 ---@field SetRecraftingTransitionData fun(data: { isRecraft: boolean, itemLink: string })
----@field GetIconForQuality fun(qualityID: number): string
----@field CreateCraftingReagentInfo fun(itemID: number, dataSlotIndex: number, quantity: number): CraftingReagentInfo
+---@field CreateCraftingReagentInfo fun(reagent: CraftingReagent, dataSlotIndex: number, quantity: number): CraftingReagentInfo
 ---@field GetReagentInputMode fun(reagent: CraftingReagentSlotSchematic): Professions.ReagentInputMode
 ---@field InspectRecipe fun(recipeID: number)
 ---@field AllocateBasicReagents fun(transaction: ProfessionTransaction, slotIndex: number, useBestQuality?: boolean)
@@ -996,6 +1008,7 @@ Professions = {}
 ---@field IsReagentSlotModifyingRequired fun(reagent: CraftingReagentSlotSchematic): boolean
 ---@field AccumulateReagentsInPossession fun(reagents: CraftingReagent[]): number
 ---@field OpenProfessionFrameToRecipe fun(recipeID: number)
+---@field CraftingReagentMatches fun(reagent1: CraftingReagent, reagent2: CraftingReagent): boolean
 ProfessionsUtil = {}
 
 -----------------------------------------------------

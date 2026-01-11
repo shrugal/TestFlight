@@ -153,7 +153,7 @@ function Self:UpdateRestockElements()
         minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
 
         if not isOpQuality then
-            text = ("%s %s"):format(text, C_Texture.GetCraftingReagentQualityChatIcon(quality))
+            text = ("%s %s"):format(text, Recipes:GetQualityIcon(recipe, quality))
         end
     end
 
@@ -199,7 +199,6 @@ function Self:InsertTrackQualityCheckbox()
     )
 
     input:SetSize(26, 26)
-    input.text:SetText(C_Texture.GetCraftingReagentQualityChatIcon(5))
 
     self.trackQualiyCheckbox = input
 
@@ -207,16 +206,18 @@ function Self:InsertTrackQualityCheckbox()
 end
 
 function Self:UpdateTrackQualityCheckbox()
-    local shown, checked = false, false
+    local shown, checked, text = false, false, ""
 
     local recipeInfo = self.form:GetRecipeInfo()
     if recipeInfo then
         shown = Recipes:IsTracked(recipeInfo) and recipeInfo.supportsQualities
         checked = Recipes:IsTrackedPerQuality(recipeInfo.recipeID, recipeInfo.isRecraft)
+        text = Recipes:GetQualityIcon(recipeInfo, 5)
     end
 
     self.trackQualiyCheckbox:SetShown(shown)
     self.trackQualiyCheckbox:SetChecked(checked)
+    self.trackQualiyCheckbox.text:SetText(text)
 end
 
 -- Amount spinner

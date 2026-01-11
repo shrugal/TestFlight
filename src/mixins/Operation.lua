@@ -302,7 +302,7 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
                     Reagents:Allocate(alloc, reagent, quantity)
                 end
             end
-        elseif slot.required and not alloc:HasAllAllocations(slot.quantityRequired) then
+        elseif slot.required and alloc:Accumulate() < slot.quantityRequired then
             Reagents:Allocate(alloc, slot.reagents[1], slot.quantityRequired - alloc:Accumulate())
         end
     until true end

@@ -19,7 +19,7 @@ function Self:Init(elementData)
 
     if item.GetSpellID then ---@cast item SpellMixin
         self:SetSpell(item:GetSpellID())
-    elseif item.GetItemID then ---@cast item ItemMixin
+    elseif item.GetItemID and item:GetItemID() ~= 1 then ---@cast item ItemMixin
         self:SetItem(item:GetItemID())
         self:SetItemButtonCount(C_Item.GetItemCount(item:GetItemID()))
     end
@@ -60,15 +60,62 @@ end
 TestFlightAuraFlyoutButtonMixin = Self
 
 ---------------------------------------
+--         AuraFlyoutBehavior
+---------------------------------------
+
+---@class GUI.RecipeForm.AuraFlyoutBehaviorMixin
+local Self = {}
+
+function Self:Init(slot)
+    self.slot = slot
+end
+
+function Self:GetUnownedFlags()
+    return false, false
+end
+
+function Self:CanModifyFilter()
+    return true
+end
+
+function Self:IsElementValid(elementData)
+	return true;
+end
+
+function Self:IsElementEnabled(elementData, count)
+	return true;
+end
+
+function Self:GetUndoElement()
+    return nil
+end
+
+function Self:GetElements(hideUnavailable)
+    local items = Buffs:GetAuraContinuables(self.slot, hideUnavailable)
+    return { items = items, forceAccumulateInventory = true }
+end
+
+---@param dataProvider DataProviderMixin
+---@param elements { items: AuraContinuable[] }
+function Self:PopulateDataProvider(dataProvider, elements)
+	for _,item in ipairs(elements.items) do dataProvider:Insert({ item = item }) end
+end
+
+local TestFlightAuraFlyoutBehaviorMixin = Self
+
+---------------------------------------
 --             AuraFlyout
 ---------------------------------------
 
 local MaxColumns = 3
 local HideUnavailableCvar = "professionsFlyoutHideUnowned"
 
----@class GUI.RecipeForm.AuraFlyoutMixin: ProfessionsItemFlyoutMixin
+---@class GUI.RecipeForm.AuraFlyoutMixin
 local Self = {}
 
+---@class GUI.RecipeForm.AuraFlyout: Frame, GUI.RecipeForm.AuraFlyoutMixin, ProfessionsFlyoutMixin
+
+---@param self GUI.RecipeForm.AuraFlyout
 function Self:OnLoad()
 	CallbackRegistryMixin.OnLoad(self)
 
@@ -96,7 +143,7 @@ function Self:OnLoad()
 			GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
             if item.GetSpellID then ---@cast item SpellMixin
                 GameTooltip:SetSpellByID(item:GetSpellID())
-            elseif item.GetItemID then ---@cast item ItemMixin
+            elseif item.GetItemID and item:GetItemID() ~= 1 then ---@cast item ItemMixin
                 GameTooltip:SetItemByID(item:GetItemID())
             end
 			GameTooltip:Show()
@@ -117,7 +164,7 @@ function Self:OnLoad()
 	ScrollUtil.InitScrollBoxListWithScrollBar(self.ScrollBox, self.ScrollBar, view)
 end
 
----@param self Frame | GUI.RecipeForm.AuraFlyoutMixin
+---@param self GUI.RecipeForm.AuraFlyout
 function Self:OnEvent(event, buttonName)
 	if event ~= "GLOBAL_MOUSE_DOWN" then return end
     local isRightButton = buttonName == "RightButton"
@@ -140,24 +187,35 @@ function NS.CloseAuraFlyout()
 	NS.flyout:Hide()
 end
 
-function NS.OpenAuraFlyout(owner, parent)
+---@param owner Frame
+---@param parent Frame
+---@param slot Buffs.AuraSlot
+function NS.OpenAuraFlyout(owner, parent, slot)
     if not NS.flyout then
         NS.flyout = CreateFrame("Frame", nil, nil, "TestFlightAuraFlyoutTemplate")
     end
 
-	NS.flyout:ClearHandlers()
+    local behavior = CreateFromMixins(TestFlightAuraFlyoutBehaviorMixin)
+    behavior:Init(slot)
+
 	NS.flyout:SetParent(parent)
 	NS.flyout:SetPoint("TOPLEFT", owner, "TOPRIGHT", 5, 0)
 	NS.flyout:SetFrameStrata("HIGH")
-	NS.flyout:Show()
-	return NS.flyout
+
+	NS.flyout:Init(owner, behavior)
+    NS.flyout:Show()
+
+    return NS.flyout
 end
 
-function NS.ToggleAuraFlyout(owner, parent)
+---@param owner Frame
+---@param parent Frame
+---@param slot Buffs.AuraSlot
+function NS.ToggleAuraFlyout(owner, parent, slot)
 	if NS.flyout and NS.flyout:IsShown() then
 		NS.CloseAuraFlyout()
     else
-        return NS.OpenAuraFlyout(owner, parent)
+        return NS.OpenAuraFlyout(owner, parent, slot)
     end
 end
 
@@ -174,7 +232,7 @@ local Self = CreateFromMixins(Parent)
 
 ---@param self GUI.RecipeForm.AuraSlotButton
 function Self:SetSpell(spellID)
-    self:Reset()
+    self:Clear()
 
     self.spellID = spellID
     local spell = C_Spell.GetSpellInfo(spellID)
@@ -191,10 +249,10 @@ function Self:GetSpellID()
     return self.spellID
 end
 
-function Self:Reset()
+function Self:Clear()
     self.spellID = nil
 
-    Parent.Reset(self)
+    Parent.Clear(self)
 end
 
 ---@param self GUI.RecipeForm.AuraSlotButton
@@ -227,6 +285,9 @@ TestFlightAuraSlotButtonMixin = Self
 ---@field Button GUI.RecipeForm.AuraSlotButton
 local Self = {}
 
+---@class GUI.RecipeForm.AuraReagentSlot: Frame, GUI.RecipeForm.AuraReagentSlotMixin
+
+---@param self GUI.RecipeForm.AuraReagentSlot
 ---@param form GUI.RecipeForm.WithAuras
 ---@param slotType Buffs.AuraSlot
 function Self:Init(form, slotType)
@@ -262,11 +323,6 @@ function Self:SetAura(auraID, level)
     end
 end
 
-function Self:FlyoutGetElementsImplementation(flyout, filterAvailable)
-    local items = Buffs:GetAuraContinuables(self.slot, filterAvailable)
-    return { items = items, forceAccumulateInventory = true }
-end
-
 ---@param flyout Flyout
 ---@param elementData FlyoutElementData
 function Self:FlyoutOnItemSelected(flyout, elementData)
@@ -274,16 +330,14 @@ function Self:FlyoutOnItemSelected(flyout, elementData)
     self.form:SetAura(item.auraID, item.level)
 end
 
+---@param self GUI.RecipeForm.AuraReagentSlot
 function Self:OnLoad()
     self.Button:SetScript("OnMouseDown", function(button, buttonName)
         if buttonName == "LeftButton" then
-            local flyout = NS.ToggleAuraFlyout(self.Button, self)
+            local flyout = NS.ToggleAuraFlyout(self.Button, self, self.slot)
             if not flyout then return end
 
-            flyout.GetElementsImplementation = Util:FnBind(self.FlyoutGetElementsImplementation, self)
-
-            flyout:Init(self.Button)
-            flyout:RegisterCallback(ProfessionsItemFlyoutMixin.Event.ItemSelected, self.FlyoutOnItemSelected, self)
+            flyout:RegisterCallback(ProfessionsFlyoutMixin.Event.ItemSelected, self.FlyoutOnItemSelected, self)
         else
             NS.CloseAuraFlyout()
             local auraID = self.form:GetAura(self.slot)
