@@ -1,3 +1,8 @@
+Version 5.00
+
+- Updated ToC version for patch 12.0
+- Fix changed API calls and profession system behavior
+
 Version 4.35
 
 - Fix tool expansion detection

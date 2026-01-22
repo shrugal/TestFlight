@@ -21,6 +21,21 @@
 ---@field reagent nil
 ---@field reagentInfo CraftingReagentInfo
 
+--- Returns true if the immediate calling function has appropriate permissions to access and operate on all supplied values.
+---@type fun(...): boolean
+canaccessallvalues = nil
+-- Returns true if the immediate calling function has appropriate permissions to access or operate on secret values.
+---@type fun(): boolean
+canaccesssecrets = nil
+-- Returns true if the immediate calling function has appropriate permissions to index secret tables. This will return false if the caller cannot access the table value itself, or if access to the table contents is disallowed by taint.
+---@type fun(value: table): boolean
+canaccesstable = nil
+-- Returns true if the immediate calling function has appropriate permissions to access and operate on a specific value.
+---@type fun(value: any): boolean
+canaccessvalue = nil
+
+--- TODO end --
+
 ---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
@@ -428,6 +443,11 @@ WorldQuestTrackerScreenPanel = nil
 ---@class ProfessionShoppingList.Settings
 ---@field enhancedOrders boolean
 ProfessionShoppingList_Settings = nil
+
+---@class WoWNotes
+---@field API SyndicatorAPI
+---@field db { global: { mailData: unknown } }
+WoWNotes = nil
 
 -----------------------------------------------------
 ---                 WoW frames                    --

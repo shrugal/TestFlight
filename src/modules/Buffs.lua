@@ -861,6 +861,7 @@ function Self:OnUnitAura(unit, info)
 
     if info.addedAuras then
         for _,data in pairs(info.addedAuras) do
+            if not canaccessvalue(data.spellId) then break end
             if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID], changed = data.charges or 1, true end
         end
     end

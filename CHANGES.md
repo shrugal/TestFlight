@@ -1,2 +1,2 @@
-- Updated ToC version for patch 12.0
-- Fix changed API calls and profession system behavior
+- Detect and handle secret spellIDs from aura and spellcasting events
+- Add WoWNotes as item count provider (should work once their mailData bug is fixed)

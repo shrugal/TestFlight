@@ -8,7 +8,7 @@
 ## Version: @project-version@
 ## SavedVariables: TestFlightDB
 ## SavedVariablesPerCharacter: TestFlightCharDB
-## OptionalDeps: Auctionator, TradeSkillMaster, RECrystallize, OribosExchange, Auctioneer
+## OptionalDeps: Auctionator, TradeSkillMaster, RECrystallize, OribosExchange, Auctioneer, WoWNotes
 
 # Core
 

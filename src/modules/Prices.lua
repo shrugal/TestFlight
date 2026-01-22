@@ -132,8 +132,6 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
 
     local price = 0
 
-    Addon:Debug({ order = order }, "GetRecipeAllocationPrice")
-
     for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
         if requiredOnly and not reagent.required then break end
 

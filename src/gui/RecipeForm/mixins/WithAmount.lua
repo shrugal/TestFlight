@@ -82,7 +82,7 @@ end
 ---@param castGUID string
 ---@param spellID number
 function Self:OnSpellcastInterrupted(unit, castGUID, spellID)
-    if unit ~= "player" then return end
+    if unit ~= "player" or not canaccessvalue(spellID) then return end
 
     local recipe = Self.craftingRecipe
     if not recipe or recipe.recipeID ~= spellID then return end
@@ -94,7 +94,7 @@ end
 ---@param castGUID string
 ---@param spellID number
 function Self:OnSpellcastSucceeded(unit, castGUID, spellID)
-    if unit ~= "player" then return end
+    if unit ~= "player" or not canaccessvalue(spellID) then return end
 
     local recipe, quality = Self.craftingRecipe, Self.craftingQuality
     if not recipe or recipe.recipeID ~= spellID then return end

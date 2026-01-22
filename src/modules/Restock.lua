@@ -157,18 +157,6 @@ function Self:GetItemCount(item, allChars)
             local _, accountOwned, _, accountAuctions = TSM_API.GetPlayerTotals(itemStr)
             count = count + accountOwned + accountAuctions
         end
-    elseif C_AddOns.IsAddOnLoaded("Syndicator") and Syndicator.API.IsReady() then
-        local player, realm = UnitName("player"), GetNormalizedRealmName()
-        local info = Syndicator.API.GetInventoryInfoByItemID(item, true, true)
-
-        for _,char in pairs(info.characters) do
-            if char.character == player and char.realmNormalized == realm then
-                count = count + char.auctions + char.mail
-                if not allChars then break end
-            elseif allChars then
-                count = count + char.auctions + char.mail + char.bags + char.bank
-            end
-        end
     elseif C_AddOns.IsAddOnLoaded("DataStore_Auctions") and C_AddOns.IsAddOnLoaded("DataStore_Mails") then
         local charKey = DataStore.ThisCharKey
         count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)
@@ -178,6 +166,24 @@ function Self:GetItemCount(item, allChars)
                 if charKey ~= DataStore.ThisCharKey then
                     count = count + DataStore:GetAuctionHouseItemCount(charKey, item) + DataStore:GetMailItemCount(charKey, item)
                     count = count + DataStore:GetInventoryItemCount(charKey, item) + DataStore:GetPlayerBankItemCount(charKey, item)
+                end
+            end
+        end
+    else
+        local syndicator = C_AddOns.IsAddOnLoaded("Syndicator") and Syndicator.API.IsReady()
+        local wownotes = C_AddOns.IsAddOnLoaded("WoWNotes") and WoWNotes.API.IsReady() and WoWNotes.db.global.mailData
+        local API = syndicator and Syndicator.API or wownotes and WoWNotes.API
+
+        if API then
+            local player, realm = UnitName("player"), GetNormalizedRealmName()
+            local info = API.GetInventoryInfoByItemID(item, true, true)
+
+            for _,char in pairs(info.characters) do
+                if char.character == player and char.realmNormalized == realm then
+                    count = count + char.auctions + char.mail
+                    if not allChars then break end
+                elseif allChars then
+                    count = count + char.auctions + char.mail + char.bags + char.bank
                 end
             end
         end
