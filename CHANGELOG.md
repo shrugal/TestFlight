@@ -1,3 +1,8 @@
+Version 5.01
+
+- Detect and handle secret spellIDs from aura and spellcasting events
+- Add WoWNotes as item count provider (should work once their mailData bug is fixed)
+
 Version 5.00
 
 - Updated ToC version for patch 12.0

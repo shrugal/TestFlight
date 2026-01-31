@@ -298,8 +298,8 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
 
             for _,reagent in pairs(Reagents:GetProvided(slot, order, self:GetRecraftMods())) do
                 local quantity = reagent.quantity or 1
-                if alloc:GetQuantityAllocated(reagent) < quantity then
-                    Reagents:Allocate(alloc, reagent, quantity)
+                if alloc:GetQuantityAllocated(reagent.reagent) < quantity then
+                    Reagents:Allocate(alloc, reagent.reagent, quantity)
                 end
             end
         elseif slot.required and alloc:Accumulate() < slot.quantityRequired then

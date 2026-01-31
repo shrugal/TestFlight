@@ -437,11 +437,11 @@ function Self:IsProvided(reagent, order, recraftMods)
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter then return order.orderID == nil end
 
     if Orders:IsCreatingProvided(order, reagent.slotIndex) then return true end
-    if Util:TblWhere(order.reagents, "slotIndex", reagent.slotIndex) then return true end
+    if Util:TblSomeWhere(order.reagents, "slotIndex", reagent.slotIndex) then return true end
 
     if order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
         local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
-        return slot and slot.itemID ~= 0
+        return slot and slot.reagent.itemID ~= 0
     end
 
     return false
@@ -456,12 +456,12 @@ function Self:GetProvided(reagent, order, recraftMods)
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Customer and order.orderID == nil then return Util.EMPTY end
     if reagent.orderSource == Enum.CraftingOrderReagentSource.Crafter and order.orderID ~= nil then return Util.EMPTY end
 
-    local list = Util:TblFilterWhere(order.reagents, "slotIndex", reagent.slotIndex)
-    for k,v in pairs(list) do --[=[@cast list CraftingReagentInfo[]]=] list[k] = v.reagentInfo end
+    ---@type CraftingReagentInfo[] | CraftingItemSlotModification[]
+    local list = Util(order.reagents):FilterWhere("slotIndex", reagent.slotIndex):Pick("reagentInfo")()
 
     if #list == 0 and order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
         local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
-        if slot and slot.itemID ~= 0 then tinsert(list, slot) end
+        if slot and slot.reagent.itemID ~= 0 then tinsert(list, slot) end
     end
 
     return list

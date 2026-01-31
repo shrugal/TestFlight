@@ -11,31 +11,6 @@
 ---                    Types                       --
 -----------------------------------------------------
 
--- TODO: 12.0 changes --
-
----@class CraftingReagentInfo
----@field itemID nil
----@field reagent CraftingReagent
-
----@class CraftingOrderReagentInfo 
----@field reagent nil
----@field reagentInfo CraftingReagentInfo
-
---- Returns true if the immediate calling function has appropriate permissions to access and operate on all supplied values.
----@type fun(...): boolean
-canaccessallvalues = nil
--- Returns true if the immediate calling function has appropriate permissions to access or operate on secret values.
----@type fun(): boolean
-canaccesssecrets = nil
--- Returns true if the immediate calling function has appropriate permissions to index secret tables. This will return false if the caller cannot access the table value itself, or if access to the table contents is disallowed by taint.
----@type fun(value: table): boolean
-canaccesstable = nil
--- Returns true if the immediate calling function has appropriate permissions to access and operate on a specific value.
----@type fun(value: any): boolean
-canaccessvalue = nil
-
---- TODO end --
-
 ---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
 ---@alias RecipeAllocation ProfessionTransationAllocations[]
@@ -586,7 +561,7 @@ ItemButtonMixin = nil
 ---@field ClearAllocations fun(self: self, slotIndex: number)
 ---@field GetModification fun(self: self, dataSlotIndex: number): CraftingItemSlotModification
 ---@field OverwriteAllocations fun(self: self, slotIndex: number, allocations: { allocs: ProfessionTransationAllocations[] })
----@field OverwriteAllocation fun(self: self, slotIndex: number, reagent: CraftingReagent | CraftingReagentInfo, quantity: number)
+---@field OverwriteAllocation fun(self: self, slotIndex: number, reagent: CraftingReagent, quantity: number)
 ---@field HasAnyAllocations fun(self: self, slotIndex: number): boolean
 ---@field IsManuallyAllocated fun(self: self): boolean
 ---@field SetManuallyAllocated fun(self: self, manuallyAllocated: boolean)
@@ -606,8 +581,8 @@ ItemButtonMixin = nil
 ---@field Clear fun(self: self)
 ---@field GetFirstAllocation fun(self: self): ProfessionTransactionAllocation
 ---@field FindAllocationByPredicate fun(self: self, predicate: fun(v: ProfessionTransactionAllocation): boolean): ProfessionTransactionAllocation
----@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent | CraftingReagentInfo): ProfessionTransactionAllocation
----@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification): number
+---@field FindAllocationByReagent fun(self: self, reagent: CraftingReagent): ProfessionTransactionAllocation
+---@field GetQuantityAllocated fun(self: self, reagent: CraftingReagent): number
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
 ---@field Allocate fun(self: self, reagent: CraftingReagent, quality: number)

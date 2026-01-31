@@ -1,2 +1,1 @@
-- Detect and handle secret spellIDs from aura and spellcasting events
-- Add WoWNotes as item count provider (should work once their mailData bug is fixed)
+- Fix more bugs caused by reagent info data type changes
