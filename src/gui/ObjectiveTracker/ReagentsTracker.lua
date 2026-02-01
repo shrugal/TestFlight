@@ -317,7 +317,9 @@ function Self:OnAddonLoaded(addonName)
     self.module = self:Create()
     self.module:SetContainer(ObjectiveTrackerFrame)
 
-    hooksecurefunc(ObjectiveTrackerFrame, "Update", function (_, dirtyUpdate) self.module:UpdatePosition(dirtyUpdate) end)
+    hooksecurefunc(ObjectiveTrackerContainerMixin, "Update", function (_, dirtyUpdate)
+        self.module:UpdatePosition(dirtyUpdate)
+    end)
 
     Parent.OnAddonLoaded(self)
 end

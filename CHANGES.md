@@ -1,1 +1,2 @@
 - Fix more bugs caused by reagent info data type changes
+- Fix not repositioning recipe tracker on objective tracker updates
