@@ -424,6 +424,9 @@ ProfessionShoppingList_Settings = nil
 ---@field db { global: { mailData: unknown } }
 WoWNotes = nil
 
+---@class PatronOffersRoot: Frame
+PatronOffersRoot = nil
+
 -----------------------------------------------------
 ---                 WoW frames                    --
 -----------------------------------------------------

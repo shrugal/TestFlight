@@ -1,3 +1,8 @@
+Version 5.02
+
+- Fix more bugs caused by reagent info data type changes
+- Fix not repositioning recipe tracker on objective tracker updates
+
 Version 5.01
 
 - Detect and handle secret spellIDs from aura and spellcasting events

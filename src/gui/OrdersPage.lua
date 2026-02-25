@@ -20,6 +20,12 @@ function Self:AdjustOrdersList()
     orderList:SetPoint("TOPRIGHT", -2, 0)
     orderList:SetHeight(531)
     orderList.NineSlice:SetPoint("BOTTOMRIGHT", -3, -2)
+
+    if C_AddOns.IsAddOnLoaded("PatronOffers") and PatronOffersRoot then
+        local root, h, y = PatronOffersRoot, 542.5, 32
+        root:SetPoint("BOTTOMRIGHT", -2, 3 + y)
+        root:SetSize(800, h - y)
+    end
 end
 
 -- Claim order button

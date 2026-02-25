@@ -1,2 +1,1 @@
-- Fix more bugs caused by reagent info data type changes
-- Fix not repositioning recipe tracker on objective tracker updates
+- If the "Patron Offers" addon is installed, adjust the size of its patron orders list
