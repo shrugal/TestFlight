@@ -322,7 +322,7 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
     local filter, sort = self.filter, self:GetFilterSort(self.filter) --[[@cast filter -?]] --[[@cast sort -?]]
 
     local profInfo = self:GetProfessionInfo()
-    local professionChanged = not self.filterProfessionInfo
+    local professionChanged = not profInfo or not self.filterProfessionInfo
         or not Util:TblMatch(self.filterProfessionInfo, "professionID", profInfo.professionID, "skillLevel", profInfo.skillLevel, "skillModifier", profInfo.skillModifier)
 
     local recipeIDs = self:GetFilterRecipeIDs(filter)
@@ -330,6 +330,8 @@ function Self:UpdateRecipeList(refresh, flush, updateSelected)
 
     self.filterProfessionInfo = profInfo
     self.filterRecipeIDs = recipeIDs
+
+    if not profInfo then return end
 
     local recipeList = self.recipeList
     local scrollBox = recipeList.ScrollBox

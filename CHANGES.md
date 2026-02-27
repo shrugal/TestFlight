@@ -1,1 +1,1 @@
-- If the "Patron Offers" addon is installed, adjust the size of its patron orders list
+- Fix error on missing profInfo in recipe container filter views

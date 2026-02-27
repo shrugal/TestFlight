@@ -1,3 +1,7 @@
+Version 5.03
+
+- If the "Patron Offers" addon is installed, adjust the size of its patron orders list
+
 Version 5.02
 
 - Fix more bugs caused by reagent info data type changes
