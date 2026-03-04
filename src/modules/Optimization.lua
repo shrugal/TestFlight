@@ -416,11 +416,15 @@ end
 function Self:GetReagentQuantitiesForWeight(reagent, weight, p1, p2, p3)
     if not p1 then p1, p2, p3 = Prices:GetReagentPrices(reagent) end
 
-    local q, q2, q3 = reagent.quantityRequired, 0, 0
+    local n, q, q2, q3 = #reagent.reagents, reagent.quantityRequired, 0, 0
 
-    if p3 < p1 and p3 < p2 then return 0, 0, q end
+    if n < 3 then
+        p3 = math.huge
+    else
+        if p3 < p1 and p3 < p2 then return 0, 0, q end
 
-    q3 = math.max(0, weight - q)
+        q3 = math.max(0, weight - q)
+    end
 
     if p2 < p1 and p2 < p3 then return 0, q - q3, q3 end
 

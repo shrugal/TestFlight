@@ -158,7 +158,7 @@ function Self:GetSkillBounds(recipe, qualitySlots, optionalReagents, orderOrRecr
 
     -- Get required skill with base and best materials
     local opBase = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
-    for i=1,#qualitySlots do reagents[i].reagent = qualitySlots[i].reagents[3] end
+    for i=1,#qualitySlots do reagents[i].reagent = qualitySlots[i].reagents[#qualitySlots[i].reagents] end
     local opBest = Recipes:GetOperationInfo(recipe, reagents, orderOrRecraftGUID)
 
     if not opBase or not opBest then return end
@@ -285,13 +285,14 @@ function Self:GetCraftingInfoForWeight(recipe, weight, isLowerBound)
     ---@type CraftingReagentInfo[]
     local reagents = {}
 
-    local rest = weight
+    ---@type CraftingReagentSlotSchematic[]
     local slots = Util(self:GetQualitySlots(recipe)):SortBy(Util:FnBind(self.GetWeight, self))()
+    local rest = weight
 
     for i,reagent in ipairs_reverse(slots) do
         local w = self:GetWeight(reagent)
         local q1 = reagent.quantityRequired
-        local q3 = min(q1, floor(rest / w / 2))
+        local q3 = #reagent.reagents > 2 and min(q1, floor(rest / w / 2)) or 0
         q1, rest = q1 - q3, rest - q3 * w * 2
         local q2 = min(q1, floor(rest / w))
         q1, rest = q1 - q2, rest - q2 * w
@@ -363,12 +364,14 @@ function Self:GetAllocationWeight(qualityReagents, allocation)
     for _,reagent in pairs(qualityReagents) do
        local allocations = allocation[reagent.slotIndex]
        if allocations then
-          for i=2,3 do
-             local quantity = allocations:GetQuantityAllocated(reagent.reagents[i])
-             if quantity > 0 then
-                weight = weight + (i-1) * quantity * self:GetWeight(reagent)
-             end
-          end
+          for i=2,3 do repeat
+            if not reagent.reagents[i] then break end
+ 
+            local quantity = allocations:GetQuantityAllocated(reagent.reagents[i])
+            if quantity == 0 then break end
+
+            weight = weight + (i-1) * quantity * self:GetWeight(reagent)
+        until true end
        end
     end
     return weight

@@ -1,1 +1,3 @@
+- Add Midnight reagent, enchant and trait data
+- Fix some problems with reagents that only have two quality levels
 - Fix error on missing profInfo in recipe container filter views
