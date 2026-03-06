@@ -28,8 +28,9 @@ Self.STATS = {
         NAME = ITEM_MOD_RESOURCEFULNESS_SHORT,
         YIELD = 0.3,
         FACTORS = {
-            [09] = 0.00111,
-            [10] = 0.00037,
+            [09] = 0.111,
+            [10] = 0.111,
+            [11] = 0.111,
         }
     },
     -- Multicraft
@@ -42,24 +43,27 @@ Self.STATS = {
             [5] = 1.875,
         },
         FACTORS = {
-            [09] = 0.0009,
-            [10] = 0.000303,
+            [09] = 0.09,
+            [10] = 0.09,
+            [11] = 0.09,
         }
     },
     -- Ingenuity
     IG = {
         NAME = ITEM_MOD_INGENUITY_SHORT,
         FACTORS = {
-            [09] = 0.000333,
-            [10] = 0.000333,
+            [09] = 0.0333,
+            [10] = 0.0333,
+            [11] = 0.0333,
         }
     },
     -- Crafting speed
     CS = {
         NAME = ITEM_MOD_CRAFTING_SPEED_SHORT,
         FACTORS = {
-            [09] = 0.002,
-            [10] = 0.001114
+            [09] = 0.037,
+            [10] = 0.037,
+            [11] = 0.037,
         }
     }
 }
@@ -67,6 +71,8 @@ Self.STATS = {
 -- Source https://www.wowhead.com/spells?filter=16:109:29;11:6:511;0:0:0
 ---@type BuffAuraInfo[]
 Self.AURAS = {
+    -- The War Within
+
     -- Phial of Enhanced Ambidexterity
     [432304] = {
         SLOT = "PHIAL",
@@ -154,40 +160,98 @@ Self.AURAS = {
             [100823] = { MC = 150, RC = 150, IG = 150 },
         },
     },
+
+    -- Midnight
+
+    -- Blessing: Abundant Rush
+    -- [1273402] = { EXPANSION = 11, STATS = { { CS = 50} } },
+    -- Haranir Phial of Ingenuity
+    [1239755] = {
+        SLOT = "PHIAL",
+        EXPANSION = 11,
+        RECIPE = 1230872,
+        ITEM = true,
+        STATS = { { IG = 38, CS = 19 }, { IG = 45, CS = 23 } }
+    },
+    -- Shattered Essence
+    [1235733] = {
+        SLOT = "PROFESSION",
+        EXPANSION = 11,
+        SKILL = 2909,
+        RECIPE = 1235731,
+        PERKS = {},
+    },
 }
 
 -- Source: https://www.wowhead.com/items/miscellaneous/other/name:Knowledge/quality:3?filter=166;11;0
 ---@type number[]
 Self.KNOWLEDGE_POINTS = {
+    -- The War Within
     [228724] = 1,
-    [228736] = 1,
-    [228726] = 1,
-    [228730] = 1,
-    [228734] = 1,
-    [228738] = 1,
-    [228728] = 1,
-    [228732] = 1,
     [228725] = 2,
-    [228735] = 2,
-    [228729] = 2,
-    [228739] = 2,
+    [228726] = 1,
     [228727] = 2,
-    [228733] = 2,
-    [228737] = 2,
+    [228728] = 1,
+    [228729] = 2,
+    [228730] = 1,
     [228731] = 2,
+    [228732] = 1,
+    [228733] = 2,
+    [228734] = 1,
+    [228735] = 2,
+    [228736] = 1,
+    [228737] = 2,
+    [228738] = 1,
+    [228739] = 2,
+    -- Midnight
+    [246320] = 1,
+    [246321] = 2,
+    [246322] = 1,
+    [246323] = 2,
+    [246324] = 1,
+    [246325] = 2,
+    [246326] = 1,
+    [246327] = 2,
+    [246328] = 1,
+    [246329] = 2,
+    [246330] = 1,
+    [246331] = 2,
+    [246332] = 1,
+    [246333] = 2,
+    [246334] = 1,
+    [246335] = 2,
+}
+
+-- Source: https://www.wowhead.com/search?q=Artisan#currencies
+---@type true[]
+Self.ARTISAN_CURRENCY = {
+    -- Midnight
+    [3256] = true,
+    [3257] = true,
+    [3258] = true,
+    [3259] = true,
+    [3260] = true,
+    [3261] = true,
+    [3262] = true,
+    [3263] = true,
+    [3264] = true,
+    [3265] = true,
+    [3266] = true,
 }
 
 -- Source: https://www.wowhead.com/items/trade-goods/other/name:Artisan
 ---@type true[]
-Self.ARTISAN_CURRENCY = {
-    [210814] = true,
-    [190456] = true,
+Self.ARTISAN_CURRENCY_ITEMS = {
+    [190456] = true, -- Dragonflight
+    [210814] = true, -- The War Within
+    [237505] = true, -- Midnight
 }
 
 -- Source: https://www.wowhead.com/items/name:Artisan+Payout
 ---@type true[]
 Self.ARTISAN_PAYOUT = {
-    [227713] = true,
+    [227713] = true, -- The War Within
+    [246585] = true, -- Midnight
 }
 
 -- Source: CraftSim

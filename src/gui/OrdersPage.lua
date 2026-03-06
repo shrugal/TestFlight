@@ -353,11 +353,9 @@ function Self:CommissionCellPopulate(cell, rowData, dataIndex)
     local rewards = ""
     if order.npcOrderRewards then
         for _,r in pairs(order.npcOrderRewards) do repeat
-            if not r.itemLink then break end
-            rewards = rewards .. ("|T%d:0|t%s "):format(
-                C_Item.GetItemIconByID(r.itemLink),
-                r.count > 1 and "x" .. r.count or ""
-            )
+            local icon = r.itemLink and C_Item.GetItemIconByID(r.itemLink) or r.currencyType and C_CurrencyInfo.GetCurrencyInfo(r.currencyType).iconFileID
+            if not icon then break end
+            rewards = rewards .. ("|T%d:0|t%s "):format(icon, r.count > 1 and "x" .. r.count or "")
         until true end
     end
 

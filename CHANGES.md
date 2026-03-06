@@ -1,3 +1,3 @@
-- Add Midnight reagent, enchant and trait data
-- Fix some problems with reagents that only have two quality levels
-- Fix error on missing profInfo in recipe container filter views
+- Update ToC version for patch 12.0.1 (finally)
+- Add more midnight data (stat multipliers, auras, knowledge items, currencies)
+- Fix error on currency NPC order rewards

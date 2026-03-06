@@ -1,3 +1,9 @@
+Version 5.04
+
+- Add Midnight reagent, enchant and trait data
+- Fix some problems with reagents that only have two quality levels
+- Fix error on missing profInfo in recipe container filter views
+
 Version 5.03
 
 - If the "Patron Offers" addon is installed, adjust the size of its patron orders list

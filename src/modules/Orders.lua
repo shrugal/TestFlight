@@ -344,10 +344,14 @@ function Self:GetNumNpcRewards(order)
 
     local knowledge, currency, payout = 0, 0, 0
     for _,reward in pairs(order.npcOrderRewards) do
-        local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
-        knowledge = knowledge + (C.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
-        currency = currency + (C.ARTISAN_CURRENCY[itemID] and 1 or 0) * reward.count
-        payout = payout + (C.ARTISAN_PAYOUT[itemID] and 1 or 0) * reward.count
+        if reward.itemLink then
+            local itemID = C_Item.GetItemInfoInstant(reward.itemLink)
+            knowledge = knowledge + (C.KNOWLEDGE_POINTS[itemID] or 0) * reward.count
+            currency = currency + (C.ARTISAN_CURRENCY_ITEMS[itemID] and 1 or 0) * reward.count
+            payout = payout + (C.ARTISAN_PAYOUT[itemID] and 1 or 0) * reward.count
+        elseif reward.currencyType then
+            currency = currency + (C.ARTISAN_CURRENCY[reward.currencyType] and 1 or 0) * reward.count
+        end
     end
     return knowledge, currency, payout
 end

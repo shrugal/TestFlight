@@ -213,9 +213,10 @@ function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, r
 
     local rewards = 0
     if order and order.npcOrderRewards then
-        for _,reward in pairs(order.npcOrderRewards) do
+        for _,reward in pairs(order.npcOrderRewards) do repeat
+            if not reward.itemLink then break end
             rewards = rewards + reward.count * self:GetItemPrice(reward.itemLink)
-        end
+        until true end
     end
 
     local profit = revenue + resourcefulness + multicraft + rewards - reagentPrice - traderCut

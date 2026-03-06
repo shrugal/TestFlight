@@ -666,7 +666,7 @@ function Self:ApplyStats(operationInfo, expansionID, stats, mode)
                 if not stats[s] then break end
 
                 local diff = stats[s] * mode
-                local diffPct = diff * stat.FACTORS[expansionID] * 100
+                local diffPct = diff * stat.FACTORS[expansionID]
                 local ratingPct = max(0, line.ratingPct + diffPct)
                 local ratingPctStr = string.format("%.1f%%%%", ratingPct)
 
