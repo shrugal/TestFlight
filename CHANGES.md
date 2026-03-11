@@ -1,1 +1,2 @@
 - Add option to disable restock feature and UI elements
+- Add Midnight crafting aura perk data

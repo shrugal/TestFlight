@@ -22,6 +22,7 @@ Self.QUALITY_BREAKPOINTS = {
 Self.CONCENTRATION_BREAKPOINTS = { 0, 0.2, 0.6, 1 }
 
 -- Source: CraftSim (mostly)
+---@type table<BonusStat, StatInfo>
 Self.STATS = {
     -- Resourcefulness
     RC = {
@@ -179,7 +180,17 @@ Self.AURAS = {
         EXPANSION = 11,
         SKILL = 2909,
         RECIPE = 1235731,
-        PERKS = {},
+        PERKS = {
+            [107587] = { MC = 20 },
+            [107589] = { MC = 10 },
+            [107591] = { MC = 05 },
+            [107594] = { IG = 20 },
+            [107596] = { IG = 10 },
+            [107598] = { IG = 05 },
+            [107601] = { RC = 20 },
+            [107603] = { RC = 10 },
+            [107605] = { RC = 05 },
+        },
     },
 }
 

@@ -167,13 +167,13 @@ end
 
 ---@param toolGUID string
 ---@return number? skill
----@return table<string, number>? stats
+---@return table<BonusStat, number>? stats
 function Self:GetToolBonus(toolGUID)
     local info = C_TooltipInfo.GetItemByGUID(toolGUID)
     if not info then return end
 
-    ---@type table<string, number>
-    local stats = Util(C.STATS):Copy():SetAll(0)()
+    ---@type table<BonusStat, number>
+    local stats = {}
     local skill = 0
 
     for _,line in ipairs(info.lines) do repeat
@@ -187,7 +187,7 @@ function Self:GetToolBonus(toolGUID)
         else
             for s,stat in pairs(C.STATS) do
                 if line.leftText:find(stat.NAME) then
-                    stats[s] = stats[s] + n break
+                    stats[s] = (stats[s] or 0) + n break
                 end
             end
         end
@@ -214,7 +214,7 @@ end
 ---@param toolGUID string
 ---@param profession Enum.Profession
 function Self:EquipTool(toolGUID, profession)
-    local location = C_Item.GetItemLocation(toolGUID) ---@cast location ItemLocationMixin
+    local location = C_Item.GetItemLocation(toolGUID) --[[@as ItemLocationMixin ]]
     if not location:IsBagAndSlot() then return false end
 
     local bag, slot = location:GetBagAndSlot()
@@ -653,7 +653,7 @@ end
 
 ---@param operationInfo CraftingOperationInfo
 ---@param expansionID number
----@param stats table<string, number>
+---@param stats table<BonusStat, number>
 ---@param mode? 1 | -1
 function Self:ApplyStats(operationInfo, expansionID, stats, mode)
     if not mode then mode = 1 end

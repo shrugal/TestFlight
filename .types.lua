@@ -17,12 +17,16 @@
 
 ---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 
+---@alias StatInfo { NAME: string, FACTORS: table<number, number>, YIELD?: number | table<number, number> }
+
 ---@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStat, number>[], STATS?: table<BonusStat, number>[] }
 
 ---@alias AuraContinuable ItemMixin | SpellMixin
 
 ---@alias Reagent CraftingReagent | CraftingReagentInfo | CraftingReagentSlotSchematic | ProfessionTransactionAllocation | number
 
+-- These refer to raw stats on tools, buffs and buff perks, and yield increases
+-- on regular perks. TODO: Maybe split into separate types for clarity.
 -- MC: Multicraft
 -- RF: Resourcefulness
 -- CC: Concentration
