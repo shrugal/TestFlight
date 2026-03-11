@@ -143,17 +143,19 @@ function Self:UpdateRestockElements()
     local shown, checked, amount, minProfit = false, false, 1, 0
     local text = LIGHTGRAY_FONT_COLOR:WrapTextInColorCode("Restock")
 
-    local operation = self:GetOperation()
-    if operation then
-        local recipe, quality, isOpQuality = operation.recipe, self:GetRestockQuality()
+    if Restock:IsEnabled() then
+        local operation = self:GetOperation()
+        if operation then
+            local recipe, quality, isOpQuality = operation.recipe, self:GetRestockQuality()
 
-        shown = self:ShouldShowElement() and not operation.applyConcentration and operation:HasProfit()
-        checked = shown and Restock:IsTracked(recipe, quality) or false
-        amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
-        minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
+            shown = self:ShouldShowElement() and not operation.applyConcentration and operation:HasProfit()
+            checked = shown and Restock:IsTracked(recipe, quality) or false
+            amount = checked and Restock:GetTrackedAmount(recipe, quality) or 1
+            minProfit = checked and Restock:GetTrackedMinProfit(recipe, quality) or 0
 
-        if not isOpQuality then
-            text = ("%s %s"):format(text, Recipes:GetQualityIcon(recipe, quality))
+            if not isOpQuality then
+                text = ("%s %s"):format(text, Recipes:GetQualityIcon(recipe, quality))
+            end
         end
     end
 
@@ -226,15 +228,6 @@ function Self:InsertAmountSpinner(...)
     Parent.InsertAmountSpinner(self, ...)
 
     self:InsertTrackQualityCheckbox()
-end
-
----@param frame NumericInputSpinner
----@param value number
-function Self:AmountSpinnerOnChange(frame, value)
-    local recipe = self:GetRecipe()
-    if not recipe or not self.form.transaction then return end
-
-    self:GetTracking():SetTrackedAmount(recipe, value)
 end
 
 function Self:UpdateAmountSpinner()

@@ -35,11 +35,34 @@ function Self:RegisterGeneralSettings()
         true,
         "Reagents Tracker",
         "Toggle reagents tracker.",
-        function (setting, value)
+        function (_, value)
             local tracker = GUI.ObjectiveTracker.ReagentsTracker.module
             if not tracker then return end
 
             if value then tracker:UpdatePosition() else tracker:RemoveFromParent() end
+        end
+    )
+
+    -- Restocking
+    self:CreateCheckbox(
+        "restock",
+        true,
+        "Restocking",
+        "Toggle restocking feature and UI elements",
+        function (_, value)
+            -- Update recipe forms
+            for _, form in pairs(GUI.forms) do repeat ---@cast form GUI.RecipeForm.WithRestock
+                if not form.UpdateRestockElements or not form.form:IsVisible() then break end
+                form:UpdateRestockElements()
+            until true end
+
+            -- Update filter views
+            for _, container in pairs(GUI.formContainers) do repeat ---@cast container GUI.RecipeFormContainer.WithFilterViews
+                local filters, Restock = container.filterList, container.Filter and container.Filter.Restock
+                if not filters or value == (filters[#filters] == Restock) then break end
+                if value then tinsert(filters, Restock) else tremove(filters) end
+                container:SetFilterSelected(nil)
+            until true end
         end
     )
 

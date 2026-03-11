@@ -20,6 +20,8 @@ TestFlightDB = {
     tooltip = false,
     ---@type boolean Enable reagents tracker
     reagents = true,
+    ---@type boolean Enable restocking features and UI elements
+    restock = true,
     ---@type string? Preferred price source addon
     priceSource = nil,
     ---@type number Cost per concentration point (in copper)
@@ -161,8 +163,12 @@ function Self:Load()
         Char = TestFlightCharDB,
     }
 
-    -- Migrations
+    self:Migrate()
 
+    self:TriggerEvent(self.Event.Loaded)
+end
+
+function Self:Migrate()
     -- Account
     if not self.DB.Account.v then
         self.DB.Account.amounts = nil
@@ -190,6 +196,10 @@ function Self:Load()
         self.DB.Account.payoutCost = 0
         self.DB.Account.v = 6
     end
+    if self.DB.Account.v < 7 then
+        self.DB.Account.restock = true
+        self.DB.Account.v = 7
+    end
 
     -- Char
     if self.DB.Char.v < 2 then
@@ -207,8 +217,6 @@ function Self:Load()
         self.DB.Char.costs = {}
         self.DB.Char.v = 4
     end
-
-    self:TriggerEvent(self.Event.Loaded)
 end
 
 function Self:Enable()

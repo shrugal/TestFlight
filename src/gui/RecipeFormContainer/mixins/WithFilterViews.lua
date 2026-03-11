@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, Cache, GUI, Optimization, Prices, Promise, Reagents, Recipes, Restock, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Recipes, Addon.Restock, Addon.Util
+local Buffs, Cache, GUI, Optimization, Prices, Promise, Recipes, Restock, Util = Addon.Buffs, Addon.Cache, Addon.GUI, Addon.Optimization, Addon.Prices, Addon.Promise, Addon.Recipes, Addon.Restock, Addon.Util
 local NS = GUI.RecipeFormContainer
 
 ---@type GUI.RecipeFormContainer.RecipeFormContainer
@@ -257,10 +257,15 @@ function Self:ModifyRecipeListFilter()
             until true end
         end
 
-        -- Add tracked and restock options
+        -- Add queue option
         rootDescription:CreateRadio("Queue", IsFilterSelected, SetFilterSelected, self.Filter.Queue)
-        rootDescription:CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock)
 
+        -- Add restock option
+        if Restock:IsEnabled() then
+            rootDescription:CreateRadio("Restock", IsFilterSelected, SetFilterSelected, self.Filter.Restock)
+        end
+
+        -- Add buff filters
         Buffs:AddAuraFilters(rootDescription)
     end)
 

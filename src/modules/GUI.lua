@@ -21,6 +21,12 @@ Self.forms = {
     Self.RecipeForm.CustomerOrderForm
 }
 
+---@type GUI.RecipeFormContainer.RecipeFormContainer[]
+Self.formContainers = {
+    Self.RecipeFormContainer.CraftingPage,
+    Self.RecipeFormContainer.OrdersView,
+}
+
 ---------------------------------------
 --             Elements
 ---------------------------------------

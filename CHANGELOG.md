@@ -1,3 +1,9 @@
+Version 5.05
+
+- Update ToC version for patch 12.0.1 (finally)
+- Add more midnight data (stat multipliers, auras, knowledge items, currencies)
+- Fix error on currency NPC order rewards
+
 Version 5.04
 
 - Add Midnight reagent, enchant and trait data

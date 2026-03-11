@@ -1,3 +1,1 @@
-- Update ToC version for patch 12.0.1 (finally)
-- Add more midnight data (stat multipliers, auras, knowledge items, currencies)
-- Fix error on currency NPC order rewards
+- Add option to disable restock feature and UI elements

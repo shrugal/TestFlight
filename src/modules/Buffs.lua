@@ -535,7 +535,7 @@ function Self:AddAuraFilters(menuDescription, addAddonTitle)
 
         if not title then
             title = true
-            
+
             menuDescription:CreateSpacer()
 
             if addAddonTitle then

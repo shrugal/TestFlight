@@ -137,6 +137,10 @@ end
 --              Util
 ---------------------------------------
 
+function Self:IsEnabled()
+    return Addon.DB.Account.restock
+end
+
 ---@param key? boolean
 function Self:Enumerate(key)
     return Util:TblEnum(Addon.DB.Char.restock, 1, key)
