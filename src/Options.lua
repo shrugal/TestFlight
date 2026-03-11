@@ -66,6 +66,8 @@ function Self:RegisterGeneralSettings()
         end
     )
 
+    self:CreateHeading("Prices")
+
     --- Price source
     Settings.CreateDropdown(
         self.category,
@@ -153,6 +155,13 @@ function Self:CreateEditBox(category, setting, tooltip)
     local initializer = Settings.CreateControlInitializer("TestFlightSettingsEditBoxControlTemplate", setting, nil, tooltip)
 	SettingsPanel:GetLayout(category):AddInitializer(initializer)
     return initializer
+end
+
+---@param label string
+---@param layout? SettingsVerticalLayout
+function Self:CreateHeading(label, layout)
+    if not layout then layout = self.layout end
+	layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(label));
 end
 
 ---------------------------------------
