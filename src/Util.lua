@@ -128,6 +128,13 @@ function Self:GetItemBagLocationByID(itemID)
     end
 end
 
+function Self:IsRestricted()
+    for _,t in pairs(Enum.AddOnRestrictionType) do
+      if C_RestrictedActions.IsAddOnRestrictionActive(t) then return true end
+    end
+    return false
+end
+
 -- Tbl
 
 ---@param tbl table

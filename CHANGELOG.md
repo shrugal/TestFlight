@@ -1,3 +1,8 @@
+Version 5.06
+
+- Add option to disable restock feature and UI elements
+- Add Midnight crafting aura perk data
+
 Version 5.05
 
 - Update ToC version for patch 12.0.1 (finally)

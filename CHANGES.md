@@ -1,2 +1,2 @@
-- Add option to disable restock feature and UI elements
-- Add Midnight crafting aura perk data
+- Fix error when loading addon while addon restrictions are in effect
+- Fix some more weight calculation bugs with new midnight recipes

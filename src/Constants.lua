@@ -1087,7 +1087,7 @@ Self.REAGENTS = {
 }
 
 -- Source: CraftSim
----@type table<number, table<BonusStat, number>>
+---@type table<number, table<BonusStatModifier, number>>
 Self.FINISHING_REAGENTS = {
     [213762] = { RF = 6.00 },
     [213763] = { RF = 9.00 },
@@ -1274,7 +1274,7 @@ Self.ENCHANTS = {
 
 -- Source: CraftSim
 Self.TRAITS = {
-    ---@type table<number, table<BonusStat, number>>
+    ---@type table<number, table<BonusStatModifier, number>>
     PERKS = {
         [097609] = { MC = 25.00 },
         [097611] = { MC = 25.00 },

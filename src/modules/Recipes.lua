@@ -320,7 +320,7 @@ end
 ---------------------------------------
 
 ---@param recipe CraftingRecipeSchematic
----@param stat BonusStat
+---@param stat BonusStatModifier
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetStatBonus(recipe, stat, optionalReagents)
     local val = 0

@@ -167,12 +167,12 @@ end
 
 ---@param toolGUID string
 ---@return number? skill
----@return table<BonusStat, number>? stats
+---@return table<BonusStatModifier, number>? stats
 function Self:GetToolBonus(toolGUID)
     local info = C_TooltipInfo.GetItemByGUID(toolGUID)
     if not info then return end
 
-    ---@type table<BonusStat, number>
+    ---@type table<BonusStatModifier, number>
     local stats = {}
     local skill = 0
 
@@ -653,7 +653,7 @@ end
 
 ---@param operationInfo CraftingOperationInfo
 ---@param expansionID number
----@param stats table<BonusStat, number>
+---@param stats table<BonusStatModifier, number>
 ---@param mode? 1 | -1
 function Self:ApplyStats(operationInfo, expansionID, stats, mode)
     if not mode then mode = 1 end
@@ -904,9 +904,11 @@ function Self:OnProfessionEquipmentChanged(skillLineID, isTool)
 end
 
 function Self:OnLoaded()
-    AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
-        if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID] = data.charges or 1 end
-    end, true)
+    if not Util:IsRestricted() then
+        AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
+            if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID] = data.charges or 1 end
+        end, true)
+    end
 
     EventRegistry:RegisterFrameEventAndCallback("UNIT_AURA", self.OnUnitAura, self)
     EventRegistry:RegisterFrameEventAndCallback("TRAIT_CONFIG_UPDATED", self.OnTradeConfigUpdated, self)

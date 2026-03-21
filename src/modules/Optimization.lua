@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local Buffs, C, Cache, Operation, Prices, Promise, Reagents, Util = Addon.Buffs, Addon.Constants, Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Util
+local Buffs, Cache, Operation, Prices, Promise, Reagents, Util = Addon.Buffs, Addon.Cache, Addon.Operation, Addon.Prices, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Optimization
 local Self = Addon.Optimization
@@ -368,8 +368,8 @@ function Self:GetWeightsAndPrices(operation)
             local itemWeight = Reagents:GetWeight(slot)
 
             for j=0, 2*slot.quantityRequired do
-                local q1, q2, q3 = self:GetReagentQuantitiesForWeight(slot, j)
-                local price = p1 * q1 + p2 * q2 + p3 * q3
+                local q1, q2, q3 = self:GetReagentQuantitiesForWeight(slot, j, p1, p2 or math.huge, p3 or math.huge)
+                local price = q1 * p1 + q2 * (p2 or 0) + q3 * (p3 or 0)
                 local c = j * itemWeight
 
                 for w=0, #prices[0] + c do
@@ -414,13 +414,11 @@ end
 ---@param p2? number
 ---@param p3? number
 function Self:GetReagentQuantitiesForWeight(reagent, weight, p1, p2, p3)
-    if not p1 then p1, p2, p3 = Prices:GetReagentPrices(reagent) end
+    if not p1 then p1, p2, p3 = Prices:GetReagentPrices(reagent, math.huge) end
 
     local n, q, q2, q3 = #reagent.reagents, reagent.quantityRequired, 0, 0
 
-    if n < 3 then
-        p3 = math.huge
-    else
+    if n > 2 then
         if p3 < p1 and p3 < p2 then return 0, 0, q end
 
         q3 = math.max(0, weight - q)
@@ -568,8 +566,7 @@ end
 ---@return number lowerWeight
 ---@return number upperWeight
 function Self:GetBestConcentrationAllocation(operation, method, lowerWeight, upperWeight)
-    ---@diagnostic disable-next-line: cast-local-type
-    operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
+    local operation, lowerWeight, upperWeight = self:GetAllocationForQuality(operation, nil, method, lowerWeight, upperWeight) ---@cast operation -?
     return operation, lowerWeight, upperWeight
 end
 

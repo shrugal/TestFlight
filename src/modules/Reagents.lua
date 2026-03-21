@@ -111,7 +111,7 @@ end
 function Self:GetMaxWeight(qualityReagents)
     local weight = 0
     for _,reagent in pairs(qualityReagents) do
-        weight = weight + 2 * reagent.quantityRequired * self:GetWeight(reagent)
+        weight = weight + max(1, #reagent.reagents - 1) * reagent.quantityRequired * self:GetWeight(reagent)
     end
     return weight
 end
@@ -120,7 +120,7 @@ end
 function Self:GetCheapestWeight(qualityReagents)
     local cheapestWeight = 0
     for _,reagent in pairs(qualityReagents) do
-        local p1, p2, p3 = Prices:GetReagentPrices(reagent)
+        local p1, p2, p3 = Prices:GetReagentPrices(reagent, math.huge)
         local w = p3 <= p1 and p3 <= p2 and 2 or p2 <= p1 and p2 <= p3 and 1 or 0
         cheapestWeight = cheapestWeight + reagent.quantityRequired * w * self:GetWeight(reagent)
     end
@@ -507,7 +507,7 @@ end
 ---------------------------------------
 
 ---@param reagent CraftingReagentInfo | CraftingReagent | number
----@param stat BonusStat
+---@param stat BonusStatModifier
 function Self:GetStatBonus(reagent, stat)
     local itemID = self:GetItemID(reagent)
     local stats = C.FINISHING_REAGENTS[itemID]
@@ -517,7 +517,7 @@ function Self:GetStatBonus(reagent, stat)
 end
 
 ---@param reagent CraftingReagentInfo | CraftingReagent | number
----@param stat BonusStat
+---@param stat BonusStatModifier
 function Self:HasStatBonus(reagent, stat)
     return self:GetStatBonus(reagent, stat) > 0
 end

@@ -668,7 +668,7 @@ end
 
 -- Stats
 
----@param stat BonusStat
+---@param stat BonusStatModifier
 ---@return number
 function Self:GetStatBonus(stat)
     if not self[stat] then

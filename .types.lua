@@ -19,7 +19,7 @@
 
 ---@alias StatInfo { NAME: string, FACTORS: table<number, number>, YIELD?: number | table<number, number> }
 
----@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStat, number>[], STATS?: table<BonusStat, number>[] }
+---@alias BuffAuraInfo { SLOT: Buffs.AuraSlot, EXPANSION: number, SKILL: number, RECIPE?: number, ITEM?: number | true, PERKS?: table<BonusStatModifier, number>[], STATS?: table<BonusStatModifier, number>[] }
 
 ---@alias AuraContinuable ItemMixin | SpellMixin
 
@@ -28,12 +28,14 @@
 -- These refer to raw stats on tools, buffs and buff perks, and yield increases
 -- on regular perks. TODO: Maybe split into separate types for clarity.
 -- MC: Multicraft
--- RF: Resourcefulness
+-- RC: Resourcefulness
+-- RF: Resourcefulness yield
 -- CC: Concentration
 -- IG: Ingenuity
 -- FI: Finesse
 -- SK: Skill
----@alias BonusStat "MC" | "RF" | "CC" | "IG" | "FI" | "SK"
+---@alias BonusStat "MC" | "RC" | "CC" | "IG" | "FI" | "SK"
+---@alias BonusStatModifier BonusStat | "RF"
 
 ---@class UtilChain
 ---@overload fun(): unknown

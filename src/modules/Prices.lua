@@ -166,7 +166,7 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
         end
 
         if missing > 0 then
-            price = price + missing * math.min(self:GetReagentPrices(reagent))
+            price = price + missing * math.min(self:GetReagentPrices(reagent, math.huge))
         end
     until true end
 
@@ -274,13 +274,13 @@ function Self:HasReagentPrice(reagent)
     return self:GetReagentPrice(reagent) > 0
 end
 
+---@generic T
 ---@param reagent CraftingReagentSlotSchematic
----@return number, number?, number?
-function Self:GetReagentPrices(reagent)
-    if #reagent.reagents == 1 then return self:GetReagentPrice(reagent) end
-
+---@param default? T
+---@return number, number|T, number|T
+function Self:GetReagentPrices(reagent, default)
     local r1, r2, r3 = unpack(reagent.reagents)
-    return self:GetReagentPrice(r1), self:GetReagentPrice(r2), self:GetReagentPrice(r3)
+    return self:GetReagentPrice(r1), r2 and self:GetReagentPrice(r2) or default, r3 and self:GetReagentPrice(r3) or default
 end
 
 ---@param reagents CraftingReagentInfo[]
