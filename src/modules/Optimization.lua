@@ -510,28 +510,32 @@ function Self:GetWeightForMethod(operation, method, lowerWeight, upperWeight)
 
     local maxValue, maxValueWeight = optimizeProfit and lowerProfit / lowerCon or -Addon.DB.Account.concentrationCost, lowerWeight
 
-    for weight = lowerWeight + 1, upperWeight do repeat
-        local weightPrice = self:GetReagentPriceForWeight(operation, weight, weights, prices)
-        local nextWeightPrice = self:GetReagentPriceForWeight(operation, weight + 1, weights, prices)
+    local nextWeightPrice
 
-        if weight < upperWeight and weightPrice >= nextWeightPrice then break end
+    for weight = lowerWeight + 1, upperWeight do
+        repeat
+            local weightPrice = nextWeightPrice or self:GetReagentPriceForWeight(operation, weight, weights, prices)
+            nextWeightPrice = self:GetReagentPriceForWeight(operation, weight + 1, weights, prices)
 
-        local profit = profit + weightReagentsPrice - weightPrice
-        if profit < 0 and maxValue >= 0 then break end
+            if weight < upperWeight and weightPrice >= nextWeightPrice then break end
 
-        local concentration = operation:GetConcentrationCost(weight)
+            local profit = profit + weightReagentsPrice - weightPrice
+            if profit < 0 and maxValue >= 0 then break end
 
-        local value = optimizeProfit and profit / concentration or (profit - lowerProfit) / (lowerCon - concentration)
+            local concentration = operation:GetConcentrationCost(weight)
+            if concentration <= 0 then break end
 
-        if value > maxValue then
+            local value = optimizeProfit and profit / concentration or (profit - lowerProfit) / (lowerCon - concentration)
+            if value <= maxValue then break end
+
             maxValueWeight = weight
             lowerProfit, lowerCon = profit, concentration
 
             if optimizeProfit then maxValue = value end
-        end
+        until true
 
         Promise:YieldTimeN(weight)
-    until true end
+    end
 
     return maxValueWeight
 end

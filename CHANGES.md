@@ -1,2 +1,3 @@
 - Fix error when loading addon while addon restrictions are in effect
 - Fix some more weight calculation bugs with new midnight recipes
+- Fix division-by-zero bug in profit-per-concentration calculation
