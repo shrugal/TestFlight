@@ -250,6 +250,9 @@ Self.ARTISAN_CURRENCY = {
     [3266] = true,
 }
 
+---@type number
+Self.CONCENTRATION_CURRENCY_FILE_ID = 5747318
+
 -- Source: https://www.wowhead.com/items/trade-goods/other/name:Artisan
 ---@type true[]
 Self.ARTISAN_CURRENCY_ITEMS = {

@@ -115,7 +115,9 @@ function Self:GetTrackedReagentAmounts()
 
             local operation = self:GetTrackedAllocation(recipe, quality)
 
-            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do
+            for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
+                if not reagent.reagents[1].itemID then break end
+
                 local required = reagent.required and reagent.quantityRequired or 0
                 local missing = amount * required
 
@@ -132,7 +134,7 @@ function Self:GetTrackedReagentAmounts()
                     local itemID = reagent.reagents[1].itemID ---@cast itemID -?
                     reagents[itemID] = (reagents[itemID] or 0) + missing
                 end
-            end
+            until true end
         until true end
     end
 

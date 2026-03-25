@@ -89,13 +89,14 @@ function Self:GetTrackedReagentAmounts()
         -- Provided by customer
         if not self:IsCreating(order) then
             for _,reagent in pairs(order.reagents) do
-                local itemID, quantity = reagent.reagentInfo.reagent.itemID, reagent.reagentInfo.quantity ---@cast itemID -?
-                provided[itemID] = (provided[itemID] or 0) + quantity
+                local itemID, quantity = reagent.reagentInfo.reagent.itemID, reagent.reagentInfo.quantity
+                if itemID then provided[itemID] = (provided[itemID] or 0) + quantity end
             end
         end
 
         for slotIndex,reagent in pairs(recipe.reagentSlotSchematics) do repeat
             if reagent.reagentType == Enum.CraftingReagentType.Automatic then break end
+            if not reagent.reagents[1].itemID then break end
 
             local required = reagent.required and reagent.quantityRequired or 0
             local missing = amount * required
@@ -286,10 +287,11 @@ end
 ---@param slot ReagentSlot
 ---@param silent? boolean
 function Self:UpdateCreatingReagent(slot, silent)
-    local tx, reagent = slot:GetTransaction(), slot:GetReagentSlotSchematic()
+    local tx, schematic = slot:GetTransaction(), slot:GetReagentSlotSchematic()
     local recipe = tx:GetRecipeSchematic()
     local provided = self:IsCreatingSlotProvided(slot)
-    local itemID = provided and slot.item and slot.item:GetItemID()
+    local reagent = slot:GetReagent()
+    local itemID = provided and reagent and reagent.itemID or nil
     local recipes = Self.creatingProvided[recipe.isRecraft]
 
     if not recipes[recipe.recipeID] then
@@ -297,13 +299,13 @@ function Self:UpdateCreatingReagent(slot, silent)
         recipes[recipe.recipeID] = {}
     end
 
-    recipes[recipe.recipeID][reagent.slotIndex] = itemID or provided or nil
+    recipes[recipe.recipeID][schematic.slotIndex] = itemID or provided or nil
 
     if not next(recipes[recipe.recipeID]) then recipes[recipe.recipeID] = nil end
 
     if silent then return end
 
-    self:TriggerEvent(self.Event.CreatingReagentsUpdated, reagent.slotIndex)
+    self:TriggerEvent(self.Event.CreatingReagentsUpdated, schematic.slotIndex)
 end
 
 function Self:UpdateCreatingReagents()

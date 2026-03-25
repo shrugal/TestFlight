@@ -805,7 +805,6 @@ ProfessionsReagentSlotButtonMixin = nil
 ---@class ProfessionsReagentSlotMixin
 ---@field Button ProfessionsReagentSlotButtonMixin
 ---@field Name FontString
----@field item? ItemMixin
 ---@field originalReagent? CraftingReagent
 ---@field reagentSlotSchematic CraftingReagentSlotSchematic
 ---@field Checkbox CheckButton
@@ -833,6 +832,7 @@ ProfessionsReagentSlotButtonMixin = nil
 ---@field SetReagent fun(self: self, reagent?: CraftingReagent)
 ---@field SetCurrency fun(self: self, currencyID)
 ---@field GetSlotIndex fun(self: self): number
+---@field GetReagent fun(self: self): CraftingReagent?
 ---@field GetReagentType fun(self: self): Enum.CraftingReagentType
 ---@field SetTransaction fun(self: self, transaction: ProfessionTransaction)
 ---@field GetTransaction fun(self: self): ProfessionTransaction

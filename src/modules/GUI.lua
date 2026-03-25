@@ -235,10 +235,17 @@ function Self:SetTextToFit(fontString, text, maxWidth, multiline)
 Self:GenerateCallbackEvents({ "Refresh" })
 Self:OnLoad()
 
+local GetCurrencyInfo = function (currencyID)
+    local info = Util:TblGetHooked(C_CurrencyInfo, "GetCurrencyInfo")(currencyID) --[[@as CurrencyInfo]]
+    if info and info.iconFileID ~= C.CONCENTRATION_CURRENCY_FILE_ID then info.quantity = math.huge end
+    return info
+end
+
 function Self:OnEnabled()
     Util:TblHook(ItemUtil, "GetCraftingReagentCount", Util.FnInfinite)
     Util:TblHook(Professions, "GetReagentSlotStatus", Util.FnFalse)
     Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", Util.FnInfinite)
+    Util:TblHook(C_CurrencyInfo, "GetCurrencyInfo", GetCurrencyInfo)
 
     C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end
@@ -247,6 +254,7 @@ function Self:OnDisabled()
     Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
     Util:TblUnhook(Professions, "GetReagentSlotStatus")
     Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
+    Util:TblUnhook(C_CurrencyInfo, "GetCurrencyInfo")
 
     C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end
