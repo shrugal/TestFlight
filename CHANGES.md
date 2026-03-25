@@ -1,2 +1,1 @@
-- Allow allocating currencies you don't own in experimentation mode
-- Fix errors on recipes with currency reagents
+- Adjust Auctionator search button paddings to fit the TF button

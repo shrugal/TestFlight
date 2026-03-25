@@ -298,7 +298,11 @@ AuctionatorAHFrameMixin = nil
 AuctionatorShoppingFrame = nil
 
 ---@class AuctionatorShoppingFrameSearchOptions: Frame
----@field AddToListButton Button
+---@field SearchLabel FontString
+---@field SearchString EditBox
+---@field SearchButton ButtonFitToText
+---@field MoreButton ButtonFitToText
+---@field AddToListButton ButtonFitToText
 
 ---@class AuctionatorShoppingList
 ---@field data table

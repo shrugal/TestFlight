@@ -1,3 +1,8 @@
+Version 5.08
+
+- Allow allocating currencies you don't own in experimentation mode
+- Fix errors on recipes with currency reagents
+
 Version 5.07
 
 - Fix error when loading addon while addon restrictions are in effect

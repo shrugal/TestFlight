@@ -52,6 +52,20 @@ function Self:InsertBuyButton()
     self.buyButton = GUI:InsertButton("", parent, nil, Util:FnBind(self.BuyButtonOnClick, self))
     self.buyButton:SetPoint("LEFT", parent.AddToListButton, "RIGHT", 5, 0)
     self.buyButton:SetPoint("RIGHT", -5, 0)
+    self.buyButton:SetText("TestFlight")
+
+    local padding = self.buyButton:GetWidth() - self.buyButton:GetTextWidth()
+    if padding < 40 then
+        local buttons = { parent.SearchButton, parent.MoreButton, parent.AddToListButton }
+
+        -- Divide available padding equally between buttons, between 10 and 40
+        padding = max(10, min((padding + 40 * #buttons) / (#buttons + 1), 40))
+
+        for _,button in pairs(buttons) do
+            button.fitTextWidthPadding = padding
+            button:FitToText()
+        end
+    end
 
     self:UpdateBuyButton()
 end
