@@ -99,7 +99,7 @@ end
 ---@param order? CraftingOrderInfo
 ---@param recraftMods? CraftingItemSlotModification[]
 ---@param optionalReagents? CraftingReagentInfo[]
----@param qualityID? number
+---@param quality? number
 ---@return number reagentPrice
 ---@return number resultPrice
 ---@return number? profit
@@ -108,9 +108,9 @@ end
 ---@return number? multicraft
 ---@return number? rewards
 ---@return number? traderCut
-function Self:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents, qualityID)
+function Self:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents, quality)
     local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
-    local resultPrice = self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID or order and order.minQuality)
+    local resultPrice = self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, quality or order and order.minQuality)
 
     if resultPrice == 0 and not order then
         return reagentPrice, resultPrice
@@ -176,12 +176,12 @@ end
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
----@param qualityID? number
+---@param quality? number
 ---@return number
-function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, qualityID)
+function Self:GetRecipeResultPrice(recipe, operationInfo, optionalReagents, quality)
     if recipe.isRecraft then return 0 end
 
-    local item = Recipes:GetResult(recipe, operationInfo, optionalReagents, qualityID)
+    local item = Recipes:GetResult(recipe, operationInfo, optionalReagents, quality)
     if not item then return 0 end
 
     if not self:HasItemPrice(item) then return 0 end

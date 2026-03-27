@@ -1,1 +1,2 @@
+- Fix result quality level vs ID mixup
 - Adjust Auctionator search button paddings to fit the TF button

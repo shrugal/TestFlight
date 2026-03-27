@@ -452,26 +452,36 @@ function Self:GetQualityIcon(recipeOrOrder, isRecraftOrQuality, width, height, o
     if qualityInfo then return CreateAtlasMarkup(qualityInfo.iconChat, width or 20, height or 20, offsetX, offsetY) end
 end
 
+---@param recipeOrOrder RecipeOrOrder
+---@param isRecraftOrQuality? boolean|number
+function Self:GetQualityID(recipeOrOrder, isRecraftOrQuality)
+    local recipeID, _, quality = self:GetRecipeInfo(recipeOrOrder, isRecraftOrQuality)
+    if not quality then return end
+    local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipeID)
+    if not recipeInfo or not recipeInfo.qualityIDs then return end
+    return recipeInfo.qualityIDs[quality]
+end
+
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo? CraftingOperationInfo
 ---@param optionalReagents? CraftingReagentInfo[]
----@param qualityID? number
-function Self:GetResult(recipe, operationInfo, optionalReagents, qualityID)
-    if not qualityID then qualityID = operationInfo and operationInfo.craftingQualityID or 1 end
+---@param quality? number
+function Self:GetResult(recipe, operationInfo, optionalReagents, quality)
+    if not quality then quality = operationInfo and operationInfo.craftingQuality or 1 end
     if recipe.isRecraft then return end
 
     if C.ENCHANTS[recipe.recipeID] then
-        return C.ENCHANTS[recipe.recipeID][qualityID]
+        return C.ENCHANTS[recipe.recipeID][quality]
     end
 
-    local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, qualityID)
+    local data = C_TradeSkillUI.GetRecipeOutputItemData(recipe.recipeID, optionalReagents, nil, self:GetQualityID(recipe, quality))
     if data then
         return data.hyperlink or data.itemID
     end
 
     local recipeInfo = C_TradeSkillUI.GetRecipeInfo(recipe.recipeID)
     if recipeInfo and recipeInfo.qualityItemIDs then
-        return recipeInfo.qualityItemIDs[qualityID]
+        return recipeInfo.qualityItemIDs[quality]
     end
 
     return recipe.outputItemID
