@@ -1,3 +1,8 @@
+Version 5.09
+
+- Fix result quality level vs ID mixup
+- Adjust Auctionator search button paddings to fit the TF button
+
 Version 5.08
 
 - Allow allocating currencies you don't own in experimentation mode

@@ -1,2 +1,1 @@
-- Fix result quality level vs ID mixup
-- Adjust Auctionator search button paddings to fit the TF button
+- Add workaround for tradeskill API sometimes giving wrong result item IDs
