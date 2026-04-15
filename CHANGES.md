@@ -1,1 +1,2 @@
 - Make currency info hook more fine-grained to prevent other UI errors
+- Fix reagent quantity lookup for currencies

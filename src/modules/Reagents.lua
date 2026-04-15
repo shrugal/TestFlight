@@ -17,11 +17,18 @@ function Self:GetName(item)
 end
 
 ---@param reagent Reagent
+---@return CraftingReagent
+function Self:GetReagent(reagent)
+    if type(reagent) == "number" then return Professions.CreateItemReagent(reagent) end ---@cast reagent -number
+    if reagent.reagents then return reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
+    if reagent.reagent then return reagent.reagent end ---@cast reagent -CraftingReagentInfo | ProfessionTransactionAllocation
+    return reagent
+end
+
+---@param reagent Reagent
 function Self:GetItemID(reagent)
     if type(reagent) == "number" then return reagent end
-    if reagent.reagents then reagent = reagent.reagents[1] end ---@cast reagent -CraftingReagentSlotSchematic
-    if reagent.reagent then reagent = reagent.reagent end ---@cast reagent -CraftingReagentInfo | ProfessionTransactionAllocation
-    return reagent.itemID
+    return self:GetReagent(reagent).itemID
 end
 
 ---@param item number | string
@@ -33,8 +40,11 @@ end
 ---@param reagent Reagent
 ---@param characterInventoryOnly? boolean
 function Self:GetQuantity(reagent, characterInventoryOnly)
-    local itemID = self:GetItemID(reagent)
-    return Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")(itemID, characterInventoryOnly)
+    if type(reagent) == "number" then
+        return Util:TblGetHooked(ItemUtil, "GetCraftingReagentCount")(reagent, characterInventoryOnly)
+    else
+        return Util:TblGetHooked(ProfessionsUtil, "GetReagentQuantityInPossession")(self:GetReagent(reagent), characterInventoryOnly)
+    end
 end
 
 ---@param reagent CraftingReagentSlotSchematic
