@@ -241,11 +241,18 @@ local GetCurrencyInfo = function (currencyID)
     return info
 end
 
+local OpenProfessionsItemFlyout = function (...)
+    Util:TblHook(C_CurrencyInfo, "GetCurrencyInfo", GetCurrencyInfo)
+    local flyout = Util:TblGetHooked(_G, "OpenProfessionsItemFlyout")(...)
+    Util:TblUnhook(C_CurrencyInfo, "GetCurrencyInfo")
+    return flyout
+end
+
 function Self:OnEnabled()
     Util:TblHook(ItemUtil, "GetCraftingReagentCount", Util.FnInfinite)
     Util:TblHook(Professions, "GetReagentSlotStatus", Util.FnFalse)
     Util:TblHook(ProfessionsUtil, "GetReagentQuantityInPossession", Util.FnInfinite)
-    Util:TblHook(C_CurrencyInfo, "GetCurrencyInfo", GetCurrencyInfo)
+    Util:TblHook(_G, "OpenProfessionsItemFlyout", OpenProfessionsItemFlyout)
 
     C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end
@@ -254,7 +261,7 @@ function Self:OnDisabled()
     Util:TblUnhook(ItemUtil, "GetCraftingReagentCount")
     Util:TblUnhook(Professions, "GetReagentSlotStatus")
     Util:TblUnhook(ProfessionsUtil, "GetReagentQuantityInPossession")
-    Util:TblUnhook(C_CurrencyInfo, "GetCurrencyInfo")
+    Util:TblUnhook(_G, "OpenProfessionsItemFlyout")
 
     C_Timer.After(0, Util:FnBind(self.Refresh, self))
 end

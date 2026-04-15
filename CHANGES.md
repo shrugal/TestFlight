@@ -1,1 +1,1 @@
-- Add workaround for tradeskill API sometimes giving wrong result item IDs
+- Make currency info hook more fine-grained to prevent other UI errors

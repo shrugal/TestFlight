@@ -1,3 +1,7 @@
+Version 5.10
+
+- Add workaround for tradeskill API sometimes giving wrong result item IDs
+
 Version 5.09
 
 - Fix result quality level vs ID mixup
