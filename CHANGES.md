@@ -1,2 +1,1 @@
-- Make currency info hook more fine-grained to prevent other UI errors
-- Fix reagent quantity lookup for currencies
+- Update ToC version for patch 12.0.5

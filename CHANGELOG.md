@@ -1,3 +1,8 @@
+Version 5.11
+
+- Make currency info hook more fine-grained to prevent other UI errors
+- Fix reagent quantity lookup for currencies
+
 Version 5.10
 
 - Add workaround for tradeskill API sometimes giving wrong result item IDs
