@@ -1006,6 +1006,7 @@ C_TradeSkillUI = {}
 ---@field GetProfessionInfo fun(): ProfessionInfo
 ---@field EraseRecraftingTransitionData fun()
 ---@field LayoutAndShowReagentSlotContainer fun(slots, container)
+---@field IsValidReagent fun(reagent: CraftingReagent): boolean
 Professions = {}
 
 ---@class ProfessionsUtil

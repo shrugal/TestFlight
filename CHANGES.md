@@ -1,1 +1,2 @@
-- Update ToC version for patch 12.0.5
+- Filter auras by skill line and expansion
+- Fix error on orders with invalid reagents

@@ -279,13 +279,13 @@ function Self:GetEnabledAuras(recipe)
     return self:BuildAuras(recipe, self.GetAuraLevel, self)
 end
 
----@param recipe? CraftingRecipeSchematic
-function Self:GetCurrentAuras(recipe)
+---@param source? number | CraftingRecipeSchematic SkillLineID or recipe
+function Self:GetCurrentAuras(source)
     local cache = self.Cache.CurrentAuras
-    local key, ctx = cache:Key(self:GetSkillLineID(recipe))
+    local key, ctx = cache:Key(self:GetSkillLineID(source))
 
     if not cache:Valid(key, ctx) then
-        local auras = self:BuildAuras(recipe, function (auraID)
+        local auras = self:BuildAuras(source, function (auraID)
             local aura = C_UnitAuras.GetPlayerAuraBySpellID(auraID)
             if not aura then return end
 
@@ -651,6 +651,15 @@ function Self:GetSkillLineID(recipeOrID)
     end
 end
 
+function Self:GetExpansionID(skillLineID)
+    local profInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID)
+    if not profInfo or not profInfo.expansionName then return end
+
+    for i=0, LE_EXPANSION_LEVEL_CURRENT do
+        if profInfo.expansionName == _G["EXPANSION_NAME"..i] then return i end
+    end
+end
+
 ---@param operationInfo CraftingOperationInfo
 ---@param expansionID number
 ---@param stats table<BonusStatModifier, number>
@@ -681,14 +690,16 @@ function Self:ApplyStats(operationInfo, expansionID, stats, mode)
     until true end
 end
 
----@param source? true |string | number | CraftingRecipeSchematic
----@param fn SearchFn<number, number?, any>
+---@param source? true |string | number | CraftingRecipeSchematic | Enumerator<number, number>
+---@param fn? SearchFn<number, number?, any>
 ---@param s? table
 function Self:BuildAuras(source, fn, s, ...)
+    if type(source) ~= "function" then source = self:EnumerateAuras(source) end
+
     local auras = ""
-    for auraID in self:EnumerateAuras(source) do
-        local level = Util:FnCall(fn, auraID, nil, s, ...)
-        if (level or 0) > 0 then auras = auras .. (";%d:%d"):format(auraID, level) end
+    for auraID, level in source do
+        if fn then level = Util:FnCall(fn, auraID, nil, s, ...) or 0 end
+        if level > 0 then auras = auras .. (";%d:%d"):format(auraID, level) end
     end
     return auras:sub(2)
 end
@@ -716,6 +727,14 @@ function Self:MergeAuras(aAuras, bAuras, useMax)
     end
 
     return auras:sub(2)
+end
+
+---@param source true | string | number | CraftingRecipeSchematic All or auras or skillLineID or recipe
+---@param slot? Buffs.AuraSlot
+---@param skill? number | CraftingRecipeSchematic SkillLineID or recipe
+---@return string
+function Self:FilterAuras(source, slot, skill)
+    return self:BuildAuras(self:EnumerateAuras(source, slot, skill))
 end
 
 ---@param auras string
@@ -757,22 +776,29 @@ function Self:HasAura(aura, level, auras)
 end
 
 ---@param check? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
----@param auras? string
-function Self:GetMissingAura(check, auras)
+---@param source? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
+function Self:GetMissingAura(check, source)
     if (check or "") == "" then return end
-    if not auras then auras = self:GetCurrentAuras() end
 
-    for auraID, level, info in self:EnumerateAuras(check) do
-        if not self:HasAura(auraID, level, auras) then return auraID, level, info end
+    local skill
+    if type (source) ~= "string" then
+        skill, source = source, self:GetCurrentAuras(source)
+    end
+
+    for auraID, level, info in self:EnumerateAuras(check, nil, skill) do
+        if not self:HasAura(auraID, level, source) then return auraID, level, info end
     end
 end
 
 ---@param source? true | string | number | CraftingRecipeSchematic All or auras or skillLineID or recipe
 ---@param slot? Buffs.AuraSlot
+---@param skill? number | CraftingRecipeSchematic SkillLineID or recipe
 ---@return fun(): number?, number?, BuffAuraInfo?
-function Self:EnumerateAuras(source, slot)
-    local auraID, skillLineID, info
+function Self:EnumerateAuras(source, slot, skill)
+    local skillLineID = skill and self:GetSkillLineID(skill)
+    local expansionID = skillLineID and self:GetExpansionID(skillLineID)
 
+    local auraID, info
     if type(source) == "string" then
         local fn, level = source:gmatch("(%d+):(%d+)"), nil
 
@@ -784,11 +810,19 @@ function Self:EnumerateAuras(source, slot)
                 info = C.AURAS[auraID]
                 if slot and slot ~= info.SLOT then break end
                 if skillLineID and info.SKILL and info.SKILL ~= skillLineID then break end
+                if expansionID and info.EXPANSION and info.EXPANSION ~= expansionID then break end
                 return auraID, level, info
             end until false
         end
     else
-        if source ~= true then skillLineID = self:GetSkillLineID(source) end
+        if source ~= true then
+            if not skillLineID then
+                skillLineID = self:GetSkillLineID(source)
+                expansionID = skillLineID and self:GetExpansionID(skillLineID)
+            elseif skillLineID ~= self:GetSkillLineID(source) then
+                return Util.FnNoop
+            end
+        end
 
         local s
         if not slot then s, slot = next(self.AuraSlot) end
@@ -801,6 +835,7 @@ function Self:EnumerateAuras(source, slot)
                 end ---@cast info -?
                 if slot ~= info.SLOT then break end
                 if skillLineID and info.SKILL and info.SKILL ~= skillLineID then break end
+                if expansionID and info.EXPANSION and info.EXPANSION ~= expansionID then break end
                 return auraID, 1, info
             end until false
         end

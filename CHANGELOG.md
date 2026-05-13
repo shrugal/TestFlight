@@ -1,3 +1,7 @@
+Version 5.12
+
+- Update ToC version for patch 12.0.5
+
 Version 5.11
 
 - Make currency info hook more fine-grained to prevent other UI errors

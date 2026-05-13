@@ -53,7 +53,8 @@ function Self:GetAura(slotType)
 end
 
 function Self:GetMissingAura()
-    return Buffs:GetMissingAura(self.auras)
+    local recipe = self:GetRecipe()
+    if recipe then return Buffs:GetMissingAura(self.auras, recipe) end
 end
 
 function Self:GetAuraAction()

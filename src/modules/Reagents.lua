@@ -454,7 +454,7 @@ function Self:IsProvided(reagent, order, recraftMods)
 
     if order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
         local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
-        return slot and slot.reagent.itemID ~= 0
+        return slot and Professions.IsValidReagent(slot.reagent)
     end
 
     return false
@@ -474,7 +474,7 @@ function Self:GetProvided(reagent, order, recraftMods)
 
     if #list == 0 and order.orderID and order.isRecraft and self:IsModified(reagent) then ---@cast recraftMods -?
         local slot = Util:TblWhere(recraftMods, "dataSlotIndex", reagent.dataSlotIndex)
-        if slot and slot.reagent.itemID ~= 0 then tinsert(list, slot) end
+        if slot and Professions.IsValidReagent(slot.reagent) then tinsert(list, slot) end
     end
 
     return list

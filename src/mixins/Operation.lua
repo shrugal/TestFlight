@@ -241,8 +241,10 @@ function Self:WithTool(toolGUID)
     return op
 end
 
----@param auras? string
+---@param auras string
 function Self:WithAuras(auras)
+    auras = Buffs:FilterAuras(auras, nil, self.recipe)
+
     if auras == self.auras then return self end
 
     local op = Util:TblCopy(self)
@@ -276,7 +278,7 @@ function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, e
     self.applyConcentration = applyConcentration
     self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
     self.toolGUID = toolGUID
-    self.auras = auras
+    self.auras = auras and Buffs:FilterAuras(auras, nil, recipe)
 
     local order = self:GetOrder()
 
