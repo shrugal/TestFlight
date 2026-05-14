@@ -594,12 +594,13 @@ function Self:GetAuraContinuable(auraID, level)
 end
 
 ---@param slot Buffs.AuraSlot
+---@param filter? number | CraftingRecipeSchematic SkillLineID or recipe. Expansion filter only works reliably with recipes.
 ---@param hideUnavailable? boolean
 ---@return AuraContinuable[]
-function Self:GetAuraContinuables(slot, hideUnavailable)
+function Self:GetAuraContinuables(slot, filter, hideUnavailable)
     local items = {}
 
-    for auraID, level, info in self:EnumerateAuraLevels(slot) do repeat
+    for auraID, level, info in self:EnumerateAuraLevels(slot, filter) do repeat
         if info.ITEM then
             local itemInfo = self:GetAuraItem(auraID, level) ---@cast itemInfo -?
             if not itemInfo then break end
@@ -651,12 +652,19 @@ function Self:GetSkillLineID(recipeOrID)
     end
 end
 
-function Self:GetExpansionID(skillLineID)
-    local profInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(skillLineID)
-    if not profInfo or not profInfo.expansionName then return end
+---@param recipeOrID CraftingRecipeSchematic | number
+function Self:GetExpansionID(recipeOrID)
+    if type(recipeOrID) == "number" then
+        local profInfo = C_TradeSkillUI.GetProfessionInfoBySkillLineID(recipeOrID)
+        if not profInfo or not profInfo.expansionName then return end
 
-    for i=0, LE_EXPANSION_LEVEL_CURRENT do
-        if profInfo.expansionName == _G["EXPANSION_NAME"..i] then return i end
+        -- Try matching the expansion name. This is error-prone, since some skill lines
+        -- have the expansion area as names, but there are no constants for that.
+        for i=0, LE_EXPANSION_LEVEL_CURRENT do
+            if profInfo.expansionName == _G["EXPANSION_NAME"..i] then return i end
+        end
+    else
+        return Recipes:GetExpansionID(recipeOrID)
     end
 end
 
@@ -776,27 +784,27 @@ function Self:HasAura(aura, level, auras)
 end
 
 ---@param check? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
----@param source? string | number | CraftingRecipeSchematic Auras or skillLineID or recipe
+---@param source? string | CraftingRecipeSchematic Auras or recipe
 function Self:GetMissingAura(check, source)
     if (check or "") == "" then return end
 
-    local skill
-    if type (source) ~= "string" then
-        skill, source = source, self:GetCurrentAuras(source)
+    local recipe
+    if type(source) ~= "string" then
+        recipe, source = source, self:GetCurrentAuras(source)
     end
 
-    for auraID, level, info in self:EnumerateAuras(check, nil, skill) do
+    for auraID, level, info in self:EnumerateAuras(check, nil, recipe) do
         if not self:HasAura(auraID, level, source) then return auraID, level, info end
     end
 end
 
 ---@param source? true | string | number | CraftingRecipeSchematic All or auras or skillLineID or recipe
 ---@param slot? Buffs.AuraSlot
----@param skill? number | CraftingRecipeSchematic SkillLineID or recipe
+---@param filter? number | CraftingRecipeSchematic SkillLineID or recipe. Expansion filter only works reliably with recipes.
 ---@return fun(): number?, number?, BuffAuraInfo?
-function Self:EnumerateAuras(source, slot, skill)
-    local skillLineID = skill and self:GetSkillLineID(skill)
-    local expansionID = skillLineID and self:GetExpansionID(skillLineID)
+function Self:EnumerateAuras(source, slot, filter)
+    local skillLineID = filter and self:GetSkillLineID(filter)
+    local expansionID = filter and self:GetExpansionID(filter)
 
     local auraID, info
     if type(source) == "string" then
@@ -842,12 +850,11 @@ function Self:EnumerateAuras(source, slot, skill)
     end
 end
 
----@param aura? number | Buffs.AuraSlot
+---@param slot? Buffs.AuraSlot
+---@param filter? number | CraftingRecipeSchematic SkillLineID or recipe. Expansion filter only works reliably with recipes.
 ---@return fun(): number?, number?, BuffAuraInfo?
-function Self:EnumerateAuraLevels(aura)
-    local source = type(aura) == "number" and ("%d:1"):format(aura) or nil
-    local slot = type(aura) == "string" and aura or nil
-    local fn = self:EnumerateAuras(source, slot)
+function Self:EnumerateAuraLevels(slot, filter)
+    local fn = self:EnumerateAuras(true, slot, filter)
 
     local auraID, level, info
     return function ()

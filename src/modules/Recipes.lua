@@ -497,6 +497,26 @@ function Self:GetResultQualityIcon(item, width, height, offsetX, offsetY)
     if qualityInfo then return CreateAtlasMarkup(qualityInfo.iconChat, width or 20, height or 20, offsetX, offsetY) end
 end
 
+
+---@param recipe CraftingRecipeSchematic
+function Self:GetExpansionID(recipe)
+    -- Check reagents
+    for _,slot in pairs(recipe.reagentSlotSchematics) do
+        for _,reagent in pairs(slot.reagents) do repeat
+            if not reagent.itemID then break end
+            local expansionID = select(15, C_Item.GetItemInfo(reagent.itemID))
+            if expansionID then return expansionID end
+        until true end
+    end
+
+    -- Check result
+    local result = self:GetResult(recipe)
+    if result then
+        local expansionID = select(15, C_Item.GetItemInfo(result))
+        if expansionID then return expansionID end
+    end
+end
+
 ---@todo Recraft allocations
 function Self:LoadAllocations()
     return Promise:Async(function ()

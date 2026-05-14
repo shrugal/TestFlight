@@ -66,8 +66,11 @@ TestFlightAuraFlyoutButtonMixin = Self
 ---@class GUI.RecipeForm.AuraFlyoutBehaviorMixin
 local Self = {}
 
-function Self:Init(slot)
+---@param slot Buffs.AuraSlot
+---@param recipe? CraftingRecipeSchematic
+function Self:Init(slot, recipe)
     self.slot = slot
+    self.recipe = recipe
 end
 
 function Self:GetUnownedFlags()
@@ -91,7 +94,7 @@ function Self:GetUndoElement()
 end
 
 function Self:GetElements(hideUnavailable)
-    local items = Buffs:GetAuraContinuables(self.slot, hideUnavailable)
+    local items = Buffs:GetAuraContinuables(self.slot, self.recipe, hideUnavailable)
     return { items = items, forceAccumulateInventory = true }
 end
 
@@ -190,13 +193,14 @@ end
 ---@param owner Frame
 ---@param parent Frame
 ---@param slot Buffs.AuraSlot
-function NS.OpenAuraFlyout(owner, parent, slot)
+---@param recipe? CraftingRecipeSchematic
+function NS.OpenAuraFlyout(owner, parent, slot, recipe)
     if not NS.flyout then
         NS.flyout = CreateFrame("Frame", nil, nil, "TestFlightAuraFlyoutTemplate")
     end
 
     local behavior = CreateFromMixins(TestFlightAuraFlyoutBehaviorMixin)
-    behavior:Init(slot)
+    behavior:Init(slot, recipe)
 
 	NS.flyout:SetParent(parent)
 	NS.flyout:SetPoint("TOPLEFT", owner, "TOPRIGHT", 5, 0)
@@ -211,11 +215,12 @@ end
 ---@param owner Frame
 ---@param parent Frame
 ---@param slot Buffs.AuraSlot
-function NS.ToggleAuraFlyout(owner, parent, slot)
+---@param recipe? CraftingRecipeSchematic
+function NS.ToggleAuraFlyout(owner, parent, slot, recipe)
 	if NS.flyout and NS.flyout:IsShown() then
 		NS.CloseAuraFlyout()
     else
-        return NS.OpenAuraFlyout(owner, parent, slot)
+        return NS.OpenAuraFlyout(owner, parent, slot, recipe)
     end
 end
 
@@ -334,7 +339,7 @@ end
 function Self:OnLoad()
     self.Button:SetScript("OnMouseDown", function(button, buttonName)
         if buttonName == "LeftButton" then
-            local flyout = NS.ToggleAuraFlyout(self.Button, self, self.slot)
+            local flyout = NS.ToggleAuraFlyout(button, self, self.slot, self.form:GetRecipe())
             if not flyout then return end
 
             flyout:RegisterCallback(ProfessionsFlyoutMixin.Event.ItemSelected, self.FlyoutOnItemSelected, self)
