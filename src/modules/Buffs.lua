@@ -528,7 +528,7 @@ function Self:AddAuraFilters(menuDescription, addAddonTitle)
     local title
 
     for _,slot in pairs(self.AuraSlot) do repeat
-        local enumerate = self:EnumerateAuraLevels(slot)
+        local enumerate = self:EnumerateAuraLevels(slot, self:GetSkillLineID())
         local n = Util:TblCount(enumerate)
 
         if n == 0 then break end
