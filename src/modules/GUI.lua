@@ -235,15 +235,23 @@ function Self:SetTextToFit(fontString, text, maxWidth, multiline)
 Self:GenerateCallbackEvents({ "Refresh" })
 Self:OnLoad()
 
+---@param currencyID number
 local GetCurrencyInfo = function (currencyID)
     local info = Util:TblGetHooked(C_CurrencyInfo, "GetCurrencyInfo")(currencyID) --[[@as CurrencyInfo]]
     if info and info.iconFileID ~= C.CONCENTRATION_CURRENCY_FILE_ID then info.quantity = math.huge end
     return info
 end
 
+---@param reagents CraftingReagent[]
+local GenerateItemsFromEligibleItemSlots = function (reagents)
+    return Util(reagents):Map(function (r) return r.itemID and Item:CreateFromItemID(r.itemID) end):Filter()()
+end
+
 local OpenProfessionsItemFlyout = function (...)
+    Util:TblHook(Professions, "GenerateItemsFromEligibleItemSlots", GenerateItemsFromEligibleItemSlots)
     Util:TblHook(C_CurrencyInfo, "GetCurrencyInfo", GetCurrencyInfo)
     local flyout = Util:TblGetHooked(_G, "OpenProfessionsItemFlyout")(...)
+    Util:TblUnhook(Professions, "GenerateItemsFromEligibleItemSlots")
     Util:TblUnhook(C_CurrencyInfo, "GetCurrencyInfo")
     return flyout
 end

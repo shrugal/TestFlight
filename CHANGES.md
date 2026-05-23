@@ -1,2 +1,1 @@
-- Filter auras by skill line and expansion
-- Fix error on orders with invalid reagents
+- Fix experimentation mode for sparks if you have some in your bags

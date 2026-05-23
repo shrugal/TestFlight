@@ -344,12 +344,13 @@ end
 
 ---@generic T, S: table
 ---@param tbl T[] | Enumerator<T>
----@param fn SearchFn<T, boolean, S>
+---@param fn? SearchFn<T, boolean, S>
 ---@param key? boolean
 ---@param obj? S
 ---@param ... any
 ---@return T[]
 function Self:TblFilter(tbl, fn, key, obj, ...)
+    if not fn then fn = Self.FnId end
     local t, l = {}, self:TblIsList(tbl)
     for k,v in self:Each(tbl) do
         if self:FnCall(fn, v, key and k, obj, ...) then

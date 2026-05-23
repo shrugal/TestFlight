@@ -1,3 +1,8 @@
+Version 5.13
+
+- Filter auras by skill line and expansion
+- Fix error on orders with invalid reagents
+
 Version 5.12
 
 - Update ToC version for patch 12.0.5
