@@ -1,2 +1,0 @@
-- Update current buffs when addon restrictions start or end
-- Fix error from aura changes while addon restrictions are active

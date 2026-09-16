@@ -1,3 +1,8 @@
+Version 5.15
+
+- Update current buffs when addon restrictions start or end
+- Fix error from aura changes while addon restrictions are active
+
 Version 5.14
 
 - Update ToC version for patch 12.1.0
