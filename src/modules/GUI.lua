@@ -299,8 +299,8 @@ function Self:OnAddonLoaded(addonName)
         if tabID == "TSM_AH_TAB" then adjustFrame(true) end
     end)
 
-    hooksecurefunc("UIParent_OnEvent", function (_, event)
-        if event == "AUCTION_HOUSE_SHOW" then adjustFrame(false) end
+    EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW", function ()
+        adjustFrame(false)
     end)
 
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_CLOSED", function ()
