@@ -285,6 +285,8 @@ function Self:GetCurrentAuras(source)
     local key, ctx = cache:Key(self:GetSkillLineID(source))
 
     if not cache:Valid(key, ctx) then
+        if C_Secrets.ShouldAurasBeSecret() then return "" end
+
         local auras = self:BuildAuras(source, function (auraID)
             local aura = C_UnitAuras.GetPlayerAuraBySpellID(auraID)
             if not aura then return end
@@ -304,6 +306,23 @@ function Self:GetCurrentAuras(source)
     end
 
     return cache:Get(key)
+end
+
+---@return boolean changed
+function Self:ScanAuras()
+    local charges = {}
+
+    if not C_Secrets.ShouldAurasBeSecret() then
+        AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
+            if C.AURAS[data.spellId] then charges[data.auraInstanceID] = data.charges or 1 end
+        end, true)
+    end
+
+    if Util:TblEquals(self.auraCharges, charges) then return false end
+
+    self.auraCharges = charges
+
+    return true
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -897,13 +916,13 @@ Self:OnLoad()
 ---@param unit string
 ---@param info UnitAuraUpdateInfo
 function Self:OnUnitAura(unit, info)
-    if unit ~= "player" then return end
+    if unit ~= "player" or C_Secrets.ShouldAurasBeSecret() then return end
 
     local changed
 
     if info.addedAuras then
         for _,data in pairs(info.addedAuras) do
-            if not canaccessvalue(data.spellId) then break end
+            if not canaccessvalue(data) or not canaccessvalue(data.spellId) then break end
             if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID], changed = data.charges or 1, true end
         end
     end
@@ -945,14 +964,18 @@ function Self:OnProfessionEquipmentChanged(skillLineID, isTool)
     self:TriggerEvent(self.Event.BuffChanged, self.Event.EquipmentChanged, skillLineID, isTool)
 end
 
+function Self:OnAddOnRestrictionStateChanged()
+    if not self:ScanAuras() then return end
+
+    self:TriggerEvent(self.Event.AuraChanged)
+    self:TriggerEvent(self.Event.BuffChanged, self.Event.AuraChanged)
+end
+
 function Self:OnLoaded()
-    if not Util:IsRestricted() then
-        AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
-            if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID] = data.charges or 1 end
-        end, true)
-    end
+    self:ScanAuras()
 
     EventRegistry:RegisterFrameEventAndCallback("UNIT_AURA", self.OnUnitAura, self)
+    EventRegistry:RegisterFrameEventAndCallback("ADDON_RESTRICTION_STATE_CHANGED", self.OnAddOnRestrictionStateChanged, self)
     EventRegistry:RegisterFrameEventAndCallback("TRAIT_CONFIG_UPDATED", self.OnTradeConfigUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("PROFESSION_EQUIPMENT_CHANGED", self.OnProfessionEquipmentChanged, self)
 end
