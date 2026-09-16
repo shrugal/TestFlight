@@ -92,7 +92,7 @@ function Self:ProfitStatLineOnEnter(line)
     local recipeInfo = op:GetRecipeInfo()
     local order = op:GetOrder()
     local reagentPrice = op:GetReagentPrice()
-    local profit, revenue, resourcefulness, multicraft, rewards, traderCut = op:GetProfit()
+    local profit, revenue, resourcefulness, multicraft, rewards, _, traderCut = op:GetProfit()
 
     GameTooltip:SetOwner(line, "ANCHOR_RIGHT")
 

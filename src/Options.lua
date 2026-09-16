@@ -121,6 +121,56 @@ function Self:RegisterGeneralSettings()
             "Enter a custom TSM price string to use for reagents and items."
         )
     end
+
+    self:CreateHeading("Reagent Crafting")
+
+    local reagentCrafting = Addon.DB.Account.reagentCrafting
+
+    local function OnReagentCraftingSettingChanged()
+        -- TODO
+    end
+
+    self:CreateCheckbox(
+        "enabled",
+        false,
+        "Craft Reagents",
+        "Craft reagents if the crafting costs are cheaper than market prices.",
+        OnReagentCraftingSettingChanged,
+        nil,
+        reagentCrafting
+    )
+
+    self:CreateSlider(
+        Settings.RegisterAddOnSetting(
+            self.category,
+            "threshold",
+            "threshold",
+            reagentCrafting,
+            Settings.VarType.Number,
+            "Crafting Threshold (%)",
+            10
+        ),
+        0, 100, 5,
+        "Minimum percent cheaper for reagent crafting to replace buying.",
+        function (value) return value .. "%" end,
+        OnReagentCraftingSettingChanged
+    )
+
+    self:CreateSlider(
+        Settings.RegisterAddOnSetting(
+            self.category,
+            "maxDepth",
+            "maxDepth",
+            reagentCrafting,
+            Settings.VarType.Number,
+            "Max Crafting Depth",
+            2
+        ),
+        1, 5, 1,
+        "How many crafting layers to consider when calculating reagent costs.",
+        true,
+        OnReagentCraftingSettingChanged
+    )
 end
 
 ---------------------------------------

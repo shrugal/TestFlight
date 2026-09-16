@@ -1,6 +1,6 @@
 ---@class Addon
 local Addon = select(2, ...)
-local C, Optimization, Orders, Promise, Reagents, Util = Addon.Constants, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Reagents, Addon.Util
+local C, Cache, Optimization, Orders, Promise, Reagents, Util = Addon.Constants, Addon.Cache, Addon.Optimization, Addon.Orders, Addon.Promise, Addon.Reagents, Addon.Util
 
 ---@class Recipes: CallbackRegistryMixin
 ---@field Event Recipes.Event
@@ -517,6 +517,25 @@ function Self:GetExpansionID(recipe)
     end
 end
 
+---@param reagent Reagent
+function Self:GetItemRecipe(reagent)
+    local itemID = Reagents:GetItemID(reagent)
+    if not itemID then return end
+
+    local cache = self.Cache.ItemRecipes
+    local key, ctx = cache:Key(itemID)
+
+    if cache:Valid(key, ctx) then return cache:Get(key) end
+
+    for _,recipeID in pairs(C_TradeSkillUI.GetAllRecipeIDs()) do
+        local itemIDs = C_TradeSkillUI.GetRecipeQualityItemIDs(recipeID)
+        if itemIDs and Util:TblIncludes(itemIDs, itemID) then
+            cache:Set(key, recipeID, ctx)
+            return recipeID
+        end
+    end
+end
+
 ---@todo Recraft allocations
 function Self:LoadAllocations()
     return Promise:Async(function ()
@@ -547,6 +566,15 @@ function Self:IsEqual(a, b)
     if (a == nil) ~= (b == nil) then return false end --[[@cast a -?]] --[[@cast b -?]]
     return a.recipeID == b.recipeID and a.isRecraft == b.isRecraft and a.nextRecipeID == b.nextRecipeID
 end
+
+---------------------------------------
+--              Caches
+---------------------------------------
+
+Self.Cache = {
+    ---@type Cache<number, fun(self: Cache, itemID: number): number?>
+    ItemRecipes = Cache:Create(Util.FnId2)
+}
 
 ---------------------------------------
 --              Events

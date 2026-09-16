@@ -15,7 +15,7 @@ local Self = Mixin(Addon, CallbackRegistryMixin)
 
 ---@class AddonDB: CostDB
 TestFlightDB = {
-    v = 6,
+    v = 8,
     ---@type boolean Enable reagent weight in tooltip
     tooltip = false,
     ---@type boolean Enable reagents tracker
@@ -38,6 +38,8 @@ TestFlightDB = {
     tsmPriceString = nil,
     ---@type boolean Automatically enable experimentation mode when needed
     autoEnable = true,
+    ---@type { enabled: boolean, threshold: number, maxDepth: number }
+    reagentCrafting = { enabled = false, threshold = 10, maxDepth = 2 },
 }
 
 ---@class AddonCharDB
@@ -199,6 +201,10 @@ function Self:Migrate()
     if self.DB.Account.v < 7 then
         self.DB.Account.restock = true
         self.DB.Account.v = 7
+    end
+    if self.DB.Account.v < 8 then
+        self.DB.Account.reagentCrafting = { enabled = false, threshold = 10, maxDepth = 2 }
+        self.DB.Account.v = 8
     end
 
     -- Char

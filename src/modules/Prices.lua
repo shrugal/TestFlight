@@ -2,7 +2,7 @@
 local Name = ...
 ---@class Addon
 local Addon = select(2, ...)
-local C, Orders, Recipes, Reagents, Util = Addon.Constants,Addon.Orders, Addon.Recipes, Addon.Reagents, Addon.Util
+local C, Cache, Operation, Optimization, Orders, Recipes, Reagents, Util = Addon.Constants, Addon.Cache, Addon.Operation, Addon.Optimization, Addon.Orders, Addon.Recipes, Addon.Reagents, Addon.Util
 
 
 ---@class Prices
@@ -16,6 +16,10 @@ local Self = Addon.Prices
 Self.SOURCES = {}
 ---@type PriceSource?
 Self.SOURCE = nil
+
+---@todo This only works for sequential calls, not parallel recipe optimization
+---@type number[]
+Self.reagentCraftingStack = {}
 
 function Self:GetSource()
     if self.SOURCE then return self.SOURCE end
@@ -107,6 +111,7 @@ end
 ---@return number? resourcefulness
 ---@return number? multicraft
 ---@return number? rewards
+---@return number? cost
 ---@return number? traderCut
 function Self:GetRecipePrices(recipe, operationInfo, allocation, order, recraftMods, optionalReagents, quality)
     local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods)
@@ -116,7 +121,7 @@ function Self:GetRecipePrices(recipe, operationInfo, allocation, order, recraftM
         return reagentPrice, resultPrice
     end
 
-    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
+    return reagentPrice, resultPrice, self:GetRecipeProfit(recipe, operationInfo, reagentPrice, resultPrice, order, optionalReagents)
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -166,7 +171,8 @@ function Self:GetRecipeAllocationPrice(recipe, allocation, order, recraftMods, r
         end
 
         if missing > 0 then
-            price = price + missing * math.min(self:GetReagentPrices(reagent, math.huge))
+            local p1, p2, p3 = self:GetReagentPrices(reagent, math.huge)
+            price = price + missing * math.min(p1, p2, p3)
         end
     until true end
 
@@ -194,7 +200,24 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
----@param allocation RecipeAllocation | ItemMixin
+---@param reagentPrice number
+---@param resultPrice number
+---@param order? CraftingOrderInfo
+---@param optionalReagents? CraftingReagentInfo[]
+---@return number cost
+---@return number resourcefulness
+---@return number multicraft
+function Self:GetRecipeCost(recipe, operationInfo, reagentPrice, resultPrice, order, optionalReagents)
+    local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, reagentPrice, optionalReagents)
+    local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
+
+    local cost = reagentPrice - resourcefulness - multicraft
+
+    return cost, resourcefulness, multicraft
+end
+
+---@param recipe CraftingRecipeSchematic
+---@param operationInfo CraftingOperationInfo
 ---@param reagentPrice number
 ---@param resultPrice number
 ---@param order? CraftingOrderInfo
@@ -204,11 +227,11 @@ end
 ---@return number resourcefulness
 ---@return number multicraft
 ---@return number rewards
+---@return number cost
 ---@return number traderCut
-function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, resultPrice, order, optionalReagents)
+function Self:GetRecipeProfit(recipe, operationInfo, reagentPrice, resultPrice, order, optionalReagents)
+    local cost, resourcefulness, multicraft = self:GetRecipeCost(recipe, operationInfo, reagentPrice, resultPrice, order, optionalReagents)
     local revenue = order and order.tipAmount or resultPrice
-    local resourcefulness = self:GetResourcefulnessValue(recipe, operationInfo, allocation, optionalReagents)
-    local multicraft = order and 0 or self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
     local traderCut = order and order.consortiumCut or C.AUCTION_HOUSE_CUT * resultPrice
 
     local rewards = 0
@@ -219,9 +242,9 @@ function Self:GetRecipeProfit(recipe, operationInfo, allocation, reagentPrice, r
         until true end
     end
 
-    local profit = revenue + resourcefulness + multicraft + rewards - reagentPrice - traderCut
+    local profit = revenue + rewards - cost - traderCut
 
-    return profit, revenue, resourcefulness, multicraft, rewards, traderCut
+    return profit, revenue, resourcefulness, multicraft, rewards, cost, traderCut
 end
 
 ---------------------------------------
@@ -230,16 +253,12 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param operationInfo CraftingOperationInfo
----@param allocation RecipeAllocation | ItemMixin
+---@param reagentPrice number
 ---@param optionalReagents? CraftingReagentInfo[]
 ---@return number value
-function Self:GetResourcefulnessValue(recipe, operationInfo, allocation, optionalReagents)
+function Self:GetResourcefulnessValue(recipe, operationInfo, reagentPrice, optionalReagents)
     local factor = Recipes:GetResourcefulnessFactor(recipe, operationInfo, optionalReagents)
-    if factor == 0 then return 0 end
-
-    local reagentPrice = self:GetRecipeAllocationPrice(recipe, allocation, nil, nil, true)
-
-    return reagentPrice * factor
+    return factor * reagentPrice
 end
 
 ---@param recipe CraftingRecipeSchematic
@@ -248,11 +267,9 @@ end
 ---@param optionalReagents? CraftingReagentInfo[]
 function Self:GetMulticraftValue(recipe, operationInfo, resultPrice, optionalReagents)
     local factor = Recipes:GetMulticraftFactor(recipe, operationInfo, optionalReagents)
-    if factor == 0 then return 0 end
-
+    local traderCut = (1 - C.AUCTION_HOUSE_CUT)
     local itemPrice = resultPrice * 2 / (recipe.quantityMax + recipe.quantityMin)
-
-    return (1 - C.AUCTION_HOUSE_CUT) * itemPrice * factor
+    return factor * traderCut * itemPrice
 end
 
 ---------------------------------------
@@ -260,13 +277,75 @@ end
 ---------------------------------------
 
 ---@param reagent? Reagent
-function Self:GetReagentPrice(reagent)
-    if not self:IsSourceAvailable() or not reagent then return 0 end
+---@param useByproductProfit? boolean
+---@return number price
+---@return boolean crafted
+function Self:GetReagentPrice(reagent, useByproductProfit)
+    if not self:IsSourceAvailable() or not reagent then return 0, false end
 
     local itemID = Reagents:GetItemID(reagent)
-    if not itemID then return 0 end
+    if not itemID then return 0, false end
 
-    return self:GetItemPrice(itemID)
+    local marketPrice = self:GetItemPrice(itemID)
+
+    local reagentCrafting = Addon.DB.Account.reagentCrafting
+    if reagentCrafting.enabled then
+        local craftingPrice = self:GetReagentCraftingPrice(itemID, useByproductProfit)
+        if craftingPrice and craftingPrice * (1 + reagentCrafting.threshold / 100) < marketPrice then
+            return craftingPrice, true
+        end
+    end
+
+    return marketPrice, false
+end
+
+---@param reagent? Reagent
+---@param useByproductProfit? boolean
+function Self:GetReagentCraftingPrice(reagent, useByproductProfit)
+    if not reagent then return end
+
+    local itemID = Reagents:GetItemID(reagent)
+    if not itemID then return end
+
+    local recipeID = Recipes:GetItemRecipe(reagent)
+    local recipe = recipeID and C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
+    if not recipe then return end
+
+    local cache = self.Cache.ReagentCraftingPrice
+    local key, ctx = cache:Key(itemID, recipe)
+
+    ---@type number|[number, number, number]?
+    local value
+
+    if cache:Valid(key, ctx) then
+        value = cache:Get(key)
+    else
+        if #self.reagentCraftingStack >= Addon.DB.Account.reagentCrafting.maxDepth then return end
+        if Util:TblIncludes(self.reagentCraftingStack, itemID) then return end
+
+        table.insert(self.reagentCraftingStack, itemID)
+
+        local quality = C_TradeSkillUI.GetItemCraftedQualityByItemInfo(itemID)
+
+        if quality and recipe.hasCraftingOperationInfo then
+            local operations = Optimization:GetRecipeAllocations(recipe, Optimization.Method.Cost)
+            local operation = operations and operations[max(quality, Util:TblMinKey(operations))]
+            value = operation and { operation:GetCost() }
+        else
+            value = self:GetRecipeAllocationPrice(recipe, nil, nil, nil, true)
+        end
+
+        cache:Set(key, value, ctx)
+
+        table.remove(self.reagentCraftingStack)
+    end
+
+    if type(value) == "table" then
+        local cost, resourcefulness, multicraft = unpack(value)
+        value = useByproductProfit and cost or cost + resourcefulness + multicraft
+    end
+
+    return value
 end
 
 ---@param reagent? Reagent
@@ -277,10 +356,20 @@ end
 ---@generic T
 ---@param reagent CraftingReagentSlotSchematic
 ---@param default? T
----@return number, number|T, number|T
-function Self:GetReagentPrices(reagent, default)
+---@param useByproductProfit? boolean
+---@return number price1
+---@return number|T price2
+---@return number|T price3
+---@return boolean crafted1
+---@return boolean crafted2
+---@return boolean crafted3
+function Self:GetReagentPrices(reagent, default, useByproductProfit)
     local r1, r2, r3 = unpack(reagent.reagents)
-    return self:GetReagentPrice(r1), r2 and self:GetReagentPrice(r2) or default, r3 and self:GetReagentPrice(r3) or default
+    local p1, c1 = self:GetReagentPrice(r1, useByproductProfit)
+    local p2, c2, p3, c3 = nil, false, nil, false
+    if r2 then p2, c2 = self:GetReagentPrice(r2, useByproductProfit) end
+    if r3 then p3, c3 = self:GetReagentPrice(r3, useByproductProfit) end
+    return p1, p2 or default, p3 or default, c1, c2, c3
 end
 
 ---@param reagents CraftingReagentInfo[]
@@ -400,3 +489,18 @@ function Self.SOURCES.Auctioneer:GetItemScanTime(item)
     end
     return val * 3600
 end
+
+---------------------------------------
+--              Caches
+---------------------------------------
+
+Self.Cache = {
+    ---@type Cache<number|[number, number, number]?, fun(self: Cache, itemID: number, recipe?: CraftingRecipeSchematic): number, string>
+    ReagentCraftingPrice = Cache:Create(
+        ---@param itemID number
+        ---@param recipe CraftingRecipeSchematic
+        function (_, itemID, recipe)
+            return itemID, Operation:GetKey(recipe, nil, nil, false, false, "", "", Util.FnFalse)
+        end
+    )
+}

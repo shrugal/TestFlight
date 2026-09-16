@@ -16,10 +16,8 @@ Static.Mixin = {}
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
 ---@param auras? string
----@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransationAllocations): boolean?
+---@param reagentsFilter? fun(slot: CraftingReagentSlotSchematic, allocs?: ProfessionTransactionAllocations): boolean?
 function Static:GetKey(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras, reagentsFilter)
-    if not auras then auras = Buffs:GetCurrentAuras(recipe) end
-
     local order = type(orderOrRecraftGUID) == "table" and orderOrRecraftGUID or nil
     local recraftGUID = type(orderOrRecraftGUID) == "string" and orderOrRecraftGUID or nil
     local profInfo = C_TradeSkillUI.GetProfessionInfoByRecipeID(recipe.recipeID)
@@ -81,13 +79,14 @@ local Self = Static.Mixin
 
 ---@param recipe CraftingRecipeSchematic
 ---@param allocation? RecipeAllocation
+---@param crafted? true[]
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
 ---@param auras? string
-function Static:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
-    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras) --[[@as Operation]]
+function Static:Create(recipe, allocation, crafted, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
+    return CreateAndInitFromMixin(Static.Mixin, recipe, allocation, crafted, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras) --[[@as Operation]]
 end
 
 ---@param tx ProfessionTransaction
@@ -101,20 +100,22 @@ function Static:FromTransaction(tx, order, extraSkill, toolGUID, auras)
     local orderOrRecraftGUID = order or tx:GetRecraftAllocation()
     local applyConcentration = tx:IsApplyingConcentration()
 
-    return self:Create(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
+    return self:Create(recipe, allocation, nil, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
 end
 
 ---@param allocation? RecipeAllocation
-function Self:WithAllocation(allocation)
-    return Static:Create(self.recipe, allocation, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID, self.auras)
+---@param crafted? true[]
+function Self:WithAllocation(allocation, crafted)
+    return Static:Create(self.recipe, allocation, crafted, self.orderOrRecraftGUID, self.applyConcentration, self.extraSkill, self.toolGUID, self.auras)
 end
 
 ---@param reagentTypes number
 ---@param reagents? CraftingReagentInfo[]
+---@param crafted? boolean[]
 ---@param finishingSlotIndex? number
-function Self:WithReagents(reagentTypes, reagents, finishingSlotIndex)
+function Self:WithReagents(reagentTypes, reagents, crafted, finishingSlotIndex)
     local order = self:GetOrder()
-    local allocation = {}
+    local allocation, mergedCrafted = {}, self.crafted
 
     for slotIndex,slot in ipairs(self.recipe.reagentSlotSchematics) do
         local allocate = Util:NumMaskSome(reagentTypes, slot.reagentType)
@@ -136,25 +137,36 @@ function Self:WithReagents(reagentTypes, reagents, finishingSlotIndex)
         end
     end
 
-    return self:WithAllocation(allocation)
+    if crafted then
+        for itemID,v in pairs(crafted) do repeat
+            if mergedCrafted[itemID] == (v or nil) then break end
+            if mergedCrafted == self.crafted then mergedCrafted = Util:TblCopy(self.crafted) end
+            mergedCrafted[itemID] = v or nil
+        until true end
+    end
+
+    return self:WithAllocation(allocation, mergedCrafted)
 end
 
 ---@param reagents? CraftingReagentInfo[]
-function Self:WithQualityReagents(reagents)
-    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Basic), reagents)
+---@param crafted? boolean[]
+function Self:WithQualityReagents(reagents, crafted)
+    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Basic), reagents, crafted)
 end
 
 ---@param reagents? CraftingReagentInfo[]
+---@param crafted? boolean[]
 ---@param slotIndex? number
-function Self:WithFinishingReagents(reagents, slotIndex)
-    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Finishing), reagents, slotIndex)
+function Self:WithFinishingReagents(reagents, crafted, slotIndex)
+    return self:WithReagents(Util:NumMask(Enum.CraftingReagentType.Finishing), reagents, crafted, slotIndex)
 end
 
 ---@param reagents? CraftingReagentInfo[]
-function Self:WithWeightReagents(reagents)
+---@param crafted? boolean[]
+function Self:WithWeightReagents(reagents, crafted)
     local reagentTypes = Util:NumMask(Enum.CraftingReagentType.Basic, Enum.CraftingReagentType.Finishing)
     local slot = self:GetBonusSkillReagentSlot()
-    return self:WithReagents(reagentTypes, reagents, slot and slot.slotIndex or 0)
+    return self:WithReagents(reagentTypes, reagents, crafted, slot and slot.slotIndex or 0)
 end
 
 ---@param applyConcentration? boolean
@@ -175,14 +187,14 @@ function Self:WithExtraSkill(extraSkill)
     extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
     if extraSkill == self.extraSkill then return self end
 
-    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.orderOrRecraftGUID, self.applyConcentration, extraSkill, self.toolGUID, self.auras)
+    return Static:Create(self.recipe, Util:TblCopy(self.allocation, true), self.crafted, self.orderOrRecraftGUID, self.applyConcentration, extraSkill, self.toolGUID, self.auras)
 end
 
 ---@param quality number
 ---@param lowerWeight number
 ---@param upperWeight number
 ---@param getWeight? number | fun(operation: Operation, lowerWeight: number, upperWeight: number): number
----@param getReagents? fun(operation: Operation, weight: number, isLowerBound: boolean): CraftingReagentInfo[]
+---@param getReagents? fun(operation: Operation, weight: number, isLowerBound: boolean): CraftingReagentInfo[], boolean[]?
 function Self:WithQuality(quality, lowerWeight, upperWeight, getWeight, getReagents)
     assert(not Util:NumIsNaN(lowerWeight) and not Util:NumIsNaN(upperWeight), "Lower or upper weight is NaN")
 
@@ -191,9 +203,16 @@ function Self:WithQuality(quality, lowerWeight, upperWeight, getWeight, getReage
     while lowerWeight <= upperWeight do
         local weight = max(lowerWeight, min(upperWeight, Util:GetVal(getWeight, self, l or lowerWeight, u or upperWeight) or lowerWeight))
         local isLowerBound = weight - lowerWeight >= upperWeight - weight
-        local reagents = Util:GetVal(getReagents, self, weight, isLowerBound) or Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
 
-        local operation = self:WithWeightReagents(reagents)
+        ---@type CraftingReagentInfo[]?, boolean[]?
+        local reagents, crafted
+        if getReagents then
+            reagents, crafted = getReagents(self, weight, isLowerBound)
+        else
+            reagents = Reagents:GetCraftingInfoForWeight(self.recipe, weight, isLowerBound)
+        end
+
+        local operation = self:WithWeightReagents(reagents, crafted)
         local newQuality = operation:GetQuality()
 
         if newQuality < quality then
@@ -266,14 +285,16 @@ end
 
 ---@param recipe CraftingRecipeSchematic
 ---@param allocation? RecipeAllocation
+---@param crafted? true[]
 ---@param orderOrRecraftGUID? CraftingOrderInfo | string
 ---@param applyConcentration? boolean
 ---@param extraSkill? boolean | number
 ---@param toolGUID? string
 ---@param auras? string
-function Self:Init(recipe, allocation, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
+function Self:Init(recipe, allocation, crafted, orderOrRecraftGUID, applyConcentration, extraSkill, toolGUID, auras)
     self.recipe = recipe
     self.allocation = allocation or {}
+    self.crafted = crafted or {}
     self.orderOrRecraftGUID = orderOrRecraftGUID
     self.applyConcentration = applyConcentration
     self.extraSkill = tonumber(extraSkill) or extraSkill and Addon.extraSkill or 0
@@ -715,11 +736,24 @@ function Self:GetResultPrice()
     return self.resultPrice
 end
 
+---@return number cost
+---@return number resourcefulness
+---@return number multicraft
+function Self:GetCost()
+    if not self.cost then
+        local reagentPrice = self:GetReagentPrice() ---@cast reagentPrice -?
+        local resultPrice = self:GetResultPrice()
+        self.cost, self.resourcefulness, self.multicraft = Prices:GetRecipeCost(self.recipe, self:GetOperationInfo(), reagentPrice, resultPrice, self:GetOrder(), self:GetOptionalReagents())
+    end
+    return self.cost, self.resourcefulness, self.multicraft
+end
+
 ---@return number profit
 ---@return number revenue
 ---@return number resourcefulness
 ---@return number multicraft
 ---@return number rewards
+---@return number cost
 ---@return number traderCut
 function Self:GetProfit()
     if not self.profit then
@@ -729,9 +763,9 @@ function Self:GetProfit()
         local order = self:GetOrder()
         local optionalReagents = self:GetOptionalReagents()
 
-        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut = Prices:GetRecipeProfit(self.recipe, operationInfo, self.allocation, reagentPrice, resultPrice, order, optionalReagents)
+        self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.cost, self.traderCut = Prices:GetRecipeProfit(self.recipe, operationInfo, reagentPrice, resultPrice, order, optionalReagents)
     end
-    return self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.traderCut
+    return self.profit, self.revenue, self.resourcefulness, self.multicraft, self.rewards, self.cost, self.traderCut
 end
 
 function Self:GetProfitPerConcentration()
