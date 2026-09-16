@@ -328,9 +328,6 @@ local function ParseArgs(input)
     return args
 end
 
----@param link string
-local function GetItemId(link) return link and tonumber(link:match("|Hitem:(%d+)")) end
-
 ---@param input string
 function SlashCmdList.TESTFLIGHT(input)
     local args = ParseArgs(input)
@@ -343,8 +340,8 @@ function SlashCmdList.TESTFLIGHT(input)
         Settings.OpenToCategory(Options.category:GetID())
     elseif cmd == "recraft" then
         -- Get item ID
-        local id = GetItemId(args[2])
-        if not id then
+        local itemID = C_Item.GetItemIDForItemInfo(args[2])
+        if not itemID then
             Self:Error("Recraft: First parameter must be an item link.")
             return
         end
@@ -358,7 +355,7 @@ function SlashCmdList.TESTFLIGHT(input)
 
         for _, recipeId in pairs(C_TradeSkillUI.GetAllRecipeIDs()) do
             local link = C_TradeSkillUI.GetRecipeItemLink(recipeId) --[[@as string ]]
-            if id == GetItemId(link) then
+            if itemID == C_Item.GetItemIDForItemInfo(link) then
                 Self:Enable()
                 GUI.RecipeForm.CraftingForm:SetRecraftRecipe(recipeId, args[2], true)
                 return

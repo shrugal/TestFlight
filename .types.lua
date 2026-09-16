@@ -13,7 +13,7 @@
 
 ---@alias Enumerator<T, K> fun(tbl?: table<K, T>, index?: K): K, T
 
----@alias RecipeAllocation ProfessionTransationAllocations[]
+---@alias RecipeAllocation ProfessionTransactionAllocations[]
 
 ---@alias RecipeOrOrder CraftingRecipeSchematic | TradeSkillRecipeInfo | CraftingOrderInfo | number
 
@@ -561,7 +561,7 @@ ItemButtonMixin = nil
 ---@field TriggerEvent fun(self: self, event: string)
 
 ---@class ProfessionTransaction
----@field allocationTbls ProfessionTransationAllocations[]
+---@field allocationTbls ProfessionTransactionAllocations[]
 ---@field GetRecraftAllocation fun(self: self): string
 ---@field GetRecipeSchematic fun(self: self): CraftingRecipeSchematic
 ---@field CreateCraftingReagentInfoTblIf fun(self: self, predicate: function): CraftingReagentInfo[]
@@ -573,12 +573,12 @@ ItemButtonMixin = nil
 ---@field GetSalvageAllocation fun(self: self): ItemMixin?
 ---@field ClearAllocations fun(self: self, slotIndex: number)
 ---@field GetModification fun(self: self, dataSlotIndex: number): CraftingItemSlotModification
----@field OverwriteAllocations fun(self: self, slotIndex: number, allocations: { allocs: ProfessionTransationAllocations[] })
+---@field OverwriteAllocations fun(self: self, slotIndex: number, allocations: { allocs: ProfessionTransactionAllocations[] })
 ---@field OverwriteAllocation fun(self: self, slotIndex: number, reagent: CraftingReagent, quantity: number)
 ---@field HasAnyAllocations fun(self: self, slotIndex: number): boolean
 ---@field IsManuallyAllocated fun(self: self): boolean
 ---@field SetManuallyAllocated fun(self: self, manuallyAllocated: boolean)
----@field GetAllocations fun(self: self, slotIndex: number): ProfessionTransationAllocations
+---@field GetAllocations fun(self: self, slotIndex: number): ProfessionTransactionAllocations
 ---@field Enumerate fun(self: self): Enumerator<ProfessionTransationReagent, number>, ProfessionTransationReagent[], number
 ---@field EnumerateAllocations fun(self: self, slotIndex: number): Enumerator<ProfessionTransactionAllocation, number>, ProfessionTransactionAllocation[], number
 ---@field IsApplyingConcentration fun(self: self): boolean
@@ -587,9 +587,9 @@ ItemButtonMixin = nil
 ---@field GetEnchantAllocation fun(self: self): ItemMixin?
 ---@field SetEnchantAllocation fun(self: self, item: ItemMixin)
 
----@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransationAllocations}
+---@alias ProfessionTransationReagent { reagentSlotSchematic: CraftingReagentSlotSchematic, allocations: ProfessionTransactionAllocations}
 
----@class ProfessionTransationAllocations
+---@class ProfessionTransactionAllocations
 ---@field allocs ProfessionTransactionAllocation[]
 ---@field Clear fun(self: self)
 ---@field GetFirstAllocation fun(self: self): ProfessionTransactionAllocation
@@ -599,7 +599,7 @@ ItemButtonMixin = nil
 ---@field Accumulate fun(self: self): number
 ---@field HasAnyAllocations fun(self: self): boolean
 ---@field Allocate fun(self: self, reagent: CraftingReagent, quality: number)
----@field Overwrite fun(self: self, allocations: ProfessionTransationAllocations[])
+---@field Overwrite fun(self: self, allocations: ProfessionTransactionAllocations[])
 ---@field OnChanged fun(self: self)
 ---@field Enumerate fun(self: self): Enumerator<ProfessionTransactionAllocation, number>, ProfessionTransactionAllocation[], number
 
@@ -2203,3 +2203,7 @@ DefaultTooltipMixin = nil
 
 ---@class SettingsPanel: Frame, SettingsPanelMixin
 SettingsPanel = nil
+
+---@class MinimalSliderWithSteppersMixin
+---@field Label { Left: 1, Right: 2, Top: 3, Min: 4, Max: 5 }
+MinimalSliderWithSteppersMixin = nil

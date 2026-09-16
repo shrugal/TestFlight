@@ -314,7 +314,7 @@ function Self:GetCraftingInfoForWeight(recipe, weight, isLowerBound)
         self:AddCraftingInfos(reagents, reagent, q1, q2, q3)
     end
 
-    return reagents, weight - rest
+    return reagents
 end
 
 ---@param reagents CraftingReagentInfo[]
@@ -348,7 +348,7 @@ end
 --            Allocation
 ---------------------------------------
 
----@param allocations ProfessionTransationAllocations
+---@param allocations ProfessionTransactionAllocations
 ---@param reagent CraftingReagent | CraftingReagentInfo | CraftingItemSlotModification | number
 ---@param quantity? number
 function Self:Allocate(allocations, reagent, quantity)
@@ -362,7 +362,7 @@ function Self:Allocate(allocations, reagent, quantity)
     Allocations:WithoutOnChanged(allocations, "Allocate", reagent, quantity or 0)
 end
 
----@param allocations ProfessionTransationAllocations
+---@param allocations ProfessionTransactionAllocations
 function Self:ClearAllocations(allocations)
     Allocations:WithoutOnChanged(allocations, "Clear")
 end

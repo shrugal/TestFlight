@@ -141,7 +141,7 @@ end
 -- Set allocation
 
 ---@param slot ReagentSlot
----@param allocations ProfessionTransationAllocations
+---@param allocations ProfessionTransactionAllocations
 ---@param silent? boolean
 function Self:AllocateReagent(slot, allocations, owned, silent)
     if owned == nil then owned = not Addon.DB.Account.autoEnable end

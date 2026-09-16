@@ -94,6 +94,18 @@ function Self:Serialize(val)
     return "{ " .. table.concat(t, ", ") .. " }"
 end
 
+---@param del string
+function Self:GetKey(del, ...)
+    local k = ""
+    for i=1,select("#", ...) do
+        local v = select(i, ...)
+        local t = type(v)
+        assert(t ~= "table" and t ~= "function" and t ~= "thread" and t ~= "userdata", "Cannot use " .. t .. " as key")
+        k = k .. del .. (t ~= "boolean" and v or v and 1 or 0)
+    end
+    return string.sub(k, 2)
+end
+
 function Self:GetVal(val, ...)
     if type(val) ~= "function" then return val end
     return val(...)
@@ -878,6 +890,22 @@ end
 
 function Self:BoolXor(a, b) return not a ~= not b end
 
+function Self:BoolMask(...)
+    local n = 0
+    for i=1,select("#", ...) do if select(i, ...) then n = n + 2 ^ (i - 1) end end
+    return n
+end
+
+---@param mask number
+function Self:BoolMaskSome(mask, ...)
+    return bit.band(mask, self:BoolMask(...)) > 0
+end
+
+---@param mask number
+function Self:BoolMaskEvery(mask, ...)
+    return bit.band(mask, self:BoolMask(...)) == mask
+end
+
 -- Fn
 
 function Self.FnInfinite() return math.huge end
@@ -887,7 +915,7 @@ function Self.FnFalse() return false end
 function Self.FnTrue() return true end
 
 function Self.FnId(...) return ... end
-function Self.FnId2(...) return select(2, ...) end
+function Self.FnId2(_, ...) return ... end
 
 function Self.FnNoop() end
 

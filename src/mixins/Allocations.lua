@@ -3,10 +3,10 @@ local Addon = select(2, ...)
 local Util = Addon.Util
 
 ---@class Allocations.Static
----@field Mixin ProfessionTransationAllocations
+---@field Mixin ProfessionTransactionAllocations
 local Self = Addon.Allocations
 
----@return ProfessionTransationAllocations
+---@return ProfessionTransactionAllocations
 function Self:Create()
     if not Self.Mixin then
         local recipe = C_TradeSkillUI.GetRecipeSchematic(898, false)
@@ -20,7 +20,7 @@ function Self:Create()
     return allocs
 end
 
----@param allocs ProfessionTransationAllocations
+---@param allocs ProfessionTransactionAllocations
 ---@param fn function | string
 ---@param ... any[]
 function Self:WithoutOnChanged(allocs, fn, ...)

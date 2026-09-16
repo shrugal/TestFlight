@@ -97,7 +97,6 @@ function Self:RegisterGeneralSettings()
     -- TSM price string
     if Prices.SOURCES.TradeSkillMaster:IsAvailable() then
         self:CreateEditBox(
-            self.category,
             Settings.RegisterProxySetting(
                 self.category,
                 "tsmPriceString",
@@ -146,15 +145,34 @@ function Self:CreateCheckbox(name, defaultValue, label, tooltip, callback, categ
     return Settings.CreateCheckbox(category, setting, tooltip)
 end
 
----@param category SettingsCategory
 ---@param setting Setting
 ---@param tooltip? string
-function Self:CreateEditBox(category, setting, tooltip)
+---@param category? SettingsCategory
+function Self:CreateEditBox(setting, tooltip, category)
+    if not category then category = self.category end
+
     assert(setting:GetVariableType() == Settings.VarType.String)
 
     local initializer = Settings.CreateControlInitializer("TestFlightSettingsEditBoxControlTemplate", setting, nil, tooltip)
 	SettingsPanel:GetLayout(category):AddInitializer(initializer)
     return initializer
+end
+
+---@param setting Setting
+---@param minValue number
+---@param maxValue number
+---@param step number
+---@param tooltip? string
+---@param labelFormatter? true | fun(value: number): string
+---@param callback? fun(setting: Setting)
+function Self:CreateSlider(setting, minValue, maxValue, step, tooltip, labelFormatter, callback)
+    if labelFormatter == true then labelFormatter = tostring end
+    if callback then setting:SetValueChangedCallback(callback) end
+
+    local options = Settings.CreateSliderOptions(minValue, maxValue, step)
+    if labelFormatter then options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, labelFormatter) end
+
+    return Settings.CreateSlider(self.category, setting, options, tooltip)
 end
 
 ---@param label string

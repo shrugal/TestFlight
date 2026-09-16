@@ -75,7 +75,7 @@ function Self:GetTrackedAllocation(recipeOrOrder, isRecraft)
 end
 
 function Self:GetTrackedReagentAmounts()
-    ---@type number[]
+    ---@type number[], number[]
     local reagents, provided = {}, {}
 
     for order in self:Enumerate() do repeat

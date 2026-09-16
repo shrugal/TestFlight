@@ -38,7 +38,7 @@ function Self:GetRecipeAllocation(recipe, method, includeNonTradable)
     if not operations then return end
 
     local d = method == Self.Method.Cost and -1 or 1
-    local bestOperation, bestValue, lastQuality, lastPrice
+    local bestOperation, bestValue
 
     for i=5, 1, -1 do repeat
         local operation = operations[i]
