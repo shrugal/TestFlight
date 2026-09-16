@@ -10,4 +10,6 @@ ignore:
   - _config.yml
   - Test.lua
   - TODO.md
+  - AGENTS.md
+  - CLAUDE.md
   
