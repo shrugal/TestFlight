@@ -1,2 +1,3 @@
+- Update ToC version for patch 12.1.0
 - Fix experimentation mode for sparks if you have some in your bags
 - Fix crafting window position when opening the auction house with TradeSkillMaster enabled
