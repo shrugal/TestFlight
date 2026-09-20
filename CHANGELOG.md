@@ -1,3 +1,7 @@
+Version 5.16
+
+- Fix error when calculating order profits for some recipes
+
 Version 5.15
 
 - Update current buffs when addon restrictions start or end
