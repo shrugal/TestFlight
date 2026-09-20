@@ -573,7 +573,7 @@ function Self:GetFilterRecipeOperations(filter, recipe, method)
 
     for quality,op in pairs(operations) do repeat
         if op then break end
-        operations[quality] = optimized and optimized[max(quality, minQuality)]
+        operations[quality] = optimized and minQuality and optimized[max(quality, minQuality)]
     until true end
 
     return operations

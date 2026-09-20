@@ -528,6 +528,8 @@ function Self:LoadAllocations()
             if not allocations then break end
 
             local minQuality = Util:TblMinKey(allocations)
+            if not minQuality then break end
+
             local qualities = self:GetTrackedAmounts(recipe) ---@cast qualities -?
 
             for quality,_ in pairs(qualities) do repeat

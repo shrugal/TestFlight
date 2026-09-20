@@ -99,23 +99,25 @@ end
 function Self:GetOrderAllocation(order, tx, extraSkill)
     local recipe = C_TradeSkillUI.GetRecipeSchematic(order.spellID, order.isRecraft)
     local applyConcentration = tx and tx:IsApplyingConcentration()
-    local quality = order.minQuality
+    local quality = order.minQuality or 1
 
     -- Try without concentration
     if not applyConcentration then
         local operations = self:GetTransactionAllocations(recipe, self.Method.Profit, tx, order, extraSkill)
-        if not operations then return end
+        local minQuality = operations and Util:TblMinKey(operations)
+        if not minQuality then return end
 
-        local operation = operations[math.max(quality, Util:TblMinKey(operations))]
+        local operation = operations[math.max(quality, minQuality)]
         do return operation end ---@todo
         if operation or not operations[quality - 1] then return operation end
     end
 
     -- Try with concentration
     local operations = self:GetTransactionAllocations(recipe, self.Method.ProfitPerConcentration, tx, order, extraSkill)
-    if not operations then return end
+    local minQuality = operations and Util:TblMinKey(operations)
+    if not minQuality then return end
 
-    return operations[math.max(quality - 1, Util:TblMinKey(operations))]
+    return operations[math.max(quality - 1, minQuality)]
 end
 
 -- Get optimized allocations for given optimization method
