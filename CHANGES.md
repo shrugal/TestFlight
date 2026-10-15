@@ -1,4 +1,0 @@
-- Update ToC version for patch 12.1.5
-- Fix error on login when the game hides some of your buffs from addons
-- Fix execution time limit warnings in raids and other busy areas
-- Fix current buffs sometimes being out of date after the game refreshes all of your auras
