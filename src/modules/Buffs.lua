@@ -314,6 +314,7 @@ function Self:ScanAuras()
 
     if not C_Secrets.ShouldAurasBeSecret() then
         AuraUtil.ForEachAura("player", "HELPFUL", nil, function (data) ---@cast data AuraData
+            if not canaccessvalue(data) or not canaccessvalue(data.spellId) then return end
             if C.AURAS[data.spellId] then charges[data.auraInstanceID] = data.charges or 1 end
         end, true)
     end
@@ -921,10 +922,10 @@ function Self:OnUnitAura(unit, info)
     local changed
 
     if info.addedAuras then
-        for _,data in pairs(info.addedAuras) do
+        for _,data in pairs(info.addedAuras) do repeat
             if not canaccessvalue(data) or not canaccessvalue(data.spellId) then break end
             if C.AURAS[data.spellId] then self.auraCharges[data.auraInstanceID], changed = data.charges or 1, true end
-        end
+        until true end
     end
 
     if info.removedAuraInstanceIDs then
