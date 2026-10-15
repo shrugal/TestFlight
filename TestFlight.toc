@@ -1,4 +1,4 @@
-## Interface: 120100
+## Interface: 120105
 ## Title: TestFlight
 ## Notes: Experiment with crafting recipes without reagent and spec limits.
 ## Notes-deDE: Experimentiere mit Berufsrezepten ohne Reagenz- oder Spezialisierungslimits.
