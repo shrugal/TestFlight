@@ -921,6 +921,10 @@ function Self:OnUnitAura(unit, info)
 
     local changed
 
+    if info.isFullUpdate then
+        changed = self:ScanAuras()
+    end
+
     if info.addedAuras then
         for _,data in pairs(info.addedAuras) do repeat
             if not canaccessvalue(data) or not canaccessvalue(data.spellId) then break end
