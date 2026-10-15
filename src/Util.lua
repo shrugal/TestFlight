@@ -119,6 +119,19 @@ function Self:IsAddonLoadingOrLoaded(targetAddonName, addonName)
     return addonName == targetAddonName or addonName == Name and C_AddOns.IsAddOnLoaded(targetAddonName)
 end
 
+-- Register a unit event on its own frame, so the callback only runs for the given unit
+---@param event string
+---@param unit UnitToken
+---@param fn function
+---@param owner table
+---@return Frame
+function Self:RegisterUnitEventAndCallback(event, unit, fn, owner)
+    local frame = CreateFrame("Frame")
+    frame:RegisterUnitEvent(event, unit)
+    frame:SetScript("OnEvent", function (_, _, ...) fn(owner, ...) end)
+    return frame
+end
+
 ---@param name CVar
 function Self:GetCVarNum(name)
     return tonumber(GetCVar(name))

@@ -123,6 +123,6 @@ function Self:OnAddonLoaded()
 
     EventRegistry:RegisterFrameEventAndCallback("TRADE_SKILL_CRAFT_BEGIN", self.OnTradeSkillCraftBegin, self)
     EventRegistry:RegisterFrameEventAndCallback("UPDATE_TRADESKILL_CAST_STOPPED", self.OnUpdateTradeskillCastStopped, self)
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", self.OnSpellcastInterrupted, self)
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", self.OnSpellcastSucceeded, self)
+    Util:RegisterUnitEventAndCallback("UNIT_SPELLCAST_INTERRUPTED", "player", self.OnSpellcastInterrupted, self)
+    Util:RegisterUnitEventAndCallback("UNIT_SPELLCAST_SUCCEEDED", "player", self.OnSpellcastSucceeded, self)
 end

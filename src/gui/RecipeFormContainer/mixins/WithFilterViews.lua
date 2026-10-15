@@ -882,7 +882,7 @@ function Self:OnAddonLoaded()
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_NOTIFICATION", OnOwnedItemsUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("AUCTION_HOUSE_SHOW_FORMATTED_NOTIFICATION", OnOwnedItemsUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("UPDATE_PENDING_MAIL", OnOwnedItemsUpdated, self)
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_INVENTORY_CHANGED", OnOwnedItemsUpdated, self)
+    Util:RegisterUnitEventAndCallback("UNIT_INVENTORY_CHANGED", "player", OnOwnedItemsUpdated, self)
 end
 
 ---------------------------------------

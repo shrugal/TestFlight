@@ -975,7 +975,7 @@ end
 function Self:OnLoaded()
     self:ScanAuras()
 
-    EventRegistry:RegisterFrameEventAndCallback("UNIT_AURA", self.OnUnitAura, self)
+    Util:RegisterUnitEventAndCallback("UNIT_AURA", "player", self.OnUnitAura, self)
     EventRegistry:RegisterFrameEventAndCallback("ADDON_RESTRICTION_STATE_CHANGED", self.OnAddOnRestrictionStateChanged, self)
     EventRegistry:RegisterFrameEventAndCallback("TRAIT_CONFIG_UPDATED", self.OnTradeConfigUpdated, self)
     EventRegistry:RegisterFrameEventAndCallback("PROFESSION_EQUIPMENT_CHANGED", self.OnProfessionEquipmentChanged, self)
